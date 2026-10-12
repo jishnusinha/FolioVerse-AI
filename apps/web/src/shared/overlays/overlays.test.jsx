@@ -56,7 +56,7 @@ describe('FolioLens', () => {
     fireEvent.keyDown(items[0], { key: 'ArrowDown' });
     expect(items[1]).toHaveFocus();
     fireEvent.click(items[1]);
-    expect(onAction).toHaveBeenCalledWith('alts');
+    expect(onAction).toHaveBeenCalledWith('tighten');
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onClose).toHaveBeenCalled();
   });

@@ -18,6 +18,8 @@ export class ProblemFilter implements ExceptionFilter {
     let detail: string | undefined;
     let errors: unknown;
     let code: string | undefined;
+    /** Conflicts may carry the server's current state so the client can merge (e.g. REVISION_CONFLICT). */
+    let current: unknown;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -34,6 +36,7 @@ export class ProblemFilter implements ExceptionFilter {
           detail = b.message;
         }
         code = b.code;
+        current = b.current;
       }
     } else if (exception instanceof Prisma.PrismaClientKnownRequestError) {
       if (exception.code === 'P2025') {
@@ -53,6 +56,6 @@ export class ProblemFilter implements ExceptionFilter {
     res
       .status(status)
       .type('application/problem+json')
-      .json({ type: 'about:blank', title, status, detail, code, errors, instance: req.originalUrl });
+      .json({ type: 'about:blank', title, status, detail, code, errors, current, instance: req.originalUrl });
   }
 }

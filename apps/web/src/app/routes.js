@@ -67,6 +67,13 @@ export const APP_ROUTES = [
     section: 'writer',
     gate: 5,
   },
+  {
+    id: 'manuscript-print',
+    path: '/app/writer/manuscripts/:manuscriptId/print',
+    title: 'Print manuscript',
+    section: 'writer',
+    gate: 5,
+  },
   { id: 'library', path: '/app/library', title: 'Library', section: 'library', gate: 6 },
   { id: 'reader', path: '/app/library/books/:itemId/read', title: 'Reader', section: 'library', gate: 6 },
   { id: 'discover', path: '/app/discover', title: 'Discover', section: 'discover', gate: 7 },

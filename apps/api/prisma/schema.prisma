@@ -801,14 +801,14 @@ model BudgetPeriod {
 }
 
 model BudgetReservation {
-  id         String            @id @db.Uuid
-  workspaceId String           @map("workspace_id") @db.Uuid
-  periodId   String            @map("period_id") @db.Uuid
-  runId      String            @map("run_id") @db.Uuid
-  amount     Decimal           @db.Decimal(18, 8)
-  status     ReservationStatus @default(OPEN)
-  createdAt  DateTime          @default(now()) @map("created_at")
-  releasedAt DateTime?         @map("released_at")
+  id          String            @id @db.Uuid
+  workspaceId String            @map("workspace_id") @db.Uuid
+  periodId    String            @map("period_id") @db.Uuid
+  runId       String            @map("run_id") @db.Uuid
+  amount      Decimal           @db.Decimal(18, 8)
+  status      ReservationStatus @default(OPEN)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  releasedAt  DateTime?         @map("released_at")
 
   @@index([runId])
   @@map("budget_reservations")
@@ -924,5 +924,300 @@ model Note {
 
   @@index([workspaceId, sourceId])
   @@map("notes")
+  @@schema("app")
+}
+
+// ───────────────────────────── writer ─────────────────────────────
+
+enum ManuscriptNodeKind {
+  PART
+  CHAPTER
+  SCENE
+
+  @@schema("app")
+}
+
+enum RevisionOrigin {
+  AUTHOR
+  POST_AI
+  RESTORE
+  UNDO
+
+  @@schema("app")
+}
+
+enum SuggestionState {
+  PENDING
+  ACCEPTED
+  REJECTED
+  STALE
+  SUPERSEDED
+
+  @@schema("app")
+}
+
+enum DnaStatus {
+  CANON
+  PROPOSED
+  RETIRED
+
+  @@schema("app")
+}
+
+enum DnaOrigin {
+  AUTHOR
+  AI_EXTRACTED
+
+  @@schema("app")
+}
+
+enum IssueState {
+  OPEN
+  RESOLVED
+  DISMISSED
+
+  @@schema("app")
+}
+
+/// A book-length work inside a WRITER project. Its outline is `manuscript_nodes`; scene text lives in `rich_docs`.
+model Manuscript {
+  id            String    @id @db.Uuid
+  workspaceId   String    @map("workspace_id") @db.Uuid
+  projectId     String    @map("project_id") @db.Uuid
+  title         String
+  dailyGoal     Int       @default(1000) @map("daily_goal")
+  /// Word count of the whole manuscript at the start of `dayStart` (UTC), for "words today".
+  dayStart      DateTime? @map("day_start") @db.Date
+  dayStartWords Int       @default(0) @map("day_start_words")
+  dnaVersion    Int       @default(0) @map("dna_version")
+  createdById   String    @map("created_by_id") @db.Uuid
+  archivedAt    DateTime? @map("archived_at")
+  deletedAt     DateTime? @map("deleted_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  nodes ManuscriptNode[]
+
+  @@index([workspaceId, projectId])
+  @@map("manuscripts")
+  @@schema("app")
+}
+
+/// Part, chapter or scene. Only scenes carry text (one `rich_docs` row each).
+model ManuscriptNode {
+  id           String             @id @db.Uuid
+  workspaceId  String             @map("workspace_id") @db.Uuid
+  manuscriptId String             @map("manuscript_id") @db.Uuid
+  parentId     String?            @map("parent_id") @db.Uuid
+  kind         ManuscriptNodeKind
+  title        String
+  position     Int
+  pov          String?
+  wordCount    Int                @default(0) @map("word_count")
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+
+  manuscript Manuscript @relation(fields: [manuscriptId], references: [id], onDelete: Cascade)
+  doc        RichDoc?
+
+  @@index([manuscriptId, parentId, position])
+  @@map("manuscript_nodes")
+  @@schema("app")
+}
+
+/// TipTap JSON of one scene. `revision` is the optimistic-concurrency counter; `text` is the plain text by block.
+model RichDoc {
+  id           String   @id @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  manuscriptId String   @map("manuscript_id") @db.Uuid
+  nodeId       String   @unique @map("node_id") @db.Uuid
+  content      Json
+  text         String   @default("")
+  revision     Int      @default(0)
+  wordCount    Int      @default(0) @map("word_count")
+  updatedById  String?  @map("updated_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  node      ManuscriptNode @relation(fields: [nodeId], references: [id], onDelete: Cascade)
+  revisions DocRevision[]
+
+  @@map("rich_docs")
+  @@schema("app")
+}
+
+/// Snapshot of a scene. Consecutive author saves within a few minutes update the latest AUTHOR snapshot.
+model DocRevision {
+  id          String         @id @db.Uuid
+  workspaceId String         @map("workspace_id") @db.Uuid
+  docId       String         @map("doc_id") @db.Uuid
+  revision    Int
+  origin      RevisionOrigin
+  content     Json
+  text        String
+  wordCount   Int            @map("word_count")
+  note        String?
+  createdById String?        @map("created_by_id") @db.Uuid
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  doc RichDoc @relation(fields: [docId], references: [id], onDelete: Cascade)
+
+  @@unique([docId, revision])
+  @@map("doc_revisions")
+  @@schema("app")
+}
+
+/// AI rewrite of one paragraph (block). Variants arrive when the `writer_revision` run finishes.
+model Suggestion {
+  id              String          @id @db.Uuid
+  workspaceId     String          @map("workspace_id") @db.Uuid
+  manuscriptId    String          @map("manuscript_id") @db.Uuid
+  docId           String          @map("doc_id") @db.Uuid
+  nodeId          String          @map("node_id") @db.Uuid
+  blockId         String          @map("block_id")
+  batchId         String?         @map("batch_id") @db.Uuid
+  runId           String?         @unique @map("run_id") @db.Uuid
+  mode            String
+  tone            String?
+  instruction     String
+  state           SuggestionState @default(PENDING)
+  baseRevision    Int             @map("base_revision")
+  baseText        String          @map("base_text")
+  variants        Json            @default("[]")
+  chosen          Int?
+  appliedRevision Int?            @map("applied_revision")
+  fallback        Boolean         @default(false)
+  isDemo          Boolean         @default(false) @map("is_demo")
+  createdById     String          @map("created_by_id") @db.Uuid
+  decidedAt       DateTime?       @map("decided_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  @@index([docId, state])
+  @@index([manuscriptId, createdAt])
+  @@map("suggestions")
+  @@schema("app")
+}
+
+/// Story canon. AI extraction only PROPOSES; the author approves (CANON) or rejects/retires (RETIRED).
+model DnaFact {
+  id           String    @id @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  manuscriptId String    @map("manuscript_id") @db.Uuid
+  subject      String
+  subjectKind  String    @default("CHARACTER") @map("subject_kind")
+  predicate    String?
+  value        String?
+  statement    String
+  status       DnaStatus
+  origin       DnaOrigin
+  confidence   Float?
+  /// Manuscript anchors: [{ nodeId, blockId, quote, state }]
+  evidence     Json      @default("[]")
+  runId        String?   @map("run_id") @db.Uuid
+  note         String?
+  isDemo       Boolean   @default(false) @map("is_demo")
+  createdById  String?   @map("created_by_id") @db.Uuid
+  decidedById  String?   @map("decided_by_id") @db.Uuid
+  decidedAt    DateTime? @map("decided_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([manuscriptId, status])
+  @@map("dna_facts")
+  @@schema("app")
+}
+
+/// Relationship between two canon subjects (StoryGraph edge).
+model DnaLink {
+  id           String    @id @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  manuscriptId String    @map("manuscript_id") @db.Uuid
+  source       String
+  target       String
+  kind         String
+  label        String?
+  weight       Int       @default(1)
+  status       DnaStatus
+  origin       DnaOrigin
+  evidence     Json      @default("[]")
+  runId        String?   @map("run_id") @db.Uuid
+  isDemo       Boolean   @default(false) @map("is_demo")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  @@index([manuscriptId])
+  @@map("dna_links")
+  @@schema("app")
+}
+
+/// A scene passage that conflicts with a canon fact. `anchors` pairs the scene quote with the canon evidence.
+model ContinuityIssue {
+  id           String     @id @db.Uuid
+  workspaceId  String     @map("workspace_id") @db.Uuid
+  manuscriptId String     @map("manuscript_id") @db.Uuid
+  nodeId       String     @map("node_id") @db.Uuid
+  blockId      String?    @map("block_id")
+  runId        String?    @map("run_id") @db.Uuid
+  factId       String?    @map("fact_id") @db.Uuid
+  entity       String
+  fact         String
+  expected     String
+  found        String
+  quote        String
+  severity     String
+  state        IssueState @default(OPEN)
+  anchors      Json       @default("[]")
+  /// Same scene, entity, fact and quote → same issue; a dismissed issue stays dismissed until its evidence changes.
+  fingerprint  String
+  isDemo       Boolean    @default(false) @map("is_demo")
+  decidedById  String?    @map("decided_by_id") @db.Uuid
+  decidedAt    DateTime?  @map("decided_at")
+  createdAt    DateTime   @default(now()) @map("created_at")
+  updatedAt    DateTime   @updatedAt @map("updated_at")
+
+  @@unique([manuscriptId, fingerprint])
+  @@index([manuscriptId, state])
+  @@map("continuity_issues")
+  @@schema("app")
+}
+
+/// A quoted passage saved from a Knowledge document (or, from Gate 6, a Library book) with its source anchor.
+model Excerpt {
+  id              String   @id @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  sourceId        String?  @map("source_id") @db.Uuid
+  sourceVersionId String?  @map("source_version_id") @db.Uuid
+  projectId       String?  @map("project_id") @db.Uuid
+  title           String
+  quote           String
+  anchor          Json?
+  createdById     String   @map("created_by_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([workspaceId, createdAt])
+  @@map("excerpts")
+  @@schema("app")
+}
+
+/// Research note attached to a manuscript, optionally quoting an excerpt (copied, so it survives excerpt deletion).
+model ResearchNote {
+  id           String   @id @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  manuscriptId String   @map("manuscript_id") @db.Uuid
+  nodeId       String?  @map("node_id") @db.Uuid
+  excerptId    String?  @map("excerpt_id") @db.Uuid
+  title        String
+  body         String   @default("")
+  quote        String?
+  /// { sourceId, sourceVersionId, projectId, title, anchor }
+  source       Json?
+  createdById  String   @map("created_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([manuscriptId])
+  @@map("research_notes")
   @@schema("app")
 }

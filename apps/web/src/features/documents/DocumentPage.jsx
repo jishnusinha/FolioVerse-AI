@@ -11,7 +11,7 @@ import { useVersionDiff } from '@/features/insights/queries.js';
 import { Icon } from '@/shared/icons.jsx';
 import { FolioLens, LENS_ACTIONS } from '@/shared/overlays/FolioLens.jsx';
 import { StageTrack, StatusBadge } from '@/shared/StatusBadge.jsx';
-import { Callout, Segmented, Skeleton } from '@/shared/ui/index.js';
+import { Callout, Segmented, Skeleton, toast } from '@/shared/ui/index.js';
 import { selectionAnchor } from './anchors.js';
 import { ChatPanel } from './ChatPanel.jsx';
 import { TextViewer } from './TextViewer.jsx';
@@ -92,7 +92,7 @@ function DocumentWorkspace() {
           ? 'Indexing failed. Retry it from the project page.'
           : 'Asking unlocks when indexing finishes.'
       : null;
-  const lensActions = LENS_ACTIONS.K.filter(([id]) => (ASK_ACTIONS.has(id) ? !blockedReason : id === 'note' ? editor : true));
+  const lensActions = LENS_ACTIONS.K.filter(([id]) => (ASK_ACTIONS.has(id) ? !blockedReason : id === 'note' || id === 'excerpt' ? editor : true));
 
   /** @param {{ page?: number, bbox?: number[], start?: number, end?: number, quote?: string }} h */
   function showInDocument(h) {
@@ -167,6 +167,12 @@ function DocumentWorkspace() {
       setNoteDraft({ quote, anchor: { sourceVersionId: version.id, selectors }, at: Date.now() });
       setTab('notes');
       setLens(null);
+    } else if (id === 'excerpt') {
+      const selectors = { page: anchor.page, textQuote: { exact: quote }, ...(anchor.start != null ? { textPosition: { start: anchor.start, end: anchor.end } } : {}) };
+      setLens(null);
+      api(`/workspaces/${wid}/excerpts`, { method: 'POST', body: { sourceId: s.id, sourceVersionId: version.id, quote: clip(quote, 4000), anchor: { sourceVersionId: version.id, selectors } } })
+        .then(() => toast('Saved as an excerpt. Add it to a manuscript from Folio Writer’s Research tab.', 'ok'))
+        .catch((err) => toast(err.message, 'bad'));
     } else if (id === 'compare') {
       setTab('insights');
       setCompareRequest(Date.now());

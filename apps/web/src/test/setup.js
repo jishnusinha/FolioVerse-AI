@@ -30,6 +30,20 @@ if (typeof window.matchMedia !== 'function') {
   });
 }
 
+// Node 24's Request rejects jsdom's AbortSignal, and React Router builds one per navigation.
+const NodeRequest = globalThis.Request;
+globalThis.Request = class Request extends NodeRequest {
+  #signal;
+  constructor(input, init = {}) {
+    const { signal, ...rest } = init ?? {};
+    super(input, rest);
+    this.#signal = signal;
+  }
+  get signal() {
+    return this.#signal ?? super.signal;
+  }
+};
+
 // jsdom lacks these; cmdk and Radix call them.
 if (!('ResizeObserver' in window)) {
   window.ResizeObserver = class {

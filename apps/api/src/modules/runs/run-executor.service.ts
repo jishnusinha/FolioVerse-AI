@@ -8,6 +8,7 @@ import { QUEUES, QueuesService } from '../../infra/queues.service';
 import { CANCEL_KEY, RedisService } from '../../infra/redis.service';
 import { AiClientService, AiServiceError } from '../ai-client/ai-client.service';
 import { ArtifactsService } from '../artifacts/artifacts.service';
+import { WRITER_GRAPHS, WriterService } from '../writer/writer.service';
 import { EventsService } from '../events/events.service';
 import { BudgetService } from '../ledger/budget.service';
 import { TERMINAL } from './runs.service';
@@ -41,6 +42,7 @@ export class RunExecutorService {
     private readonly queues: QueuesService,
     private readonly budgets: BudgetService,
     private readonly artifacts: ArtifactsService,
+    private readonly writer: WriterService,
   ) {}
 
   private async setStatus(runId: string, status: RunStatus, seq: number, extra: Record<string, unknown> = {}) {
@@ -265,6 +267,7 @@ export class RunExecutorService {
               return null;
             })
           : null;
+      if (WRITER_GRAPHS.has(run.graph) && (status === 'SUCCEEDED' || status === 'PARTIAL')) await this.writer.recordFromRun(run.id, finished.artifact ?? null);
       await emit('run.finished', { status, outcome, answer, artifact: finished.artifact ?? null, artifactId });
     } else if (failed) {
       const status: RunStatus = failed.errorClass === 'CANCELLED' ? 'CANCELLED' : 'FAILED';

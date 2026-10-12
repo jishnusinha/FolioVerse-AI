@@ -34,6 +34,10 @@ const EXPECTED_H1 = {
   artifact: 'Artifact not found',
   'studio-run': 'AI Developer Studio',
   costs: 'Your AI usage',
+  manuscript: 'Manuscript not found',
+  dna: 'Manuscript not found',
+  continuity: 'Manuscript not found',
+  'manuscript-print': 'Manuscript not found',
 };
 const SIGNED_OUT = new Set(['login', 'register', 'forgot', 'reset', 'verify']);
 

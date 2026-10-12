@@ -5,6 +5,7 @@
  */
 import { createFakeAi } from './fakeAi.js';
 import { FAKE_INSIGHT_ACTIONS } from './fakeKnowledge.js';
+import { createFakeWriter } from './fakeWriter.js';
 
 const PROBLEM = { 'content-type': 'application/problem+json' };
 const JSON_H = { 'content-type': 'application/json' };
@@ -107,7 +108,7 @@ export function createFakeApi(opts = {}) {
 
   const knowledge = addProject(personal, 'Project Atlas', 'KNOWLEDGE', 'Market research on assisted-research tools (DEMO)');
   let outlook = null;
-  addProject(personal, 'My Writing', 'WRITER');
+  const writing = addProject(personal, 'My Writing', 'WRITER');
   addProject(personal, 'My Library', 'LIBRARY');
   if (!opts.empty) {
     const research = addFolder(knowledge, 'Market research');
@@ -128,6 +129,8 @@ export function createFakeApi(opts = {}) {
   const fakeAi = createFakeAi({ db, uuid, iso, ok, problem, noContent, opts });
   fakeAi.seed(personal, outlook);
   if (opts.artifacts && outlook) for (const id of opts.artifacts) fakeAi.seedInsight(personal, outlook, id);
+  const fakeWriter = createFakeWriter({ db, uuid, iso, ok, problem, noContent });
+  if (opts.writer !== false) fakeWriter.seed(personal, writing.id);
 
   const member = (wid) => db.memberships.find((m) => m.workspaceId === wid);
   const live = (rows, wid) => rows.filter((r) => r.workspaceId === wid && !r.deletedAt);
@@ -333,6 +336,8 @@ export function createFakeApi(opts = {}) {
       }
     }
 
+    const written = fakeWriter.handle(method, wid, rest, body, need, u.searchParams);
+    if (written) return written;
     return fakeAi.handle(method, wid, rest, body, headers, need, u.searchParams) ?? problem(404, 'Not found');
   }
 
@@ -341,7 +346,7 @@ export function createFakeApi(opts = {}) {
     return u;
   }
 
-  return { db, handle, ai: fakeAi };
+  return { db, handle, ai: fakeAi, writer: fakeWriter };
 }
 
 /** Routes `fetch` to a fake API inside jsdom tests. Returns the fake for assertions. */

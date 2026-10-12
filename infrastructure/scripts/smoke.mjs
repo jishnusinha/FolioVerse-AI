@@ -2,7 +2,8 @@
 /**
  * Backend vertical-slice smoke test against a running stack (no browser):
  * register -> upload -> ingest (READY) -> grounded_qa run -> SSE stream -> receipt -> insight artifacts
- * -> notes and search -> costs. Also checks abstention (no model call) and cross-workspace 404.
+ * -> notes and search -> writer (save, suggestion accept, DNA extract, continuity, export) -> costs.
+ * Also checks abstention (no model call) and cross-workspace 404.
  * Uses the deterministic mock model unless a live provider is configured. Prints no secrets.
  *
  *   node infrastructure/scripts/smoke.mjs [--base http://localhost:3000]
@@ -48,6 +49,7 @@ export class Client {
   get = (p, e) => this.req('GET', p, undefined, e);
   post = (p, b, e) => this.req('POST', p, b ?? {}, e);
   put = (p, b, e) => this.req('PUT', p, b, e);
+  patch = (p, b, e) => this.req('PATCH', p, b, e);
 
   /** Reads an SSE stream until a terminal event or timeout. */
   async sse(path, until = (e) => e.type === 'run.finished' || e.type === 'run.failed', timeoutMs = 120_000) {
@@ -136,6 +138,57 @@ export async function waitReady(client, wid, sourceId, timeoutMs = 180_000) {
   throw new Error('ingestion timed out');
 }
 
+const para = (blockId, text) => ({ type: 'paragraph', attrs: { blockId }, content: [{ type: 'text', text }] });
+
+/** Gate 5: manuscript, autosave with revision check, one suggestion accepted, DNA proposals, continuity, export. */
+async function writerSmoke(c, wid, sourceId, step) {
+  const ws = `/api/workspaces/${wid}`;
+  const m = await c.post(`${ws}/manuscripts`, { title: 'Smoke Manuscript (DEMO)' });
+  const ms = `${ws}/manuscripts/${m.id}`;
+  const scene = m.nodes.find((n) => n.kind === 'SCENE');
+  const docUrl = `${ms}/nodes/${scene.id}/doc`;
+  const saved = await c.patch(docUrl, {
+    revision: 0,
+    content: { type: 'doc', content: [para('s1', 'Mara climbed the lighthouse stairs while the storm bell rang very loudly twice.'), para('s2', 'Mara pushed the wet hair from her face, her blue eyes narrowing at the dark water.')] },
+  });
+  const conflict = await c.patch(docUrl, { revision: 0, content: { type: 'doc', content: [para('s1', 'Elsewhere.')] } }, { allowError: true });
+  step(`writer save: r${saved.revision} words=${saved.wordCount}; stale save -> ${conflict.status} ${conflict.data?.code}`);
+  if (conflict.status !== 409) throw new Error('expected a revision conflict');
+
+  const req = await c.post(`${ms}/nodes/${scene.id}/suggestions`, { mode: 'shorten', blockIds: ['s1'] });
+  const runId = req.suggestions[0].runId;
+  const evs = await c.sse(`${ws}/runs/${runId}/events`);
+  if (!evs.some((e) => e.type === 'run.finished')) throw new Error(`suggestion run did not finish: ${JSON.stringify(evs.at(-1))}`);
+  const sugg = (await c.get(`${ms}/suggestions?nodeId=${scene.id}`)).find((s) => s.id === req.suggestions[0].id);
+  if (!sugg?.variants?.length) throw new Error('suggestion has no variants');
+  const doc = await c.get(docUrl);
+  const content = structuredClone(doc.content);
+  content.content[0].content = [{ type: 'text', text: sugg.variants[0].text }];
+  const accepted = await c.patch(docUrl, { revision: doc.revision, content, action: 'accept', suggestionId: sugg.id, variant: 0 });
+  step(`suggestion: ${sugg.variants.length} variants, accepted -> r${accepted.revision} origin=${accepted.origin}`);
+
+  const ex = await c.post(`${ms}/dna/extract`, {});
+  await c.sse(`${ws}/runs/${ex.runId}/events`);
+  const dna = await c.get(`${ms}/dna`);
+  const proposed = dna.facts.filter((f) => f.status === 'PROPOSED');
+  step(`dna extract: ${proposed.length} proposed facts, ${dna.facts.filter((f) => f.status === 'CANON').length} canon (proposals need approval)`);
+  if (dna.facts.some((f) => f.status === 'CANON' && f.origin !== 'AUTHOR')) throw new Error('AI extraction wrote canon directly');
+
+  await c.post(`${ms}/dna/facts`, { subject: 'Mara', predicate: 'eye color', value: 'green' });
+  const check = await c.post(`${ms}/continuity/check`, {});
+  for (const r of check.runs) await c.sse(`${ws}/runs/${r.runId}/events`);
+  const issues = await c.get(`${ms}/continuity`);
+  step(`continuity: ${issues.length} issue(s) ${issues.map((i) => `${i.entity}/${i.fact}: ${i.expected} vs ${i.found}`).join('; ')}`);
+  if (!issues.some((i) => i.entity === 'Mara' && i.found === 'blue')) throw new Error('continuity check missed the eye colour');
+
+  const ex2 = await c.post(`${ws}/excerpts`, { sourceId, quote: 'Procurement cycles shortened to 90 days' });
+  const rn = await c.post(`${ms}/research-notes`, { excerptId: ex2.id, nodeId: scene.id });
+  const md = await c.get(`${ms}/export?format=md`);
+  const docx = await c.get(`${ms}/export?format=docx`, { raw: true });
+  step(`research note "${rn.quote.slice(0, 30)}…"; export md=${md.length} chars, docx=${docx.status} ${docx.headers.get('content-type')}`);
+  if (docx.status !== 200 || !md.includes('Smoke Manuscript')) throw new Error('export failed');
+}
+
 async function main() {
   const step = (m) => console.log(`• ${m}`);
   const c = new Client(base);
@@ -201,6 +254,8 @@ async function main() {
   const byType = found.items.reduce((a, it) => ({ ...a, [it.type]: (a[it.type] ?? 0) + 1 }), {});
   step(`search "procurement": ${JSON.stringify(byType)} semantic=${found.semantic.status}`);
   if (!found.items.some((it) => it.type === 'note' && it.id === note.id) || found.semantic.status !== 'OK' || !byType.passage) throw new Error('search check failed');
+
+  await writerSmoke(c, wid, done.sourceId, step);
 
   const costs = await c.get(`/api/workspaces/${wid}/costs/summary`);
   step(`costs summary: ${JSON.stringify(costs).slice(0, 200)}`);

@@ -206,7 +206,51 @@ passage with `semantic=OK`).
 Not done: live-model insight quality (BLOCKED, no `OPENAI_API_KEY`); the web fake serves the same pages for every
 version of the demo PDF (D-044).
 
-## Gates 5–13 — PLANNED
+## Gate 5 — Writer Studio — DONE (live model path BLOCKED: no key)
+
+Validation: Python `pytest` 86/86, `ruff check` / `ruff format --check` clean; API unit 52/52, integration 138/138
+(`writer.spec.ts`: outline, revisions/409/restore, suggestions accept/undo/stale/batch, DNA proposals, continuity,
+research notes, export, authz matrix), `tsc` 0, eslint clean; `contracts:check` OK; web `vitest run` 224/224
+(`features/writer/writer.test.jsx` 25 tests), `eslint src` clean, `tsc` clean, `vite build` OK (editor and story graph
+are lazy chunks; main bundle 761 kB, was 1.37 MB with them inline); Playwright `visual`/`shell`/`auth-upload`/`slice`/
+`preview` 21/21 in Chrome, `gate5-preview.spec.js` types into TipTap, autosaves, runs Lens → Tighten → accept, checks
+continuity, opens history, focus mode, DNA graph extract → approve, continuity page and print media (screenshots in
+`apps/web/test-results/gate5`, not baselines); `node infrastructure/scripts/smoke.mjs` OK against `pnpm dev` (save
+r1, stale save → 409 `REVISION_CONFLICT`, suggestion with 2 variants accepted → `POST_AI`, DNA extract → 1 proposed /
+0 AI canon, continuity "Mara/eye color: green vs blue", research note from an excerpt, MD and DOCX export). Real API
+response shapes were compared with the web fake (`fakeWriter.js`); only unused fields differ.
+
+- `FV-G05-DB-001` Schema — DONE. Migration `0003_writer`: manuscripts, manuscript_nodes, rich_docs, doc_revisions,
+  suggestions, dna_facts, dna_links, continuity_issues, research_notes, excerpts; every query filters by `workspaceId`.
+- `FV-G05-ED-002` Editor — DONE. TipTap v3 with a `BlockAttrs` extension giving every paragraph/heading/citation a stable
+  `blockId` (duplicates from split/paste are re-issued), debounced autosave (1.2 s) with `revision`; 409 opens a merge
+  dialog (word diff "saved → mine", keep mine / use saved), IndexedDB draft recovery with a memory fallback (D-055),
+  live word counts and daily goal, focus mode at 64ch, serif/sans and text size preferences, Ctrl+S, read-only for
+  viewers.
+- `FV-G05-REV-003` Revisions — DONE. Snapshots per save (author saves coalesce within 5 minutes, AI/undo/restore never
+  do, D-045); history tab with block-aligned word diff against the current text and restore (saved as `RESTORE`, a bug
+  where restore could overwrite the latest author snapshot was found and fixed with a regression test, D-046).
+- `FV-G05-SUG-004` Suggestions — DONE. `writer_revision` graph, one T0 run per paragraph sharing a `batchId` (D-047);
+  modes rewrite/shorten/expand/tone/dialogue/continue with an optional author instruction and canon constraints in
+  the prompt; pending paragraphs are decorated in the editor; accept/undo go through the document save so they are
+  revision-checked (D-048), reject/undo-reject, STALE when the paragraph changes, SUPERSEDED on regenerate.
+- `FV-G05-DNA-005` Narrative DNA — DONE. Facts CANON/PROPOSED/RETIRED with origin AUTHOR/AI_EXTRACTED, links, evidence
+  anchors re-resolved against the current text (EXACT/SHIFTED/FUZZY/ORPHANED, D-050); `dna_extraction` only proposes
+  (D-049); DNA page with React Flow story graph, approval queue, add-fact form and canon ledger.
+- `FV-G05-CONT-006` Continuity — DONE. `continuity_check` per scene against canon → issues with a scene anchor and a
+  canon anchor, fingerprinted so dismissed issues stay dismissed (D-051); scene Context tab, manuscript issue page
+  with filters, jump to passage, resolve/dismiss/reopen.
+- `FV-G05-RES-007` Research — DONE for Knowledge. Excerpts saved from the Folio Lens on documents ("Save as excerpt"),
+  research notes copy the quote and source anchor (D-052), "Insert as footnote" adds a citation block to the scene.
+  Library excerpts arrive with the Gate 6 reader.
+- `FV-G05-EXP-008` Export — DONE. Markdown and DOCX (`docx` library) from the compiled manuscript with footnotes; PDF
+  through a print view and print CSS (D-053).
+- `FV-G05-LENS-009` Lens writer actions — DONE. Rewrite paragraph, tighten, expand, change tone (tone list) and look up
+  canon; viewers only get the canon lookup (D-054).
+
+Not done: live-model suggestion quality (BLOCKED, no `OPENAI_API_KEY`; the mock returns deterministic DEMO variants).
+
+## Gates 6–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.

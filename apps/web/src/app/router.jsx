@@ -23,6 +23,11 @@ import { SearchPage } from '@/features/insights/SearchPage.jsx';
 import { HomePage } from '@/features/home/HomePage.jsx';
 import { StudioPage } from '@/features/studio/StudioPage.jsx';
 import { CostsPage } from '@/features/costs/CostsPage.jsx';
+import { WriterHomePage } from '@/features/writer/WriterHomePage.jsx';
+import { ManuscriptPage } from '@/features/writer/ManuscriptPage.jsx';
+import { DnaPage } from '@/features/writer/DnaPage.jsx';
+import { ContinuityPage } from '@/features/writer/ContinuityPage.jsx';
+import { PrintPage } from '@/features/writer/PrintPage.jsx';
 import { Toaster } from '@/shared/ui/toast.jsx';
 
 /** Page components that have replaced placeholders, keyed by route id. */
@@ -42,6 +47,11 @@ const PAGES = {
   studio: StudioPage,
   'studio-run': StudioPage,
   costs: CostsPage,
+  writer: WriterHomePage,
+  manuscript: ManuscriptPage,
+  dna: DnaPage,
+  continuity: ContinuityPage,
+  'manuscript-print': PrintPage,
   project: ProjectPage,
   trash: TrashPage,
   'docs-design': DesignGalleryPage,

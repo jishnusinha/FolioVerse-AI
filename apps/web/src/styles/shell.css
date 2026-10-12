@@ -509,4 +509,219 @@
   .search-group {
     margin-bottom: 20px;
   }
+
+  /* Folio Writer */
+  .w-main {
+    display: flex;
+    flex-direction: column;
+  }
+  .w-panes.focus .manuscript,
+  .w-panes.focus .wprog {
+    max-width: 64ch;
+  }
+  .w-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .w-tree-row > .tnode,
+  .w-tree-part {
+    flex: 1;
+    min-width: 0;
+  }
+  .w-tree-part {
+    font-size: 11px;
+    padding: 10px 8px 2px;
+  }
+  .w-tree-h {
+    cursor: default;
+    color: var(--fv-text);
+  }
+  .w-tree-more {
+    opacity: 0.45;
+  }
+  .w-tree-row:hover .w-tree-more,
+  .w-tree-more:focus-visible,
+  .w-tree-more[data-state='open'] {
+    opacity: 1;
+  }
+  .manuscript .ProseMirror {
+    outline: none;
+    min-height: 40vh;
+  }
+  .manuscript .ProseMirror > * {
+    position: relative;
+  }
+  .manuscript .ProseMirror p {
+    font-size: var(--w-fs, 19px);
+    line-height: 1.75;
+    margin: 0 -4px 1.05em;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: background var(--fv-dur);
+  }
+  .manuscript .ProseMirror h2 {
+    font: 500 calc(var(--w-fs, 19px) * 1.3) / 1.3 var(--fv-font-serif);
+    margin: 1.2em 0 0.5em;
+  }
+  .manuscript .ProseMirror h3 {
+    font: 600 var(--w-fs, 19px) / 1.35 var(--fv-font-serif);
+    margin: 1em 0 0.4em;
+  }
+  .manuscript.sans .ProseMirror h2,
+  .manuscript.sans .ProseMirror h3 {
+    font-family: var(--fv-font-sans);
+  }
+  .manuscript .ProseMirror blockquote {
+    margin: 0 0 1.05em;
+    padding-left: 14px;
+    border-left: 2px solid var(--fv-border-strong);
+    color: var(--fv-muted);
+  }
+  .manuscript .ProseMirror [data-ai='true']::before {
+    content: '';
+    position: absolute;
+    left: -14px;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--fv-ai-line);
+    border-radius: 2px;
+  }
+  .manuscript .ProseMirror .w-pending {
+    background: var(--fv-ai-soft);
+    text-decoration: underline dashed var(--fv-ai-line);
+    text-underline-offset: 5px;
+  }
+  .manuscript .ProseMirror .w-flagged {
+    background: var(--fv-warn-soft);
+    box-shadow: inset 2px 0 0 var(--fv-warn);
+  }
+  .manuscript .ProseMirror .w-flash {
+    animation: flash 1s var(--fv-ease);
+  }
+  .manuscript .ProseMirror p.is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    float: left;
+    height: 0;
+    color: var(--fv-subtle);
+    pointer-events: none;
+  }
+  .w-cite {
+    margin: 0 0 1.05em;
+    padding: 6px 10px;
+    border-left: 2px solid var(--fv-accent);
+    border-radius: 0 6px 6px 0;
+    background: var(--fv-surface);
+    color: var(--fv-muted);
+    font: var(--fv-fs-sm) / 1.5 var(--fv-font-sans);
+  }
+  .w-cite::before {
+    content: 'Footnote · ';
+    font-weight: 600;
+    color: var(--fv-text);
+  }
+  .w-recover {
+    max-width: var(--fv-measure-editor);
+    margin: 0 auto 14px;
+  }
+  .w-howto {
+    margin-bottom: 18px;
+  }
+  .w-quote {
+    margin: 0;
+    padding-left: 10px;
+    border-left: 2px solid var(--fv-border-strong);
+    font: italic var(--fv-fs-sm) / 1.5 var(--fv-font-serif);
+    color: var(--fv-muted);
+  }
+  .w-docdiff {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 10px;
+  }
+  .diff del + ins {
+    margin-left: 0.25em;
+  }
+  .w-docdiff-k {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .kmap-canvas .react-flow__node.sg-node {
+    padding: 10px;
+    border: 1.5px solid var(--fv-border-strong);
+    border-radius: 999px;
+    background: var(--fv-surface);
+    color: var(--fv-text);
+    font: 600 var(--fv-fs-xs) var(--fv-font-sans);
+    text-align: center;
+    cursor: pointer;
+  }
+  .kmap-canvas .react-flow__node.sg-node.proposed {
+    border-style: dashed;
+    color: var(--fv-muted);
+  }
+  .kmap-canvas .react-flow__node.sg-node.selected {
+    border-color: var(--fv-accent);
+    box-shadow: 0 0 0 2px var(--fv-accent-soft);
+  }
+  .kmap-canvas .sg-edge.proposed .react-flow__edge-path {
+    stroke-dasharray: 5 4;
+  }
+  .w-print h2 {
+    margin-top: 1.6em;
+  }
+  .w-print h3 {
+    margin: 1.4em 0 0.6em;
+    font: 500 22px var(--fv-font-serif);
+  }
+  .w-print p {
+    font-size: 17px;
+    line-height: 1.7;
+    margin: 0 0 0.9em;
+  }
+  .w-fn a {
+    text-decoration: none;
+    padding: 0 1px;
+  }
+  .w-footnotes {
+    margin-top: 2em;
+    font: var(--fv-fs-sm) / 1.5 var(--fv-font-sans);
+    color: var(--fv-muted);
+  }
+}
+
+@media print {
+  .rail,
+  .topbar,
+  .skip,
+  .toaster,
+  .no-print {
+    display: none !important;
+  }
+  .app,
+  .frame,
+  main {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  .w-print-page {
+    padding: 0;
+    max-width: none;
+  }
+  .w-print {
+    max-width: none;
+  }
+  .w-print h2 {
+    break-before: page;
+  }
+  .w-print p {
+    font-size: 12pt;
+    orphans: 3;
+    widows: 3;
+  }
 }
