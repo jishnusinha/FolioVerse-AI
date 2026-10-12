@@ -5,6 +5,7 @@
  */
 import { createFakeAi } from './fakeAi.js';
 import { FAKE_INSIGHT_ACTIONS } from './fakeKnowledge.js';
+import { createFakeLibrary } from './fakeLibrary.js';
 import { createFakeWriter } from './fakeWriter.js';
 
 const PROBLEM = { 'content-type': 'application/problem+json' };
@@ -34,11 +35,13 @@ const noContent = () => ({ status: 204, headers: {}, body: null });
 
 /**
  * @param {{ signedIn?: boolean, role?: 'OWNER'|'ADMIN'|'EDITOR'|'VIEWER', advance?: boolean, empty?: boolean, emailVerified?: boolean,
- *   budgetLimit?: string, budgetHard?: boolean, streamCut?: number, pdfBytes?: Uint8Array, artifacts?: string[] }} [opts]
+ *   budgetLimit?: string, budgetHard?: boolean, streamCut?: number, pdfBytes?: Uint8Array, epubBytes?: Uint8Array, artifacts?: string[],
+ *   writer?: boolean, library?: boolean, metadata?: boolean }} [opts]
  *   `role` applies to an extra TEAM workspace; `advance` moves busy sources one ingestion step per list request.
  *   `budgetLimit`/`budgetHard` set the monthly budget; `streamCut` ends a run's first event stream early;
  *   `pdfBytes` is served as the file of every PDF version; `artifacts` lists insight actions to run on the
- *   Market Outlook PDF up front, each leaving a saved artifact.
+ *   Market Outlook PDF up front, each leaving a saved artifact. `epubBytes` is served for EPUB versions; `library: false`
+ *   skips the seeded shelf; `metadata: true` turns on the (DEMO) metadata lookup.
  */
 export function createFakeApi(opts = {}) {
   const userId = uuid();
@@ -109,7 +112,7 @@ export function createFakeApi(opts = {}) {
   const knowledge = addProject(personal, 'Project Atlas', 'KNOWLEDGE', 'Market research on assisted-research tools (DEMO)');
   let outlook = null;
   const writing = addProject(personal, 'My Writing', 'WRITER');
-  addProject(personal, 'My Library', 'LIBRARY');
+  const libraryProject = addProject(personal, 'My Library', 'LIBRARY');
   if (!opts.empty) {
     const research = addFolder(knowledge, 'Market research');
     const y26 = addFolder(knowledge, '2026', research);
@@ -131,6 +134,8 @@ export function createFakeApi(opts = {}) {
   if (opts.artifacts && outlook) for (const id of opts.artifacts) fakeAi.seedInsight(personal, outlook, id);
   const fakeWriter = createFakeWriter({ db, uuid, iso, ok, problem, noContent });
   if (opts.writer !== false) fakeWriter.seed(personal, writing.id);
+  const fakeLibrary = createFakeLibrary({ db, uuid, iso, ok, problem, noContent, excerpts: fakeWriter.writer.excerpts, opts });
+  if (opts.library !== false && !opts.empty) fakeLibrary.seed(personal, libraryProject, addSource);
 
   const member = (wid) => db.memberships.find((m) => m.workspaceId === wid);
   const live = (rows, wid) => rows.filter((r) => r.workspaceId === wid && !r.deletedAt);
@@ -294,7 +299,7 @@ export function createFakeApi(opts = {}) {
       if (rest[2] === 'restore' && method === 'POST') return need('EDITOR') ?? ((s.deletedAt = null), ok(s));
       if (rest[2] === 'versions' && rest[4] === 'ingest' && method === 'POST') return need('EDITOR') ?? (setState(s, 'PARSING'), ok({ jobId: uuid() }, 201));
       if (rest[2] === 'versions' && rest[4] === 'file') {
-        const bytes = s.mimeType === MIME.pdf && opts.pdfBytes ? opts.pdfBytes : 'DEMO file content';
+        const bytes = s.mimeType === MIME.pdf && opts.pdfBytes ? opts.pdfBytes : s.mimeType === MIME.epub && opts.epubBytes ? opts.epubBytes : 'DEMO file content';
         return { status: 200, headers: { 'content-type': s.mimeType }, body: bytes };
       }
     }
@@ -336,6 +341,8 @@ export function createFakeApi(opts = {}) {
       }
     }
 
+    const shelved = fakeLibrary.handle(method, wid, rest, body, need, u.searchParams);
+    if (shelved) return shelved;
     const written = fakeWriter.handle(method, wid, rest, body, need, u.searchParams);
     if (written) return written;
     return fakeAi.handle(method, wid, rest, body, headers, need, u.searchParams) ?? problem(404, 'Not found');
@@ -346,7 +353,7 @@ export function createFakeApi(opts = {}) {
     return u;
   }
 
-  return { db, handle, ai: fakeAi, writer: fakeWriter };
+  return { db, handle, ai: fakeAi, writer: fakeWriter, library: fakeLibrary };
 }
 
 /** Routes `fetch` to a fake API inside jsdom tests. Returns the fake for assertions. */

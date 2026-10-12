@@ -10,6 +10,7 @@ import { ArtifactsService } from './modules/artifacts/artifacts.service';
 import { EventsModule } from './modules/events/events.service';
 import { IngestionExecutorService } from './modules/ingestion/ingestion-executor.service';
 import { BudgetService } from './modules/ledger/budget.service';
+import { LibraryService } from './modules/library/library.service';
 import { LedgerService } from './modules/ledger/ledger.service';
 import { MailModule } from './modules/mail/mail.service';
 import { ModelsService } from './modules/models/models.service';
@@ -21,6 +22,7 @@ import { WriterService } from './modules/writer/writer.service';
 
 const services = [
   WriterService,
+  LibraryService,
   ArtifactsService,
   BudgetService,
   LedgerService,

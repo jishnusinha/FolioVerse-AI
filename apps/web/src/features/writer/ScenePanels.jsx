@@ -20,6 +20,11 @@ const ACTIVE = new Set(['PENDING', 'STALE']);
 const ORIGIN_LABEL = { AUTHOR: 'Author', POST_AI: 'Accepted AI', RESTORE: 'Restore', UNDO: 'Undo' };
 
 const clip = (s, n) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+/** Reader deep link for a library excerpt anchor ({ itemId, locator, page }). */
+const readerHref = (a) => {
+  const cfi = a.locator?.locations?.cfi;
+  return `/app/library/books/${a.itemId}/read${cfi ? `?cfi=${encodeURIComponent(cfi)}` : a.page ? `?page=${a.page}` : ''}`;
+};
 
 /**
  * Suggestions tab: request rewrites for the current paragraph or the whole scene, then review each one as a
@@ -375,7 +380,7 @@ export function ResearchPanel({ notes, excerpts, loading, editable, onCreate, on
       {loading ? (
         <Skeleton height={60} />
       ) : notes.length === 0 ? (
-        <p className="empty">No research notes yet. Save excerpts from Folio Knowledge with Folio Lens, then add them here.</p>
+        <p className="empty">No research notes yet. Save excerpts from Folio Knowledge or the Reader with Folio Lens, then add them here.</p>
       ) : (
         <ul className="stack" style={{ gap: 10, listStyle: 'none', margin: 0, padding: 0 }} aria-label="Research notes">
           {notes.map((n) => (
@@ -383,7 +388,12 @@ export function ResearchPanel({ notes, excerpts, loading, editable, onCreate, on
               <b>{n.title}</b>
               {n.quote && <blockquote className="w-quote">“{n.quote}”</blockquote>}
               {n.body && <p style={{ fontSize: 13 }}>{n.body}</p>}
-              {n.source?.sourceId && n.source?.projectId && (
+              {n.source?.anchor?.itemId ? (
+                <Link className="subtle" style={{ fontSize: 12 }} to={readerHref(n.source.anchor)}>
+                  From your library: {n.source.title}
+                  {n.source.anchor.chapterTitle ? `, ${n.source.anchor.chapterTitle}` : ''}
+                </Link>
+              ) : n.source?.sourceId && n.source?.projectId && (
                 <Link className="subtle" style={{ fontSize: 12 }} to={`/app/knowledge/projects/${n.source.projectId}/documents/${n.source.sourceId}`}>
                   Source: {n.source.title}
                   {n.source.anchor?.selectors?.page ? `, p. ${n.source.anchor.selectors.page}` : ''}

@@ -59,6 +59,18 @@ export async function api(path, opts = {}) {
 }
 
 /**
+ * Fetches a binary resource (e.g. a book file) below /api as an ArrayBuffer.
+ * @param {string} path @param {{ signal?: AbortSignal }} [opts]
+ */
+export async function apiBytes(path, opts = {}) {
+  const open = () => fetch(`/api${path}`, { credentials: 'same-origin', signal: opts.signal });
+  let res = await open();
+  if (res.status === 401 && (await refresh())) res = await open();
+  if (!res.ok) throw new ApiError(res.status, { detail: `File could not be loaded (${res.status})` });
+  return res.arrayBuffer();
+}
+
+/**
  * Splits a text/event-stream buffer into complete events. Returns the parsed events and the unparsed tail.
  * @param {string} buf
  * @returns {{ events: { id?: string, event?: string, data: string }[], rest: string }}

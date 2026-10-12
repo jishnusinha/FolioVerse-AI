@@ -48,15 +48,18 @@ class VectorStore:
             self.client.upsert(self.collection, points=points[k : k + 128], wait=True)
 
     @staticmethod
-    def scope_filter(workspace_id: str, source_version_ids: list[str] | tuple[str, ...]) -> models.Filter:
-        return models.Filter(
-            must=[
-                models.FieldCondition(key="workspace_id", match=models.MatchValue(value=workspace_id)),
-                models.FieldCondition(
-                    key="source_version_id", match=models.MatchAny(any=list(source_version_ids))
-                ),
-            ]
-        )
+    def scope_filter(
+        workspace_id: str, source_version_ids: list[str] | tuple[str, ...], page_max: int | None = None
+    ) -> models.Filter:
+        must = [
+            models.FieldCondition(key="workspace_id", match=models.MatchValue(value=workspace_id)),
+            models.FieldCondition(
+                key="source_version_id", match=models.MatchAny(any=list(source_version_ids))
+            ),
+        ]
+        if page_max is not None:
+            must.append(models.FieldCondition(key="page", range=models.Range(lte=page_max)))
+        return models.Filter(must=must)
 
     def delete_versions(self, workspace_id: str, source_version_ids: list[str]) -> None:
         if not source_version_ids or not self.client.collection_exists(self.collection):

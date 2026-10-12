@@ -268,6 +268,59 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
   on every navigation, so navigation tests failed.
 - Decision: `src/test/setup.js` subclasses `Request` to keep the signal outside undici. Test-only; no app code change.
 
+## D-057 EPUB chapters are pages; `href` places a passage
+- Context: the retrieval stack, citations and anchors are page based. epub.js only writes the `[id]` step assertion
+  when the spine itemref has an `id`; ebooklib-built books (including the synthetic one) have none, so client CFIs look
+  like `epubcfi(/6/2!/4/4,/1:0,/1:44)`.
+- Decision: the parser emits one page per spine chapter (1-based, `href` relative to the OPF, paragraph CFIs) and
+  chunking never crosses a chapter, so `page_start == page_end` for book chunks. A locator is placed by `href` first,
+  then the CFI spine step (`/6/(2n)`), then `locations.page`. TS (API, web) share `locator-cases.json` fixtures.
+
+## D-058 Library items are per member
+- Decision: a `library_item` belongs to one user in a workspace (shelf, status, rating, progress, annotations are
+  private, so personal routes need only VIEWER); each item gets its own `book` row, so editing book metadata never
+  affects another member. Uploaded book files are ordinary sources in a hidden LIBRARY project; explain and excerpts
+  create billed runs and Writer data, so they require EDITOR.
+
+## D-059 Annotation sync with client ids and tombstones
+- Decision: the client creates annotations with `crypto.randomUUID()` (idempotent POST), applies changes optimistically
+  and pulls `?since=<serverTime>`; deletes are soft (`deletedAt`) so other tabs and devices drop them. Last write wins
+  per annotation. Bookmarks are simple create/delete.
+
+## D-060 Spoiler guard for passage explain
+- Decision: `passage_explain` context = the current chapter up to the end of the selected passage (≤1500 tokens,
+  whitespace-insensitive match; no match → no current-chapter text), ≤3 earlier passages retrieved with
+  a page limit of chapter − 1 (inside the Qdrant filter, and on fused candidates by `page_end`), and extractive summaries of ≤6 earlier
+  chapters. Every item is verbatim book text, so citations validate normally; `retrieval.completed.spoilerGuard`
+  records the counts and the reader shows exactly what was sent.
+
+## D-061 Unplaceable selections are rejected
+- Decision: explain requires a locator that maps to a chapter; otherwise `400 LOCATOR_UNKNOWN` and no run is created
+  (no fallback to the whole book, which could leak later chapters).
+
+## D-062 Book metadata: EPUB first, providers optional
+- Decision: EPUB metadata fills only blank book fields (after ingestion, and at shelve time when the source is already
+  ingested); it never overwrites user edits. Open Library and Google Books are behind `FV_METADATA_OPEN_LIBRARY` /
+  `FV_METADATA_GOOGLE_BOOKS` (default off), cached 30 days in `book_metadata_cache`, 5 s timeout, failures return no
+  results. Manual entry always works.
+
+## D-063 Run results carry citations without a message
+- Decision: reader runs have no conversation, so the run result returned by the API includes validated citations
+  (`anchor.page`, `anchor.locator.href`), and the reader turns them into jump links. The mock model is labelled DEMO
+  in the panel when `model.provider === 'mock'`.
+
+## D-064 Reader Lens actions
+- Decision: editors get Define, Explain, Summarize passage, Highlight, Add note and Save as excerpt, plus a free
+  question; viewers get Highlight and Add note. Excerpts store `{itemId, href, cfi, chapterTitle}` so Writer research
+  notes link back to `/app/library/books/:itemId/read?cfi=`.
+
+## D-065 Reader measure lives inside the EPUB iframe
+- Context: constraining the host element clipped epub.js columns until a resize, and `reportLocation` called before
+  layout is silently dropped.
+- Decision: the line width (54/62/74ch) and font are applied to the book body via epub.js themes; the host stays full
+  width. `EpubEngine` calls `rendition.reportLocation()` after every `display`/`next`/`prev` and after the first display.
+  The preview Playwright project serves the built `dist`, so `pnpm build` must run before it.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

@@ -2,13 +2,15 @@
 /**
  * Backend vertical-slice smoke test against a running stack (no browser):
  * register -> upload -> ingest (READY) -> grounded_qa run -> SSE stream -> receipt -> insight artifacts
- * -> notes and search -> writer (save, suggestion accept, DNA extract, continuity, export) -> costs.
+ * -> notes and search -> writer (save, suggestion accept, DNA extract, continuity, export)
+ * -> library (EPUB shelf, progress, annotation, spoiler-guarded explain, reader excerpt) -> costs.
  * Also checks abstention (no model call) and cross-workspace 404.
  * Uses the deterministic mock model unless a live provider is configured. Prints no secrets.
  *
  *   node infrastructure/scripts/smoke.mjs [--base http://localhost:3000]
  */
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 
 const base = process.argv.includes('--base') ? process.argv[process.argv.indexOf('--base') + 1] : 'http://localhost:3000';
 
@@ -117,7 +119,10 @@ export async function registerUser(client, label = 'smoke') {
 }
 
 export async function uploadText(client, wid, projectId, filename, text) {
-  const bytes = new TextEncoder().encode(text);
+  return uploadBytes(client, wid, projectId, filename, new TextEncoder().encode(text));
+}
+
+export async function uploadBytes(client, wid, projectId, filename, bytes) {
   const up = await client.post(`/api/workspaces/${wid}/uploads`, { projectId, filename, sizeBytes: bytes.length });
   if (up.mode === 'proxy') await client.put(up.url, bytes, { headers: up.headers });
   else {
@@ -187,6 +192,43 @@ async function writerSmoke(c, wid, sourceId, step) {
   const docx = await c.get(`${ms}/export?format=docx`, { raw: true });
   step(`research note "${rn.quote.slice(0, 30)}…"; export md=${md.length} chars, docx=${docx.status} ${docx.headers.get('content-type')}`);
   if (docx.status !== 200 || !md.includes('Smoke Manuscript')) throw new Error('export failed');
+  return { ms, sceneId: scene.id };
+}
+
+/**
+ * Gate 6: the synthetic DEMO EPUB shelved, ingested with chapters and package metadata, progress, an annotation,
+ * a spoiler-guarded explain bounded at chapter 2, and a reader excerpt quoted by a Writer research note.
+ */
+async function librarySmoke(c, wid, step, writer) {
+  const ws = `/api/workspaces/${wid}`;
+  const lib = (await c.get(`${ws}/projects`)).find((p) => p.kind === 'LIBRARY');
+  const bytes = new Uint8Array(readFileSync(new URL('../../datasets/synthetic/books/small-lanterns.epub', import.meta.url)));
+  const up = await uploadBytes(c, wid, lib.id, 'small-lanterns.epub', bytes);
+  const shelved = await c.post(`${ws}/library/items`, { sourceId: up.sourceId });
+  await waitReady(c, wid, up.sourceId);
+  const item = await c.get(`${ws}/library/items/${shelved.id}`);
+  step(`library: "${item.book.title}" by ${item.book.authors.join(', ') || '?'} (${item.book.metadataSource}), ${item.chapters.length} chapters`);
+  if (item.chapters.length !== 4 || item.book.metadataSource !== 'EPUB') throw new Error('EPUB chapters or metadata missing');
+
+  const ch2 = item.chapters[1];
+  const locator = { href: ch2.href, type: 'application/xhtml+xml', title: ch2.title, locations: { totalProgression: 0.4 } };
+  const progress = await c.put(`${ws}/library/items/${item.id}/progress`, { locator, percent: 0.4, secondsDelta: 90 });
+  const ann = await c.post(`${ws}/library/items/${item.id}/annotations`, { id: randomUUID(), kind: 'HIGHLIGHT', locator, quote: 'Teodor Lusk had kept the archive for thirty years.' });
+  const stats = await c.get(`${ws}/library/stats`);
+  step(`progress chapterIndex=${progress.chapterIndex}; annotation ${ann.kind}; stats highlights=${stats.highlights} seconds=${stats.totalSeconds}`);
+
+  const ex = await c.post(`${ws}/library/items/${item.id}/explain`, { mode: 'explain', passage: 'Teodor said the lanterns were brighter during perihelion', locator });
+  const evs = await c.sse(`${ws}/runs/${ex.runId}/events`);
+  const fin = evs.find((e) => e.type === 'run.finished');
+  const guard = evs.find((e) => e.type === 'retrieval.completed')?.data?.spoilerGuard;
+  const pages = evs.find((e) => e.type === 'retrieval.completed')?.data?.sources?.map((s) => s.page) ?? [];
+  step(`explain (page ${ex.page}): ${fin?.data.outcome} guard=${JSON.stringify(guard)} pages=${JSON.stringify(pages)}`);
+  if (!fin || pages.some((p) => p > ex.page) || /Rhea/.test(fin.data.answer ?? '')) throw new Error('explain crossed the spoiler boundary');
+
+  const excerpt = await c.post(`${ws}/library/items/${item.id}/excerpts`, { quote: 'Teodor Lusk had kept the archive for thirty years.', locator });
+  const rn = await c.post(`${writer.ms}/research-notes`, { excerptId: excerpt.id, nodeId: writer.sceneId });
+  step(`reader excerpt -> research note anchor itemId=${rn.source?.anchor?.itemId === item.id} chapter="${rn.source?.anchor?.chapterTitle}"`);
+  if (rn.source?.anchor?.itemId !== item.id) throw new Error('research note lost the reader anchor');
 }
 
 async function main() {
@@ -255,7 +297,8 @@ async function main() {
   step(`search "procurement": ${JSON.stringify(byType)} semantic=${found.semantic.status}`);
   if (!found.items.some((it) => it.type === 'note' && it.id === note.id) || found.semantic.status !== 'OK' || !byType.passage) throw new Error('search check failed');
 
-  await writerSmoke(c, wid, done.sourceId, step);
+  const writer = await writerSmoke(c, wid, done.sourceId, step);
+  await librarySmoke(c, wid, step, writer);
 
   const costs = await c.get(`/api/workspaces/${wid}/costs/summary`);
   step(`costs summary: ${JSON.stringify(costs).slice(0, 200)}`);

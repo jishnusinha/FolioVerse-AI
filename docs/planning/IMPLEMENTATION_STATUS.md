@@ -2,7 +2,7 @@
 
 States: PLANNED, IN_PROGRESS, DONE, BLOCKED. Execution is sequential by a single agent
 (no concurrent workstreams actually ran). Evidence lists the validation command and outcome.
-Build host: Windows 11, Node 22, pnpm 9.15, Python 3.12, Docker Desktop.
+Build host: Windows 11, Node 22 (24 from Gate 5), pnpm 9.15, Python 3.12, Docker Desktop.
 
 ## Gate 0 — Foundation — DONE (CI push BLOCKED: no remote)
 
@@ -250,7 +250,58 @@ response shapes were compared with the web fake (`fakeWriter.js`); only unused f
 
 Not done: live-model suggestion quality (BLOCKED, no `OPENAI_API_KEY`; the mock returns deterministic DEMO variants).
 
-## Gates 6–13 — PLANNED
+## Gate 6 — Library & Reader — DONE (live model path BLOCKED: no key; metadata providers optional, off)
+
+Validation: Python `pnpm test:py` 93/93 (`tests/test_reader.py`: EPUB spine/CFI parsing, chapter-bounded chunks,
+page-limited retrieval, `passage_explain` never reveals later chapters, first chapter uses only the text so far);
+API unit 69/69 (`test/unit/library.spec.ts`: locator golden fixtures, locator cleaning, Open Library / Google
+Books mappers), integration 170/170 (`library.spec.ts` 9 tests plus authz matrix rows for all 23 library routes:
+VIEWER for personal shelves, EDITOR for explain and excerpts), `tsc` 0, eslint clean; `contracts:check` OK (OpenAPI 104 paths, `locator-cases.json`
+fixtures pass in the API and the web locator); web `vitest run` 262/262 (`library.test.jsx` 11, `reader.test.jsx` 13,
+`locator.test.js` 14), `eslint src playwright` clean, `tsc` clean, `vite build` OK (epub.js and react-pdf readers are
+lazy chunks, main bundle 799 kB); Playwright `gate6-preview.spec.js` 1/1 in Chrome against `vite preview` with the
+real epub.js and the synthetic EPUB (library grid/list, continue reading, TOC jump, Lens highlight painted in the
+iframe with an `href` + CFI locator, explain with the spoiler note and a citation, Night theme + Narrow measure with a
+fit check, progress saved; screenshots in `apps/web/test-results/gate6`, not baselines); `node
+infrastructure/scripts/smoke.mjs` OK against `pnpm dev` (EPUB "Orbit of Small Lanterns" ingested, 4 chapters,
+metadata from the EPUB; progress, highlight, stats; explain at chapter 2 → `ANSWERED`, guard
+`{"pageMax":2,"current":1,"earlier":1,"summaries":1}`, cited pages `[1,1,2]`, no later-chapter name in the answer;
+excerpt → research note carrying the library item id).
+
+- `FV-G06-DB-001` Schema — DONE. Migration `0004_library`: books, library_items, collections, collection_items,
+  reading_progress, reading_sessions, annotations, bookmarks, book_metadata_cache. Items are private to the user
+  inside a workspace (D-058); every query filters by `workspaceId` and `userId`.
+- `FV-G06-EPUB-002` EPUB & CFI locators — DONE. ebooklib parser emits one page per spine chapter with `href`, title
+  and paragraph CFIs; chunks never cross a chapter (D-057); EPUB metadata (title, authors, language, subjects) fills
+  blank book fields only, also when a book is shelved from an already-ingested source (D-062). Shared locator logic
+  (`href` first, then CFI spine step, then page) is checked against `packages/contracts/fixtures/locator-cases.json`.
+- `FV-G06-RDR-003` ReaderEngine — DONE. `ReaderEngine` lazy-loads `EpubEngine` (epub.js, paginated, themes in the
+  iframe) or `PdfEngine` (react-pdf, page observer); one `Locator` shape `{href, type, title, locations:{cfi|page,
+  totalProgression}, text}`. Typography: text size 15–24 px, Paper/Sepia/Night, line width 54/62/74ch (62ch default)
+  inside the book (D-065), serif/sans, saved per browser. Progress is debounced, flushed on hide/unmount with reading
+  seconds; TOC marks read chapters; arrow keys page; `?cfi=` / `?page=` deep links.
+- `FV-G06-ANN-004` Annotations & sync — DONE. Highlights (amber/sage/rose/sky tokens), notes and bookmarks with client
+  ids, optimistic updates and `since` sync including tombstones (D-059); highlights painted with epub.js annotations;
+  recolour and delete in the reader (note text edits are API-only for now).
+- `FV-G06-EXPL-005` Passage explain — DONE. `passage_explain` (T0, modes explain/define/summarize/context/ask) gets
+  the current chapter up to the end of the selection (≤1500 tokens), up to 3 earlier passages from retrieval with
+  a page limit of chapter − 1 inside the vector filter and on fused candidates, and extractive summaries of up to 6 earlier chapters (D-060). A
+  selection that cannot be placed is rejected with `LOCATOR_UNKNOWN` (D-061). The panel says exactly what was sent.
+- `FV-G06-EXC-006` Excerpts & Lens — DONE. Lens in the reader: Define, Explain, Summarize passage, Highlight, Add note,
+  Save as excerpt (editors); viewers get Highlight and Add note (D-064). Excerpts carry `{itemId, href, cfi, chapter}`
+  and become Writer research notes that link back into the reader.
+- `FV-G06-META-007` Metadata — DONE (providers optional). Open Library and Google Books behind
+  `FV_METADATA_OPEN_LIBRARY` / `FV_METADATA_GOOGLE_BOOKS` (default off), 30-day cache, 5 s timeout, failures return
+  no results; manual entry always available (D-062). Live provider calls were not exercised (flags off; unit tests use
+  recorded payload shapes).
+- `FV-G06-UI-008` Library UI — DONE. Shelves (all/to read/reading/finished/set aside), currently-reading hero, grid and
+  list, filter, collections (create, delete, add/remove books; rename is API-only), status and rating, 14-day activity and yearly stats, manual
+  add with validation, EPUB/PDF upload, remove with confirm.
+
+Not done: live-model explanation quality (BLOCKED, no `OPENAI_API_KEY`; the mock answers extractively and is labelled
+DEMO); live Open Library / Google Books lookups (optional, flags off by default).
+
+## Gates 7–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.

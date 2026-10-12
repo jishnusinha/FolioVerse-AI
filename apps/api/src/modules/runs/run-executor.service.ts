@@ -258,7 +258,13 @@ export class RunExecutorService {
       }
       await this.prisma.aiRun.update({
         where: { id: run.id },
-        data: { status, outcome, finishedAt: new Date(), result: { answer, artifact: finished.artifact ?? null } as any, lastSeq: seq + 1 },
+        data: {
+          status,
+          outcome,
+          finishedAt: new Date(),
+          result: { answer, artifact: finished.artifact ?? null, ...(run.messageId ? {} : { citations }) } as any,
+          lastSeq: seq + 1,
+        },
       });
       const artifactId =
         finished.artifact && (status === 'SUCCEEDED' || status === 'PARTIAL') && outcome !== 'ABSTAINED'

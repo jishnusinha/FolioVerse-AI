@@ -9,21 +9,18 @@ from .runtime import RetrievalUnavailable, RunContext
 
 
 async def do_retrieve(ctx: RunContext, query: str, page_max: int | None = None) -> dict:
+    options = ctx.options if page_max is None else {**ctx.options, "pageMax": page_max}
     try:
-        r = await retrieve(query, ctx.scope, ctx.options)
+        r = await retrieve(query, ctx.scope, options)
     except ConnectionError as e:
         raise RetrievalUnavailable(str(e)) from e
     packed = r.packed
-    if page_max is not None:
-        packed = [p for p in packed if not p.get("page") or p["page"] <= page_max]
-        for i, p in enumerate(packed, start=1):
-            p["marker"] = f"S{i}"
     await get_repo().insert_retrieval_event(
         {
             "workspace_id": ctx.workspace_id,
             "run_id": ctx.run_id,
             "query": query[:2000],
-            "params": r.params | {"mode": "query", "pageMax": page_max},
+            "params": r.params | {"mode": "query"},
             "candidates": candidates_json(r),
             "packed": packed_json(r),
             "latency_ms": r.latency_ms,

@@ -2,7 +2,8 @@
 
 Every element carries a locator: page number, page-relative character offsets into the page
 text (stored in ai.source_pages), optional bbox in PDF points, heading path, and for EPUB the
-chapter href. Pages that fail to parse are reported so the version can be marked PARTIAL.
+chapter href and an element CFI. Pages that fail to parse are reported so the version can be
+marked PARTIAL. EPUB chapters are pages, and chunks never span two chapters (spoiler guard).
 """
 
 import io
@@ -22,6 +23,7 @@ class Element:
     bbox: list[float] | None = None
     heading_path: list[str] = field(default_factory=list)
     href: str | None = None
+    cfi: str | None = None
 
 
 @dataclass
@@ -38,6 +40,9 @@ class ParsedDocument:
     elements: list[Element]
     failed_pages: list[int] = field(default_factory=list)
     title: str | None = None
+    metadata: dict = field(default_factory=dict)
+    chapters: list[dict] = field(default_factory=list)
+    break_pages: bool = False
 
 
 class ParseError(Exception):
@@ -179,10 +184,85 @@ def parse_pdf(data: bytes) -> ParsedDocument:
     return ParsedDocument(pages, elements, failed, title)
 
 
+EPUB_BLOCKS = ("p", "h1", "h2", "h3", "h4", "li", "blockquote")
+ISBN = re.compile(r"(97[89][\d-]{10,14}|\d{9}[\dXx])")
+
+
+def _local(tag) -> str:
+    return tag.rsplit("}", 1)[-1].lower() if isinstance(tag, str) else ""
+
+
+def _cfi_path(el) -> str:
+    """Element steps from the document root, as in an EPUB CFI (`/4` is <body> under <html>)."""
+    steps = []
+    node = el
+    while node.getparent() is not None:
+        parent = node.getparent()
+        siblings = [c for c in parent if isinstance(c.tag, str)]
+        steps.append(2 * (siblings.index(node) + 1))
+        node = parent
+    return "".join(f"/{s}" for s in reversed(steps))
+
+
+def _epub_root(content: bytes):
+    """Parses XHTML as XML (the DOM a reading system builds); falls back to the HTML parser."""
+    from lxml import etree
+    from lxml import html as lhtml
+
+    try:
+        root = etree.fromstring(
+            content, etree.XMLParser(recover=True, resolve_entities=False, no_network=True)
+        )
+        if root is not None:
+            return root
+    except etree.XMLSyntaxError:
+        pass
+    return lhtml.fromstring(content)
+
+
+def _text(el) -> str:
+    return " ".join("".join(el.itertext()).split())
+
+
+def _toc_titles(toc) -> dict[str, str]:
+    out: dict[str, str] = {}
+
+    def walk(entries):
+        for e in entries:
+            if isinstance(e, tuple | list):
+                section, children = e[0], e[1] if len(e) > 1 else []
+                walk([section])
+                walk(children)
+            elif getattr(e, "href", None):
+                out.setdefault(e.href.split("#")[0], " ".join((e.title or "").split()))
+
+    walk(toc or [])
+    return out
+
+
+def _epub_metadata(book) -> dict:
+    def vals(name: str) -> list[str]:
+        return [" ".join(str(v[0]).split()) for v in book.get_metadata("DC", name) if v and v[0]]
+
+    description = vals("description")
+    isbn = next((m.group(1).replace("-", "") for v in vals("identifier") if (m := ISBN.search(v))), None)
+    date = next(iter(vals("date")), None)
+    meta = {
+        "title": next(iter(vals("title")), None),
+        "authors": vals("creator")[:10],
+        "language": next(iter(vals("language")), None),
+        "publisher": next(iter(vals("publisher")), None),
+        "publishedYear": int(date[:4]) if date and date[:4].isdigit() else None,
+        "description": re.sub(r"<[^>]+>", " ", description[0]).strip()[:4000] if description else None,
+        "subjects": vals("subject")[:12],
+        "isbn": isbn,
+    }
+    return {k: v for k, v in meta.items() if v not in (None, [], "")}
+
+
 def parse_epub(data: bytes) -> ParsedDocument:
     import ebooklib
     from ebooklib import epub
-    from lxml import html as lhtml
 
     try:
         book = epub.read_epub(io.BytesIO(data), options={"ignore_ncx": True})
@@ -191,45 +271,58 @@ def parse_epub(data: bytes) -> ParsedDocument:
     pages: list[Page] = []
     elements: list[Element] = []
     failed: list[int] = []
-    titles = book.get_metadata("DC", "title")
+    chapters: list[dict] = []
+    toc = _toc_titles(book.toc)
+    meta = _epub_metadata(book)
     page_no = 0
-    for idref, _linear in book.spine:
+    for spine_index, (idref, _linear) in enumerate(book.spine):
         item = book.get_item_with_id(idref)
         if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
             continue
         page_no += 1
+        name = item.get_name()
+        spine_step = f"/6/{2 * (spine_index + 1)}[{idref}]"
         try:
-            doc = lhtml.fromstring(item.get_content())
+            root = _epub_root(item.get_content())
         except Exception:
             failed.append(page_no)
             pages.append(Page(page_no, ""))
+            chapters.append({"page": page_no, "href": name, "title": toc.get(name), "idref": idref})
             continue
-        chapter_title = None
-        for h in doc.iter("h1", "h2", "h3"):
-            chapter_title = " ".join(h.text_content().split())
-            break
+        heading = next(
+            (_text(h) for h in root.iter() if _local(h.tag) in ("h1", "h2", "h3") and _text(h)), None
+        )
+        chapter_title = toc.get(name) or heading
         text = ""
-        for n, el in enumerate(doc.iter("p", "h1", "h2", "h3", "li", "blockquote")):
-            t = " ".join(el.text_content().split())
+        n = 0
+        for el in root.iter():
+            tag = _local(el.tag)
+            if tag not in EPUB_BLOCKS or any(_local(a.tag) in EPUB_BLOCKS for a in el.iterancestors()):
+                continue
+            t = _text(el)
             if not t:
                 continue
             start = len(text) + (2 if text else 0)
             text = f"{text}\n\n{t}" if text else t
-            kind = "heading" if el.tag in ("h1", "h2", "h3") else "paragraph"
             elements.append(
                 Element(
                     page_no,
                     t,
                     start,
                     start + len(t),
-                    kind,
+                    "heading" if tag in ("h1", "h2", "h3", "h4") else "paragraph",
                     None,
                     [chapter_title] if chapter_title else [],
-                    f"{item.get_name()}#p{n}",
+                    f"{name}#p{n}",
+                    f"epubcfi({spine_step}!{_cfi_path(el)})",
                 )
             )
+            n += 1
         pages.append(Page(page_no, text))
-    return ParsedDocument(pages, elements, failed, titles[0][0] if titles else None)
+        chapters.append({"page": page_no, "href": name, "title": chapter_title, "idref": idref})
+    return ParsedDocument(
+        pages, elements, failed, meta.get("title"), metadata=meta, chapters=chapters, break_pages=True
+    )
 
 
 def parse(data: bytes, mime: str) -> ParsedDocument:

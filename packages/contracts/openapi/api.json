@@ -298,6 +298,37 @@
         "tags": [
           "workspaces"
         ]
+      },
+      "patch": {
+        "operationId": "WorkspacesController_rename",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateWorkspaceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "workspaces"
+        ]
       }
     },
     "/api/workspaces/{workspaceId}/members": {
@@ -1229,6 +1260,53 @@
         ]
       }
     },
+    "/api/workspaces/{workspaceId}/sources/{sourceId}/versions/{versionId}/diff": {
+      "get": {
+        "operationId": "SourcesController_diff",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "versionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "against",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "sources"
+        ]
+      }
+    },
     "/api/workspaces/{workspaceId}/sources/{sourceId}/versions/{versionId}/chunks": {
       "get": {
         "operationId": "SourcesController_chunks",
@@ -1843,6 +1921,47 @@
         ]
       }
     },
+    "/api/workspaces/{workspaceId}/threads/{threadId}/scope": {
+      "put": {
+        "operationId": "ThreadsController_setScope",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadScopeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "threads"
+        ]
+      }
+    },
     "/api/workspaces/{workspaceId}/costs/summary": {
       "get": {
         "operationId": "CostsController_summary",
@@ -1993,6 +2112,2529 @@
         },
         "tags": [
           "notifications"
+        ]
+      }
+    },
+    "/api/insight-actions": {
+      "get": {
+        "operationId": "InsightsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "insights"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/artifacts": {
+      "get": {
+        "operationId": "ArtifactsController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archived",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/artifacts/{artifactId}": {
+      "get": {
+        "operationId": "ArtifactsController_get",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "artifactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "artifacts"
+        ]
+      },
+      "patch": {
+        "operationId": "ArtifactsController_update",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "artifactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateArtifactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "artifacts"
+        ]
+      },
+      "delete": {
+        "operationId": "ArtifactsController_remove",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "artifactId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "artifacts"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/notes": {
+      "get": {
+        "operationId": "NotesController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sourceId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notes"
+        ]
+      },
+      "post": {
+        "operationId": "NotesController_create",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/notes/{noteId}": {
+      "patch": {
+        "operationId": "NotesController_update",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notes"
+        ]
+      },
+      "delete": {
+        "operationId": "NotesController_remove",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/search": {
+      "get": {
+        "operationId": "SearchController_search",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "semantic",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "search"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts": {
+      "get": {
+        "operationId": "ManuscriptsController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "post": {
+        "operationId": "ManuscriptsController_create",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateManuscriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}": {
+      "get": {
+        "operationId": "ManuscriptsController_get",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "patch": {
+        "operationId": "ManuscriptsController_update",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateManuscriptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "delete": {
+        "operationId": "ManuscriptsController_remove",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes": {
+      "post": {
+        "operationId": "ManuscriptsController_createNode",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes/{nodeId}": {
+      "patch": {
+        "operationId": "ManuscriptsController_updateNode",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateNodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "delete": {
+        "operationId": "ManuscriptsController_removeNode",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes/{nodeId}/doc": {
+      "get": {
+        "operationId": "ManuscriptsController_getDoc",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "patch": {
+        "operationId": "ManuscriptsController_saveDoc",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveDocDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes/{nodeId}/doc/revisions": {
+      "get": {
+        "operationId": "ManuscriptsController_revisions",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes/{nodeId}/doc/revisions/{revision}": {
+      "get": {
+        "operationId": "ManuscriptsController_revision",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revision",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes/{nodeId}/doc/revisions/{revision}/restore": {
+      "post": {
+        "operationId": "ManuscriptsController_restore",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "revision",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestoreDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/compiled": {
+      "get": {
+        "operationId": "ManuscriptsController_compiledView",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/export": {
+      "get": {
+        "operationId": "ManuscriptsController_export",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "format",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/suggestions": {
+      "get": {
+        "operationId": "SuggestionsController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/nodes/{nodeId}/suggestions": {
+      "post": {
+        "operationId": "SuggestionsController_request",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestSuggestionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/suggestions/{suggestionId}": {
+      "patch": {
+        "operationId": "SuggestionsController_update",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "suggestionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateSuggestionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/dna": {
+      "get": {
+        "operationId": "DnaController_dna",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/dna/facts": {
+      "post": {
+        "operationId": "DnaController_createFact",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateFactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/dna/facts/{factId}": {
+      "patch": {
+        "operationId": "DnaController_updateFact",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "factId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateFactDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/dna/links": {
+      "post": {
+        "operationId": "DnaController_createLink",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/dna/links/{linkId}": {
+      "patch": {
+        "operationId": "DnaController_updateLink",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "linkId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLinkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/dna/extract": {
+      "post": {
+        "operationId": "DnaController_extract",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/continuity": {
+      "get": {
+        "operationId": "DnaController_issues",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "nodeId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/continuity/check": {
+      "post": {
+        "operationId": "DnaController_check",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScenesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/continuity/{issueId}": {
+      "patch": {
+        "operationId": "DnaController_updateIssue",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "issueId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateIssueDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/excerpts": {
+      "get": {
+        "operationId": "ResearchController_excerpts",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "post": {
+        "operationId": "ResearchController_createExcerpt",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateExcerptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/excerpts/{excerptId}": {
+      "delete": {
+        "operationId": "ResearchController_removeExcerpt",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "excerptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/research-notes": {
+      "get": {
+        "operationId": "ResearchController_notes",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "post": {
+        "operationId": "ResearchController_createNote",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateResearchNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/manuscripts/{manuscriptId}/research-notes/{noteId}": {
+      "patch": {
+        "operationId": "ResearchController_updateNote",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateResearchNoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      },
+      "delete": {
+        "operationId": "ResearchController_removeNote",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "manuscriptId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "noteId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "writer"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items": {
+      "get": {
+        "operationId": "LibraryController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collectionId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "post": {
+        "operationId": "LibraryController_create",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}": {
+      "get": {
+        "operationId": "LibraryController_detail",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "patch": {
+        "operationId": "LibraryController_update",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "delete": {
+        "operationId": "LibraryController_remove",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/progress": {
+      "put": {
+        "operationId": "LibraryController_progress",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProgressDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/annotations": {
+      "get": {
+        "operationId": "LibraryController_annotations",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "since",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "post": {
+        "operationId": "LibraryController_createAnnotation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateAnnotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/annotations/{annotationId}": {
+      "patch": {
+        "operationId": "LibraryController_updateAnnotation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "annotationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateAnnotationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "delete": {
+        "operationId": "LibraryController_removeAnnotation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "annotationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/bookmarks": {
+      "get": {
+        "operationId": "LibraryController_bookmarks",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "post": {
+        "operationId": "LibraryController_createBookmark",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateBookmarkDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/bookmarks/{bookmarkId}": {
+      "delete": {
+        "operationId": "LibraryController_removeBookmark",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "bookmarkId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/explain": {
+      "post": {
+        "operationId": "LibraryController_explain",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExplainDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/items/{itemId}/excerpts": {
+      "post": {
+        "operationId": "LibraryController_excerpt",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReaderExcerptDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/collections": {
+      "get": {
+        "operationId": "LibraryController_collections",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "post": {
+        "operationId": "LibraryController_createCollection",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/collections/{collectionId}": {
+      "patch": {
+        "operationId": "LibraryController_updateCollection",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collectionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCollectionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      },
+      "delete": {
+        "operationId": "LibraryController_removeCollection",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collectionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/collections/{collectionId}/items": {
+      "post": {
+        "operationId": "LibraryController_addToCollection",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collectionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CollectionItemDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/collections/{collectionId}/items/{itemId}": {
+      "delete": {
+        "operationId": "LibraryController_removeFromCollection",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "collectionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/stats": {
+      "get": {
+        "operationId": "LibraryController_stats",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/library/metadata/search": {
+      "get": {
+        "operationId": "LibraryController_searchMetadata",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "library"
         ]
       }
     }
@@ -2398,6 +5040,20 @@
           }
         }
       },
+      "ThreadScopeDto": {
+        "type": "object",
+        "properties": {
+          "sourceVersionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "sourceVersionIds"
+        ]
+      },
       "UpdateThreadDto": {
         "type": "object",
         "properties": {
@@ -2408,6 +5064,715 @@
             "type": "boolean"
           }
         }
+      },
+      "UpdateArtifactDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateNoteDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "sourceId": {
+            "type": "string"
+          },
+          "sourceVersionId": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "anchor": {
+            "type": "object",
+            "description": "Source anchor (page, textPosition, textQuote)"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "UpdateNoteDto": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ]
+      },
+      "CreateManuscriptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string",
+            "description": "WRITER project; a new one is created when omitted"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "UpdateManuscriptDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "dailyGoal": {
+            "type": "number"
+          },
+          "archived": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CreateNodeDto": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PART",
+              "CHAPTER",
+              "SCENE"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "kind",
+          "title"
+        ]
+      },
+      "UpdateNodeDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "pov": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "object",
+            "nullable": true
+          },
+          "position": {
+            "type": "number"
+          }
+        }
+      },
+      "SaveDocDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "object",
+            "description": "TipTap JSON document"
+          },
+          "revision": {
+            "type": "number",
+            "description": "Revision the edit is based on (optimistic concurrency)"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "accept",
+              "undo"
+            ]
+          },
+          "suggestionId": {
+            "type": "string"
+          },
+          "variant": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "content",
+          "revision"
+        ]
+      },
+      "RestoreDto": {
+        "type": "object",
+        "properties": {
+          "revision": {
+            "type": "number",
+            "description": "Current revision (optimistic concurrency)"
+          }
+        },
+        "required": [
+          "revision"
+        ]
+      },
+      "RequestSuggestionsDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "rewrite",
+              "expand",
+              "shorten",
+              "tone",
+              "dialogue",
+              "continue"
+            ]
+          },
+          "blockIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "all": {
+            "type": "boolean",
+            "description": "Batch mode: every non-empty paragraph in the scene"
+          },
+          "tone": {
+            "type": "string"
+          },
+          "instruction": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mode"
+        ]
+      },
+      "UpdateSuggestionDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "REJECTED",
+              "PENDING"
+            ],
+            "description": "Reject, or undo a rejection"
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "CreateFactDto": {
+        "type": "object",
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "subjectKind": {
+            "type": "string",
+            "enum": [
+              "CHARACTER",
+              "PLACE",
+              "OBJECT",
+              "THEME",
+              "EVENT"
+            ]
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "statement": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject"
+        ]
+      },
+      "UpdateFactDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANON",
+              "RETIRED"
+            ]
+          },
+          "statement": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateLinkDto": {
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "target": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source",
+          "target",
+          "label"
+        ]
+      },
+      "UpdateLinkDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "CANON",
+              "RETIRED"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "ScenesDto": {
+        "type": "object",
+        "properties": {
+          "nodeIds": {
+            "description": "Scenes to use; all scenes when omitted",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "UpdateIssueDto": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "RESOLVED",
+              "DISMISSED"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ]
+      },
+      "CreateExcerptDto": {
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string"
+          },
+          "sourceVersionId": {
+            "type": "string"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "anchor": {
+            "type": "object",
+            "description": "Source anchor (page, textQuote, textPosition)"
+          }
+        },
+        "required": [
+          "sourceId",
+          "quote"
+        ]
+      },
+      "CreateResearchNoteDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "excerptId": {
+            "type": "string"
+          },
+          "nodeId": {
+            "type": "string"
+          }
+        }
+      },
+      "UpdateResearchNoteDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        }
+      },
+      "BookDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "language": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "publishedYear": {
+            "type": "number"
+          },
+          "isbn13": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pageCount": {
+            "type": "number"
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "metadataSource": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "OPEN_LIBRARY",
+              "GOOGLE_BOOKS"
+            ]
+          },
+          "externalIds": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
+      "CreateItemDto": {
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "description": "An uploaded book file (EPUB or PDF)"
+          },
+          "book": {
+            "description": "Manual entry or a confirmed metadata result",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/BookDto"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "TO_READ",
+              "READING",
+              "FINISHED",
+              "ABANDONED"
+            ]
+          }
+        }
+      },
+      "UpdateBookDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "authors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "language": {
+            "type": "string"
+          },
+          "publisher": {
+            "type": "string"
+          },
+          "publishedYear": {
+            "type": "number"
+          },
+          "isbn13": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "subjects": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pageCount": {
+            "type": "number"
+          },
+          "coverUrl": {
+            "type": "string"
+          },
+          "metadataSource": {
+            "type": "string",
+            "enum": [
+              "MANUAL",
+              "OPEN_LIBRARY",
+              "GOOGLE_BOOKS"
+            ]
+          },
+          "externalIds": {
+            "type": "object"
+          }
+        }
+      },
+      "UpdateItemDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "TO_READ",
+              "READING",
+              "FINISHED",
+              "ABANDONED"
+            ]
+          },
+          "rating": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 5,
+            "description": "0 clears the rating"
+          },
+          "book": {
+            "$ref": "#/components/schemas/UpdateBookDto"
+          }
+        }
+      },
+      "ProgressDto": {
+        "type": "object",
+        "properties": {
+          "locator": {
+            "type": "object",
+            "description": "Reader Locator { href, type, title, locations { progression, totalProgression, position, cfi, page } }"
+          },
+          "percent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1
+          },
+          "secondsDelta": {
+            "type": "number",
+            "description": "Reading time since the last report (capped at one hour)"
+          }
+        },
+        "required": [
+          "locator",
+          "percent"
+        ]
+      },
+      "CreateAnnotationDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Client-generated id; repeating a create with the same id is a no-op"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "HIGHLIGHT",
+              "NOTE"
+            ]
+          },
+          "color": {
+            "type": "string",
+            "enum": [
+              "amber",
+              "sage",
+              "rose",
+              "sky"
+            ]
+          },
+          "locator": {
+            "type": "object"
+          },
+          "quote": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "locator"
+        ]
+      },
+      "UpdateAnnotationDto": {
+        "type": "object",
+        "properties": {
+          "color": {
+            "type": "string",
+            "enum": [
+              "amber",
+              "sage",
+              "rose",
+              "sky"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateBookmarkDto": {
+        "type": "object",
+        "properties": {
+          "locator": {
+            "type": "object"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "locator"
+        ]
+      },
+      "ExplainDto": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "explain",
+              "define",
+              "summarize",
+              "context",
+              "ask"
+            ]
+          },
+          "passage": {
+            "type": "string"
+          },
+          "question": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "object",
+            "description": "Where the passage is; it bounds what the model may see (spoiler guard)"
+          }
+        },
+        "required": [
+          "mode",
+          "passage",
+          "locator"
+        ]
+      },
+      "ReaderExcerptDto": {
+        "type": "object",
+        "properties": {
+          "quote": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "quote",
+          "locator"
+        ]
+      },
+      "CollectionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "UpdateCollectionDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "CollectionItemDto": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId"
+        ]
       }
     }
   }

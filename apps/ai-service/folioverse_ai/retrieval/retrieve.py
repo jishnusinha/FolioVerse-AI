@@ -75,7 +75,8 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
         raise ConnectionError("Vector store unavailable (injected failure)")
     embedder = get_embedder()
     store: VectorStore = get_store()
-    flt = VectorStore.scope_filter(scope.workspace_id, scope.source_version_ids)
+    page_max = options.get("pageMax")
+    flt = VectorStore.scope_filter(scope.workspace_id, scope.source_version_ids, page_max)
     fusion = options.get("fusion", "rrf")
     top_k = int(options.get("topK", s.top_k))
     pool = max(top_k * 4, 20)
@@ -93,6 +94,9 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
 
     repo = get_repo()
     child_rows = await repo.get_chunks([c.chunk_id for c in ranked])
+    if page_max is not None:
+        # Chunks that start before the limit but run past it would leak later pages.
+        ranked = [c for c in ranked if ((child_rows.get(c.chunk_id) or {}).get("page_end") or 0) <= page_max]
     for c in ranked:
         row = child_rows.get(c.chunk_id)
         c.lexical = round(containment(query, row["text"]), 4) if row else 0.0
@@ -162,6 +166,8 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
         "embedder": embedder.name,
         "pool": pool,
     }
+    if page_max is not None:
+        params["pageMax"] = page_max
     return Retrieval(query, ranked, packed, abstain, round(top_dense, 4), used, round(latency, 2), params)
 
 

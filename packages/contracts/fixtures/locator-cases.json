@@ -1,0 +1,23 @@
+{
+  "description": "Reader Locator → ingested page (EPUB chapter = page). Used by apps/api library/locator.ts and apps/web features/reader/locator.js. `chapters` mirrors ingestion stats.chapters; `page` null means the locator cannot be placed and the reader must not be sent past its known position.",
+  "chapters": [
+    { "page": 1, "href": "Text/chapter-1.xhtml", "title": "Chapter 1 — The Halcyon Ring", "idref": "ch1" },
+    { "page": 2, "href": "Text/chapter-2.xhtml", "title": "Chapter 2 — The Archivist", "idref": "ch2" },
+    { "page": 3, "href": "Text/chapter-3.xhtml", "title": "Chapter 3 — A Lantern Fails", "idref": "ch3" },
+    { "page": 4, "href": "Text/chapter-4.xhtml", "title": "Chapter 4 — Perihelion", "idref": "ch4" }
+  ],
+  "cases": [
+    { "name": "exact href", "locator": { "href": "Text/chapter-2.xhtml" }, "page": 2 },
+    { "name": "href with fragment", "locator": { "href": "Text/chapter-3.xhtml#p4" }, "page": 3 },
+    { "name": "href relative to a different base", "locator": { "href": "OEBPS/Text/chapter-4.xhtml" }, "page": 4 },
+    { "name": "href with leading ./", "locator": { "href": "./Text/chapter-1.xhtml" }, "page": 1 },
+    { "name": "percent-encoded href", "locator": { "href": "Text/chapter%2D2.xhtml" }, "page": 2 },
+    { "name": "cfi idref when href is missing", "locator": { "locations": { "cfi": "epubcfi(/6/6[ch3]!/4/2/1:0)" } }, "page": 3 },
+    { "name": "href wins over a conflicting cfi", "locator": { "href": "Text/chapter-1.xhtml", "locations": { "cfi": "epubcfi(/6/8[ch4]!/4/2)" } }, "page": 1 },
+    { "name": "pdf page", "locator": { "type": "application/pdf", "locations": { "page": 7 } }, "page": 7 },
+    { "name": "position fallback", "locator": { "locations": { "position": 2 } }, "page": 2 },
+    { "name": "unknown href", "locator": { "href": "Text/appendix.xhtml" }, "page": null },
+    { "name": "basename must not match a longer name", "locator": { "href": "Text/chapter-11.xhtml" }, "page": null },
+    { "name": "empty locator", "locator": {}, "page": null }
+  ]
+}

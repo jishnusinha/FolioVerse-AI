@@ -28,6 +28,8 @@ import { ManuscriptPage } from '@/features/writer/ManuscriptPage.jsx';
 import { DnaPage } from '@/features/writer/DnaPage.jsx';
 import { ContinuityPage } from '@/features/writer/ContinuityPage.jsx';
 import { PrintPage } from '@/features/writer/PrintPage.jsx';
+import { LibraryPage } from '@/features/library/LibraryPage.jsx';
+import { ReaderPage } from '@/features/reader/ReaderPage.jsx';
 import { Toaster } from '@/shared/ui/toast.jsx';
 
 /** Page components that have replaced placeholders, keyed by route id. */
@@ -52,6 +54,8 @@ const PAGES = {
   dna: DnaPage,
   continuity: ContinuityPage,
   'manuscript-print': PrintPage,
+  library: LibraryPage,
+  reader: ReaderPage,
   project: ProjectPage,
   trash: TrashPage,
   'docs-design': DesignGalleryPage,

@@ -92,6 +92,7 @@ async def run_ingestion(req: dict, emitter: Emitter, data: bytes | None = None) 
             "chunk_id": c["id"],
             "parent_id": c["parent_id"],
             "page": c["page_start"],
+            "page_end": c["page_end"],
             "title": req.get("title"),
         }
         for c in children
@@ -119,6 +120,10 @@ async def run_ingestion(req: dict, emitter: Emitter, data: bytes | None = None) 
         "collection": store.collection,
         "seconds": round(time.perf_counter() - started, 3),
     }
+    if doc.metadata:
+        stats["metadata"] = doc.metadata
+    if doc.chapters:
+        stats["chapters"] = doc.chapters[:1000]
     state = "PARTIAL" if doc.failed_pages else "READY"
     # Local compute cost (embedding CPU time) is metered as LOCAL_COMPUTE usage.
     try:

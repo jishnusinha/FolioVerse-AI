@@ -29,6 +29,8 @@ def _locator(els: list[Element]) -> dict:
         loc["headingPath"] = first.heading_path
     if first.href:
         loc["href"] = first.href
+    if first.cfi:
+        loc["cfi"] = first.cfi
     return loc
 
 
@@ -42,23 +44,27 @@ def _split_long(el: Element, max_tokens: int) -> list[Element]:
         if count_tokens(" ".join(cur)) >= max_tokens:
             t = " ".join(cur)
             out.append(
-                Element(el.page, t, offset, offset + len(t), el.kind, el.bbox, el.heading_path, el.href)
+                Element(
+                    el.page, t, offset, offset + len(t), el.kind, el.bbox, el.heading_path, el.href, el.cfi
+                )
             )
             offset += len(t) + 1
             cur = []
     if cur:
         t = " ".join(cur)
-        out.append(Element(el.page, t, offset, offset + len(t), el.kind, el.bbox, el.heading_path, el.href))
+        out.append(
+            Element(el.page, t, offset, offset + len(t), el.kind, el.bbox, el.heading_path, el.href, el.cfi)
+        )
     return out
 
 
-def _group(els: list[Element], budget: int) -> list[list[Element]]:
+def _group(els: list[Element], budget: int, break_pages: bool = False) -> list[list[Element]]:
     groups: list[list[Element]] = []
     cur: list[Element] = []
     n = 0
     for e in els:
         t = count_tokens(e.text)
-        if cur and n + t > budget:
+        if cur and (n + t > budget or (break_pages and e.page != cur[-1].page)):
             groups.append(cur)
             cur, n = [], 0
         cur.append(e)
@@ -72,7 +78,7 @@ def chunk_document(doc: ParsedDocument, source_version_id: str) -> list[dict]:
     elements = [p for e in doc.elements for p in _split_long(e, CHILD_TOKENS)]
     chunks: list[dict] = []
     child_ord = 0
-    for p_ord, parent_els in enumerate(_group(elements, PARENT_TOKENS)):
+    for p_ord, parent_els in enumerate(_group(elements, PARENT_TOKENS, doc.break_pages)):
         pid = stable_id(source_version_id, "PARENT", p_ord)
         ptext = "\n\n".join(e.text for e in parent_els)
         chunks.append(

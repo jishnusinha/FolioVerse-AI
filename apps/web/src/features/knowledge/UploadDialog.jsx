@@ -29,7 +29,18 @@ function ItemState({ item }) {
  * Upload one or more files into a project, or a new version of an existing source.
  * Each file: create session → PUT bytes (with progress) → complete (size, hash and type checks) → PREVIEW_READY or QUARANTINED.
  */
-export function UploadDialog({ open, onOpenChange, workspaceId, projectId, folders = [], defaultFolderId = null, source = null }) {
+export function UploadDialog({
+  open,
+  onOpenChange,
+  workspaceId,
+  projectId,
+  folders = [],
+  defaultFolderId = null,
+  source = null,
+  extensions = ALLOWED_EXTENSIONS,
+  title,
+  onUploaded,
+}) {
   const qc = useQueryClient();
   const [items, setItems] = useState([]);
   const [folderId, setFolderId] = useState(defaultFolderId ?? '');
@@ -43,12 +54,13 @@ export function UploadDialog({ open, onOpenChange, workspaceId, projectId, folde
 
   function addFiles(fileList) {
     const files = [...fileList].slice(0, versionMode ? 1 : 50);
+    const allowed = (name) => isAllowedFile(name) && extensions.includes(extensionOf(name));
     const next = files.map((file) => ({
       key: `f${++seq}`,
       file,
-      status: isAllowedFile(file.name) ? 'QUEUED' : 'REJECTED',
+      status: allowed(file.name) ? 'QUEUED' : 'REJECTED',
       pct: 0,
-      error: isAllowedFile(file.name) ? null : `.${extensionOf(file.name) || '?'} files are not supported`,
+      error: allowed(file.name) ? null : `.${extensionOf(file.name) || '?'} files are not supported`,
     }));
     setItems((list) => (versionMode ? next : [...list.filter((i) => !DONE.has(i.status) || i.status === 'PREVIEW_READY'), ...next]));
   }
@@ -74,6 +86,7 @@ export function UploadDialog({ open, onOpenChange, workspaceId, projectId, folde
       sourceId: done.sourceId,
       error: done.state === 'QUARANTINED' ? `Blocked by the safety scan${done.reason ? `: ${done.reason}` : ''}.` : null,
     });
+    if (done.state !== 'QUARANTINED') await onUploaded?.(done, item.file);
   }
 
   async function start() {
@@ -110,8 +123,8 @@ export function UploadDialog({ open, onOpenChange, workspaceId, projectId, folde
     <Dialog
       open={open}
       onOpenChange={close}
-      title={versionMode ? `Upload a new version of ${source.title}` : 'Upload documents'}
-      description={`Allowed: ${ALLOWED_EXTENSIONS.map((e) => e.toUpperCase()).join(', ')}. Files are scanned before anything else happens.`}
+      title={title ?? (versionMode ? `Upload a new version of ${source.title}` : 'Upload documents')}
+      description={`Allowed: ${extensions.map((e) => e.toUpperCase()).join(', ')}. Files are scanned before anything else happens.`}
       footer={
         <>
           {running ? (
@@ -164,7 +177,7 @@ export function UploadDialog({ open, onOpenChange, workspaceId, projectId, folde
             type="file"
             className="sr"
             aria-label={versionMode ? 'Choose a file' : 'Choose files'}
-            accept={ACCEPT_ATTR}
+            accept={extensions === ALLOWED_EXTENSIONS ? ACCEPT_ATTR : extensions.map((e) => `.${e}`).join(',')}
             multiple={!versionMode}
             onChange={(e) => {
               addFiles(e.target.files);

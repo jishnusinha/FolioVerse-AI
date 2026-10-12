@@ -1221,3 +1221,204 @@ model ResearchNote {
   @@map("research_notes")
   @@schema("app")
 }
+
+// ───────────────────────────── library ─────────────────────────────
+
+enum ReadingStatus {
+  TO_READ
+  READING
+  FINISHED
+  ABANDONED
+
+  @@schema("app")
+}
+
+enum MetadataSource {
+  MANUAL
+  EPUB
+  OPEN_LIBRARY
+  GOOGLE_BOOKS
+
+  @@schema("app")
+}
+
+enum AnnotationKind {
+  HIGHLIGHT
+  NOTE
+
+  @@schema("app")
+}
+
+/// Bibliographic record. Shared by the workspace; a reader's shelf entry is a `library_items` row.
+model Book {
+  id             String         @id @db.Uuid
+  workspaceId    String         @map("workspace_id") @db.Uuid
+  title          String
+  subtitle       String?
+  authors        String[]       @default([])
+  language       String?
+  publisher      String?
+  publishedYear  Int?           @map("published_year")
+  isbn13         String?        @map("isbn_13")
+  description    String?
+  subjects       String[]       @default([])
+  pageCount      Int?           @map("page_count")
+  coverUrl       String?        @map("cover_url")
+  /// Cover tone 1–6 (design token `--fv-cover-N`) when there is no cover image.
+  coverTone      Int            @default(1) @map("cover_tone")
+  metadataSource MetadataSource @default(MANUAL) @map("metadata_source")
+  externalIds    Json           @default("{}") @map("external_ids")
+  isDemo         Boolean        @default(false) @map("is_demo")
+  createdById    String         @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  items LibraryItem[]
+
+  @@index([workspaceId, isbn13])
+  @@map("books")
+  @@schema("app")
+}
+
+/// One reader's copy of a book: shelf status, rating and, when the book file was uploaded, its source.
+/// Items, progress, annotations and bookmarks are private to `userId`.
+model LibraryItem {
+  id           String        @id @db.Uuid
+  workspaceId  String        @map("workspace_id") @db.Uuid
+  userId       String        @map("user_id") @db.Uuid
+  bookId       String        @map("book_id") @db.Uuid
+  sourceId     String?       @map("source_id") @db.Uuid
+  status       ReadingStatus @default(TO_READ)
+  rating       Int?
+  startedAt    DateTime?     @map("started_at")
+  finishedAt   DateTime?     @map("finished_at")
+  lastOpenedAt DateTime?     @map("last_opened_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  book        Book             @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  progress    ReadingProgress?
+  annotations Annotation[]
+  bookmarks   Bookmark[]
+  sessions    ReadingSession[]
+  collections CollectionItem[]
+
+  @@unique([userId, bookId])
+  @@index([workspaceId, userId, status])
+  @@map("library_items")
+  @@schema("app")
+}
+
+model Collection {
+  id          String   @id @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String
+  description String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  items CollectionItem[]
+
+  @@unique([workspaceId, userId, name])
+  @@map("collections")
+  @@schema("app")
+}
+
+model CollectionItem {
+  collectionId String   @map("collection_id") @db.Uuid
+  itemId       String   @map("item_id") @db.Uuid
+  addedAt      DateTime @default(now()) @map("added_at")
+
+  collection Collection  @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  item       LibraryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([collectionId, itemId])
+  @@map("collection_items")
+  @@schema("app")
+}
+
+/// Last reading position. `locator` is the unified reader Locator (href, cfi/page, progression).
+model ReadingProgress {
+  id           String   @id @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  itemId       String   @unique @map("item_id") @db.Uuid
+  locator      Json
+  percent      Float    @default(0)
+  chapterIndex Int?     @map("chapter_index")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  item LibraryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@map("reading_progress")
+  @@schema("app")
+}
+
+/// Reading time per item and UTC day, for reading stats.
+model ReadingSession {
+  id          String   @id @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  day         DateTime @db.Date
+  seconds     Int      @default(0)
+
+  item LibraryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, day])
+  @@index([workspaceId, userId, day])
+  @@map("reading_sessions")
+  @@schema("app")
+}
+
+/// Highlight or note. Deletes are tombstones (`deletedAt`) so `?since=` sync can propagate them.
+model Annotation {
+  id              String         @id @db.Uuid
+  workspaceId     String         @map("workspace_id") @db.Uuid
+  userId          String         @map("user_id") @db.Uuid
+  itemId          String         @map("item_id") @db.Uuid
+  sourceVersionId String?        @map("source_version_id") @db.Uuid
+  kind            AnnotationKind
+  /// Highlight colour token name (amber, sage, rose, sky).
+  color           String         @default("amber")
+  locator         Json
+  quote           String         @default("")
+  note            String?
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  deletedAt       DateTime?      @map("deleted_at")
+
+  item LibraryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId, updatedAt])
+  @@map("annotations")
+  @@schema("app")
+}
+
+model Bookmark {
+  id          String   @id @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  locator     Json
+  label       String   @default("")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  item LibraryItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@index([itemId])
+  @@map("bookmarks")
+  @@schema("app")
+}
+
+/// Responses from optional metadata providers (Open Library, Google Books), keyed by provider and query.
+model BookMetadataCache {
+  key       String   @id
+  provider  String
+  payload   Json
+  fetchedAt DateTime @default(now()) @map("fetched_at")
+
+  @@map("book_metadata_cache")
+  @@schema("app")
+}

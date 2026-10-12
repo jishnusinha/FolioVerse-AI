@@ -6,7 +6,9 @@ from folioverse_ai.ids import uuid7
 from folioverse_ai.ingestion.pipeline import run_ingestion
 
 
-async def ingest(text: str, workspace_id: str, title: str = "Doc", mime: str = "text/markdown") -> str:
+async def ingest(
+    text: str | bytes, workspace_id: str, title: str = "Doc", mime: str = "text/markdown"
+) -> str:
     svid = uuid7()
     em = Emitter(None, workspace_id)
     res = await run_ingestion(
@@ -20,7 +22,7 @@ async def ingest(text: str, workspace_id: str, title: str = "Doc", mime: str = "
             "objectUrl": "unused",
         },
         em,
-        data=text.encode(),
+        data=text if isinstance(text, bytes) else text.encode(),
     )
     assert res["state"] == "READY", res
     return svid

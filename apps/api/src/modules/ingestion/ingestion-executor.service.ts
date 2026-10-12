@@ -3,6 +3,7 @@ import type { IngestionState } from '@prisma/client';
 import { PrismaService } from '../../infra/prisma.service';
 import { StorageService } from '../../infra/storage.service';
 import { AiClientService, AiServiceError } from '../ai-client/ai-client.service';
+import { LibraryService } from '../library/library.service';
 import { SourcesService } from '../sources/sources.service';
 
 const TERMINAL: IngestionState[] = ['READY', 'PARTIAL', 'FAILED', 'QUARANTINED'];
@@ -16,6 +17,7 @@ export class IngestionExecutorService {
     private readonly storage: StorageService,
     private readonly ai: AiClientService,
     private readonly sources: SourcesService,
+    private readonly library: LibraryService,
   ) {}
 
   /**
@@ -76,6 +78,9 @@ export class IngestionExecutorService {
       data: { state: final.state, stats: final.stats ?? undefined, error: final.error ?? null, finishedAt: new Date() },
     });
     if (final.stats?.pages) await this.prisma.sourceVersion.update({ where: { id: version.id }, data: { pageCount: final.stats.pages } });
+    if (final.stats?.metadata && (final.state === 'READY' || final.state === 'PARTIAL')) {
+      await this.library.applyIngestedMetadata(source.id, final.stats.metadata).catch((e) => this.log.warn(`book metadata for ${source.id} not applied: ${(e as Error).message}`));
+    }
     await this.sources.setState(job.workspaceId, source.id, version.id, final.state, final.error, 1);
     await this.sources.stage(job.workspaceId, source.id, version.id, final.state, 1, final.error);
   }

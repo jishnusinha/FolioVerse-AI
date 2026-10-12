@@ -60,10 +60,11 @@ export function replaceBlockText(doc, blockId, text, attrs = {}) {
   return found ? structuredClone(next) : null;
 }
 
-/** Footnote text for a research note: “quote” — Source, p. N. */
+/** Footnote text for a research note: “quote” — Source, p. N (or the chapter title for a library book excerpt). */
 export function citationText(note) {
-  const page = note.source?.anchor?.selectors?.page;
-  const where = [note.source?.title ?? note.title, page ? `p. ${page}` : null].filter(Boolean).join(', ');
+  const anchor = note.source?.anchor;
+  const page = anchor?.selectors?.page ?? (anchor?.locator?.type === 'application/pdf' ? anchor.page : null);
+  const where = [note.source?.title ?? note.title, page ? `p. ${page}` : (anchor?.chapterTitle ?? null)].filter(Boolean).join(', ');
   return note.quote ? `“${note.quote}” — ${where}` : where || note.title;
 }
 

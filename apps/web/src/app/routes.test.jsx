@@ -38,6 +38,7 @@ const EXPECTED_H1 = {
   dna: 'Manuscript not found',
   continuity: 'Manuscript not found',
   'manuscript-print': 'Manuscript not found',
+  reader: 'Book not found',
 };
 const SIGNED_OUT = new Set(['login', 'register', 'forgot', 'reset', 'verify']);
 
