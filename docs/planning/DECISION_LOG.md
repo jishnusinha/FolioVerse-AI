@@ -87,6 +87,29 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Context: Radix modal dialogs return focus only to a Radix `Trigger`; our dialogs are opened from shell buttons, shortcuts and the palette, so focus was lost on close.
 - Decision: the `Dialog`/`Sheet` wrappers remember the focused element at open time and restore it in `onCloseAutoFocus`.
 
+## D-022 Workspace scoping by explicit predicates instead of a ScopedPrisma extension
+- Context: the plan proposes a Prisma client extension that injects the workspace predicate. Query extensions do not
+  cover nested writes, `$transaction` arrays built from the base client, or raw SQL, so they give partial protection.
+- Decision: every workspace-scoped query passes `workspaceId` explicitly; the global guard resolves membership and
+  returns 404 to non-members. `authz.matrix.spec.ts` derives the route list from controller metadata so a new endpoint
+  cannot ship without a role classification and outsider/role tests.
+
+## D-023 Integration tests use the compose data services, not Testcontainers
+- Context: Testcontainers would pull and start fresh Postgres/Redis/S3 containers per run on a nearly full system drive.
+- Decision: the integration suite runs against the existing compose services with a dedicated `folioverse_test`
+  database (migrated in `global-setup.ts`), per-test random users, and per-instance rate-limit key prefixes. CI provides
+  the same services as job `services:`.
+
+## D-024 Web E2E runs against an in-memory fake API
+- Context: Gate 2 asks for a "mock everything" E2E job; booting the API, worker and AI services in the web job is slow.
+- Decision: `src/test/fakeApi.js` implements the Gate 2 endpoints in memory (DEMO data, problem+json errors, CSRF,
+  roles, 401/refresh). Vitest installs it as `fetch`; Playwright routes `/api/**` to it (`playwright/fixtures.js`).
+  The real API is covered by the Supertest integration suite and `infrastructure/scripts/smoke.mjs`.
+
+## D-025 Rate-limit counters in Redis without a new dependency
+- Context: `@nestjs/throttler` defaults to per-process memory; the plan asks for a Redis store.
+- Decision: `RedisThrottlerStorage` (one Lua script: INCR + PEXPIRE + block key) on the existing ioredis client.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
-- Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`.
+- Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

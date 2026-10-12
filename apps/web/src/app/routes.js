@@ -33,6 +33,7 @@ export const PUBLIC_ROUTES = [
   { id: 'reset', path: '/reset-password', title: 'Reset password', section: 'auth', gate: 2, public: true },
   { id: 'verify', path: '/verify-email', title: 'Verify email', section: 'auth', gate: 2, public: true },
   { id: 'onboarding', path: '/onboarding', title: 'Welcome to FolioVerse', section: 'auth', gate: 2, public: true },
+  { id: 'accept-invite', path: '/accept-invite', title: 'Join a workspace', section: 'auth', gate: 2, public: true },
 ];
 
 /** @type {RouteDef[]} */
@@ -40,6 +41,7 @@ export const APP_ROUTES = [
   { id: 'home', path: '/app', title: 'Home', section: 'home', gate: 3 },
   { id: 'knowledge', path: '/app/knowledge', title: 'Folio Knowledge', section: 'knowledge', gate: 2 },
   { id: 'project', path: '/app/knowledge/projects/:projectId', title: 'Project', section: 'knowledge', gate: 2 },
+  { id: 'trash', path: '/app/knowledge/trash', title: 'Trash', section: 'knowledge', gate: 2 },
   {
     id: 'document',
     path: '/app/knowledge/projects/:projectId/documents/:sourceId',

@@ -1,6 +1,15 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
-import { afterEach } from 'vitest';
+import { cleanup, configure } from '@testing-library/react';
+import { afterEach, beforeEach } from 'vitest';
+import { installFakeFetch } from './fakeApi.js';
+
+// Full-app renders under a loaded test runner can exceed the 1s default.
+configure({ asyncUtilTimeout: 3000 });
+
+// Every test starts signed in against a fresh in-memory API; tests may install their own fake.
+beforeEach(() => {
+  installFakeFetch();
+});
 
 afterEach(() => {
   cleanup();

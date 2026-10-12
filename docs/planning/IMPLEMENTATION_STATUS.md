@@ -82,7 +82,42 @@ Validation (apps/web, local Chrome via `PW_CHANNEL=chrome`, D-017): `vitest run`
 
 Also fixed: smoke script read non-existent `receipt.model`/`receipt.plan` (cause of `model=undefined`); it now reads
 `modelCalls`/`modelPlan`.
-## Gate 2 — Auth, Workspaces, Projects, Upload — PLANNED
+## Gate 2 — Auth, Workspaces, Projects, Upload — DONE
+
+Validation: API `test:integration` 72/72 against Postgres/Redis/SeaweedFS (`folioverse_test` DB, D-023), API unit 34/34,
+API `tsc` 0 and `eslint` clean; web `vitest run` 150/150, `eslint src` clean, `tsc` 0, `vite build` OK; Playwright
+`shell` 7/7 + `auth-upload` 3/3 against the fake API (D-024), `visual` 6/6 still within 2% of the Gate 1 baselines.
+
+- `FV-G02-AUTH-001` Auth — DONE. register/login/refresh/logout/me, argon2id, `fv_at` 10 min, rotating `fv_rt` with
+  family revocation on reuse, `fv_csrf` double-submit. Rate limits now use a Redis store shared by replicas (D-025).
+  Tests: reuse detection, CSRF missing → 403, expired access → 401 `TOKEN_EXPIRED` then refresh → 200, logout revokes
+  the refresh token, forgot-password → 429 after the limit. Web: register → onboarding, login → `next`, transparent
+  refresh-and-retry in `src/api/client.js`, sign out (Playwright `auth-upload`).
+- `FV-G02-AUTHZ-002` Authorization — DONE. Roles OWNER/ADMIN/EDITOR/VIEWER via `@RequireRole` + global guard (non-members
+  → 404). `test/integration/authz.matrix.spec.ts` enumerates every workspace-scoped route from controller metadata (fails
+  on unclassified routes) and checks outsider 404, below-role 403 and allowed roles never 401/403/5xx for 52 endpoints.
+  ScopedPrisma extension replaced by explicit predicates + the matrix (D-022).
+- `FV-G02-MAIL-003` Mail — DONE. Verification and reset emails via Mailpit SMTP (in-memory outbox in tests); single-use
+  hashed tokens. Web pages `/verify-email`, `/auth/forgot-password`, `/reset-password`.
+- `FV-G02-WS-004` Workspaces — DONE. PERSONAL workspace at signup, TEAM create, rename (`PATCH /workspaces/:id`, new),
+  members/roles, invitations (+ web `/accept-invite`), workspace switcher in Knowledge (selection persisted).
+- `FV-G02-PROJ-005` Projects/folders — DONE. Kinds, adjacency + materialized path, rename/move/archive/trash/restore; daily
+  BullMQ `maintenance` purge after 30 days (`PurgeService`; no automated test yet because it calls the AI service purge).
+- `FV-G02-UPL-006` Uploads — DONE (proxy mode, D-014). Session → PUT → complete verifies size, sha256 and magic bytes;
+  pdf/docx/txt/md/epub; UPLOADING → UPLOADED → SCANNING → PREVIEW_READY or QUARANTINED. GCS adapter and >64 MB
+  multipart are not implemented (local SeaweedFS only); see Gate 10.
+- `FV-G02-SRC-007` Sources/versions — DONE. Immutable `source_versions`, stored objects, ranged file GET, version list and
+  "Upload new version" flow in the web details panel.
+- `FV-G02-AUD-008` Audit + idempotency — DONE. Audit rows asserted in `tenancy.spec.ts` (`auth.register`, `source.upload`).
+- `FV-G02-FE-009` Web — DONE. Auth pages and onboarding (prototype `auth` view), Knowledge home (projects + create),
+  project page (prototype `knowledge` view: folder tree with counts, filters, batch move/reprocess/trash, details panel,
+  ingestion tray with retry, polling while busy), upload dialog (XHR progress, per-file state badges, rejected/quarantined
+  states, cancel), trash with restore. Editing controls follow the member role (API still enforces).
+- `FV-G02-TEST-010` Harness — DONE with deviations (D-023, D-024). Playwright project `auth-upload` added to `test:e2e`.
+
+Also fixed: mis-encoded `·` in the document title (`AppShell.jsx`); a lint error in `file-scan.ts`.
+Not done here: the unexplained untracked `apps/web/src/features/design/samples.js` (another session's file) is left
+untouched and uncommitted at the user's request.
 ## Gate 3 — First Vertical Slice — PLANNED (backend slice already passing smoke; UI pending)
 ## Gates 4–13 — PLANNED
 

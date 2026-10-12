@@ -26,6 +26,10 @@ const PATHS = {
   focus: 'M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5',
   lens: 'M12 3l2 6 6 .5-4.7 4 1.5 6.5L12 16.6 7.2 20l1.5-6.5L4 9.5 10 9z',
   bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0',
+  trash: 'M4 7h16M10 7V4h4v3M6 7l1 13h10l1-13M10 11v6M14 11v6',
+  plus: 'M12 5v14M5 12h14',
+  download: 'M12 4v12M7 11l5 5 5-5M4 20h16',
+  more: 'M5 12h.01M12 12h.01M19 12h.01',
 };
 
 export const ICON_NAMES = Object.keys(PATHS);

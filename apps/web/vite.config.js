@@ -27,5 +27,7 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.js'],
     include: ['src/**/*.test.{js,jsx}'],
     css: false,
+    // Full-app renders in parallel workers routinely take several seconds on CI runners.
+    testTimeout: 20_000,
   },
 });

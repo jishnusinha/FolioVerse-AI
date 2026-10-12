@@ -78,6 +78,14 @@ export class WorkspacesController {
     return this.prisma.workspace.findUniqueOrThrow({ where: { id: workspaceId } });
   }
 
+  @RequireRole('ADMIN')
+  @Patch('workspaces/:workspaceId')
+  async rename(@Param('workspaceId') workspaceId: string, @Body() dto: CreateWorkspaceDto, @CurrentUser() u: AuthUser) {
+    const ws = await this.prisma.workspace.update({ where: { id: workspaceId }, data: { name: dto.name } });
+    await this.audit.record({ workspaceId, actorId: u.id, action: 'workspace.rename', resourceType: 'workspace', resourceId: workspaceId });
+    return { id: ws.id, name: ws.name, kind: ws.kind };
+  }
+
   @Get('workspaces/:workspaceId/members')
   async members(@Param('workspaceId') workspaceId: string) {
     const rows = await this.prisma.workspaceMember.findMany({ where: { workspaceId }, include: { user: true } });

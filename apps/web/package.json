@@ -10,7 +10,7 @@
     "lint": "eslint src",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "test": "vitest run",
-    "test:e2e": "vite build && playwright test --project=prototype --project=shell",
+    "test:e2e": "vite build && playwright test --project=prototype --project=shell --project=auth-upload",
     "test:vr": "vite build && playwright test --project=visual"
   },
   "dependencies": {

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures.js';
 
 test.describe('application shell (built app)', () => {
   test.beforeEach(async ({ page }) => {
@@ -26,6 +26,7 @@ test.describe('application shell (built app)', () => {
 
   test('palette navigates by keyboard', async ({ page }) => {
     await page.goto('/app');
+    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
     await page.keyboard.press('Control+k');
     await expect(page.getByRole('combobox')).toBeFocused();
     await page.keyboard.type('discover');
@@ -52,6 +53,7 @@ test.describe('application shell (built app)', () => {
 
   test('skip link moves focus to main content', async ({ page }) => {
     await page.goto('/app');
+    await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
     await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Skip to content' });
     await expect(skip).toBeFocused();

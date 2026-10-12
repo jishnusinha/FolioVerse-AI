@@ -1,12 +1,36 @@
-import { Navigate, Outlet } from 'react-router';
+import { useEffect } from 'react';
+import { Navigate, Outlet, useMatches } from 'react-router';
 import { APP_ROUTES, PUBLIC_ROUTES } from './routes.js';
-import { AppShell } from './AppShell.jsx';
+import { AppShell, useApplyTheme } from './AppShell.jsx';
 import { NotFoundPage, PlaceholderPage } from './PlaceholderPage.jsx';
 import { DesignGalleryPage } from '@/features/design/DesignGalleryPage.jsx';
 import { SettingsPage } from '@/features/settings/SettingsPage.jsx';
+import {
+  ForgotPasswordPage,
+  LoginPage,
+  RegisterPage,
+  ResetPasswordPage,
+  VerifyEmailPage,
+} from '@/features/auth/AuthPages.jsx';
+import { OnboardingPage } from '@/features/auth/OnboardingPage.jsx';
+import { AcceptInvitePage } from '@/features/auth/AcceptInvitePage.jsx';
+import { KnowledgeHomePage } from '@/features/knowledge/KnowledgeHomePage.jsx';
+import { ProjectPage } from '@/features/knowledge/ProjectPage.jsx';
+import { TrashPage } from '@/features/knowledge/TrashPage.jsx';
+import { Toaster } from '@/shared/ui/toast.jsx';
 
 /** Page components that have replaced placeholders, keyed by route id. */
 const PAGES = {
+  login: LoginPage,
+  register: RegisterPage,
+  forgot: ForgotPasswordPage,
+  reset: ResetPasswordPage,
+  verify: VerifyEmailPage,
+  onboarding: OnboardingPage,
+  'accept-invite': AcceptInvitePage,
+  knowledge: KnowledgeHomePage,
+  project: ProjectPage,
+  trash: TrashPage,
   'docs-design': DesignGalleryPage,
   settings: SettingsPage,
   'settings-section': SettingsPage,
@@ -18,16 +42,25 @@ function element(route) {
 }
 
 function PublicLayout() {
+  useApplyTheme();
+  const route = useMatches().at(-1)?.handle?.route;
+  useEffect(() => {
+    document.title = `${route?.title ?? 'FolioVerse'} · FolioVerse`;
+  }, [route]);
   return (
-    <main id="main" tabIndex={-1} style={{ height: '100%' }}>
-      <Outlet />
-    </main>
+    <>
+      <main id="main" tabIndex={-1} style={{ height: '100%' }}>
+        <Outlet />
+      </main>
+      <Toaster />
+    </>
   );
 }
 
 /** Route objects for `createBrowserRouter` / `createMemoryRouter`. */
 export const routeObjects = [
   { path: '/', element: <Navigate to="/app" replace /> },
+  { path: '/auth', element: <Navigate to="/auth/login" replace /> },
   {
     element: <PublicLayout />,
     children: PUBLIC_ROUTES.map((r) => ({ path: r.path, element: element(r), handle: { route: r } })),

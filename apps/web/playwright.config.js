@@ -24,6 +24,8 @@ export default defineConfig({
     { name: 'prototype', testMatch: /prototype\.spec\.js/ },
     { name: 'visual', testMatch: /visual\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'shell', testMatch: /shell\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
+    { name: 'auth-upload', testMatch: /auth-upload\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
+    { name: 'preview', testMatch: /gate\d+-preview\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
   ],
   webServer: {
     command: `npx vite preview --port ${PORT} --strictPort`,

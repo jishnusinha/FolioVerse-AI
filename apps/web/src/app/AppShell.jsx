@@ -11,7 +11,10 @@ import { CommandPalette } from '@/shared/overlays/CommandPalette.jsx';
 import { ShortcutsDialog } from '@/shared/overlays/ShortcutsDialog.jsx';
 import { Sheet } from '@/shared/ui/Dialog.jsx';
 import { Toaster } from '@/shared/ui/toast.jsx';
-import { TooltipProvider } from '@/shared/ui/Radix.jsx';
+import { DropdownMenu, TooltipProvider } from '@/shared/ui/Radix.jsx';
+import { useQueryClient } from '@tanstack/react-query';
+import { RequireSession } from '@/features/auth/RequireSession.jsx';
+import { signOut, useMe } from '@/features/auth/session.js';
 
 const SECTION_ICON = {
   home: 'home',
@@ -69,8 +72,57 @@ function Breadcrumbs({ route }) {
   );
 }
 
-/** Application shell: navigation rail, top bar, main region and global overlays. */
+function initials(name = '') {
+  return (
+    name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((w) => w[0].toUpperCase())
+      .join('') || '?'
+  );
+}
+
+function AccountMenu() {
+  const me = useMe();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const user = me.data?.user;
+  return (
+    <DropdownMenu
+      align="start"
+      trigger={
+        <button type="button" className="nav-btn" data-m="hide" title={user?.email} aria-label={`Account: ${user?.displayName ?? ''}`}>
+          <span className="avatar">{initials(user?.displayName)}</span>
+          <span className="nav-label">{user?.displayName}</span>
+        </button>
+      }
+      items={[
+        { label: 'Settings', onSelect: () => navigate('/app/settings') },
+        '-',
+        {
+          label: 'Sign out',
+          onSelect: async () => {
+            await signOut(qc).catch(() => undefined);
+            navigate('/auth/login', { replace: true });
+          },
+        },
+      ]}
+    />
+  );
+}
+
+/** Application shell for signed-in users. */
 export function AppShell() {
+  return (
+    <RequireSession>
+      <ShellFrame />
+    </RequireSession>
+  );
+}
+
+/** Navigation rail, top bar, main region and global overlays. */
+function ShellFrame() {
   const resolved = useApplyTheme();
   const setTheme = useThemeStore((s) => s.setTheme);
   const railExpanded = useUiStore((s) => s.railExpanded);
@@ -91,7 +143,7 @@ export function AppShell() {
   useGlobalShortcuts({ navigate, togglePalette, toggleRail, openHelp });
 
   useEffect(() => {
-    document.title = `${route?.title ?? 'FolioVerse'} Â· FolioVerse`;
+    document.title = `${route?.title ?? 'FolioVerse'} · FolioVerse`;
   }, [route]);
 
   const first = useRef(true);
@@ -168,6 +220,7 @@ export function AppShell() {
               <Icon name="panel" size={19} />
               <span className="nav-label">{railExpanded ? 'Collapse' : 'Expand'}</span>
             </button>
+            <AccountMenu />
           </div>
         </nav>
         <div className="frame">

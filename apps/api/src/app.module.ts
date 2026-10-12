@@ -1,10 +1,13 @@
+import { randomUUID } from 'node:crypto';
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthGuard } from './common/auth.guard';
 import { IdempotencyInterceptor } from './common/idempotency.interceptor';
 import { ProblemFilter } from './common/problem.filter';
+import { RedisThrottlerStorage } from './common/throttler-redis.storage';
 import { DomainModule } from './domain.module';
+import { RedisService } from './infra/redis.service';
 import { AuthController } from './modules/auth/auth.controller';
 import { AuthService } from './modules/auth/auth.service';
 import { CostsController } from './modules/costs/costs.controller';
@@ -20,7 +23,16 @@ import { WorkspacesController } from './modules/workspaces/workspaces.controller
 import { FEATURE_CONTROLLERS, FEATURE_PROVIDERS } from './features';
 
 @Module({
-  imports: [DomainModule, ThrottlerModule.forRoot([{ ttl: 60_000, limit: process.env.NODE_ENV === 'test' ? 10_000 : 600 }])],
+  imports: [
+    DomainModule,
+    ThrottlerModule.forRootAsync({
+      inject: [RedisService],
+      useFactory: (redis: RedisService) => ({
+        throttlers: [{ ttl: 60_000, limit: process.env.NODE_ENV === 'test' ? 10_000 : 600 }],
+        storage: new RedisThrottlerStorage(redis.client, process.env.NODE_ENV === 'test' ? `fv:throttle:test:${randomUUID()}` : undefined),
+      }),
+    }),
+  ],
   controllers: [
     HealthController,
     AuthController,

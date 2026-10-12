@@ -58,6 +58,12 @@ describe('uploads', () => {
     const { complete } = await upload(a.c, a.workspaceId, k.id, 'ok.md', Buffer.from('# Title\n\nHello world.'));
     const res = await complete();
     expect(res.body.state).toBe('PREVIEW_READY');
+
+    const audit = await a.c.get(`/api/workspaces/${a.workspaceId}/audit`);
+    expect(audit.status).toBe(200);
+    expect(audit.body.map((e: any) => e.action)).toEqual(expect.arrayContaining(['auth.register', 'source.upload']));
+    const uploaded = audit.body.find((e: any) => e.action === 'source.upload');
+    expect(uploaded).toMatchObject({ resourceType: 'source_version', resourceId: res.body.versionId });
   });
 
   it('quarantines a renamed executable', async () => {
