@@ -48,7 +48,40 @@ forward: application Docker images unbuilt locally; CI not yet run remotely; smo
 `model=undefined` (receipt shape to align in Gate 3 UI); stray `", ` prefix in API pino log lines.
 Next: Gate 1 (design system and shell).
 
-## Gate 1 — Design System & Application Shell — PLANNED
+## Gate 1 — Design System & Application Shell — DONE
+
+Validation (apps/web, local Chrome via `PW_CHANNEL=chrome`, D-017): `vitest run` 123/123; `eslint src` clean;
+`tsc -p jsconfig.json` 0; `vite build` OK; `playwright test` 34/34 (prototype 21, shell 7, visual 6).
+
+- `FV-G01-PROTO-001` Prototype — DONE. `design-prototype/index.html` renders all 14 views with no script errors;
+  palette navigation, notifications drawer (focus restore) and writer Folio Lens verified (`playwright/prototype.spec.js`).
+  Two rendering bugs fixed (rail and brand icons collapsed to 0px width; D-019). References recorded:
+  `apps/web/playwright/reference/home-{1280,1440,1920,mobile}.png` + `view-<view>-1440.png` for all 14 views.
+  Known prototype quirk carried to Gate 8: Studio panes are auto-placed out of order at 1440px.
+- `FV-G01-SHELL-002` AppShell — DONE. Prototype markup/classes: rail 60/224 (Ctrl+\, persisted), top bar 56 with
+  breadcrumbs, search/palette trigger, + New, notifications; mobile bottom bar; `Panes` primitive with context (260)
+  and inspector (330). Prototype CSS ported to `src/styles/components.css` (D-018).
+- `FV-G01-UI-003` Primitives — DONE. `src/shared/ui`: Button, IconButton, Kbd, Input, Textarea, Select, Field, Dialog,
+  Sheet, Tabs, Tooltip, DropdownMenu, Popover, Toast/Toaster, Badge, Skeleton, ScrollArea, Separator, Progress,
+  Segmented, Table, KeyValue, Card, Callout; Command via cmdk in the palette.
+- `FV-G01-STATE-004` States — DONE. `src/shared/states.js` (9 vocabularies) + `StatusBadge`, `StageTrack`,
+  `DemoBadge`. `states.test.jsx` asserts every vocabulary equals `states.schema.json` and every value renders a badge.
+- `FV-G01-OVL-005` Overlays — DONE (shells). CommandPalette (route + action registry, feature-registered commands),
+  FolioLens (K/W/R action registry; loading/streaming/done/abstain/error states; roving focus, Escape, outside
+  click), EvidenceDrawer (440; version drift, revoked/purged, weak/unresolved), RunReceipt (bound to the API receipt
+  shape), ModelSelector (registry options only, DEMO and missing-price flags), ShortcutsDialog, Toaster.
+- `FV-G01-THEME-006` Theme — DONE. `useThemeStore` light/dark/system (persisted, pre-paint script in `index.html`),
+  Settings › Appearance control, Studio forced dark on `<main>`, reduced motion honoured, token font stacks.
+- `FV-G01-A11Y-007` A11y — DONE. Skip link, focus return for dialogs/sheets (D-021), focus trap and roving tabindex
+  utilities, shortcut registry (`?`, Ctrl/Cmd+K, Ctrl+\, `g h/k/w/l/d/s/c`) ignored while typing.
+- `FV-G01-VR-008` Visual regression — DONE (win32 baseline). `playwright/visual.spec.js`, 2% threshold, shell at
+  1280/1440/1920/mobile and gallery light/dark; baselines in `playwright/__screenshots__/visual/win32` (D-020).
+  CI job `web-e2e` runs prototype + shell projects; Linux baseline deferred to Gate 13.
+- `FV-G01-DOC-009` Gallery — DONE. `/app/docs/design` shows tokens, type scale, all state badges and stage tracks,
+  citation chips, primitives and every overlay (DEMO data).
+
+Also fixed: smoke script read non-existent `receipt.model`/`receipt.plan` (cause of `model=undefined`); it now reads
+`modelCalls`/`modelPlan`.
 ## Gate 2 — Auth, Workspaces, Projects, Upload — PLANNED
 ## Gate 3 — First Vertical Slice — PLANNED (backend slice already passing smoke; UI pending)
 ## Gates 4–13 — PLANNED

@@ -66,6 +66,27 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Decision: `pnpm up -- --infra` runs only the data services in Docker; `pnpm dev` runs web, api, worker, ai-api and ai-ingest natively. Full-Docker mode (`pnpm up`, compose profile `app`) remains and is built in CI. No `docker-compose.dev.yml`.
 - Consequence: application Dockerfiles are validated in CI, not locally; recorded in the status file.
 
+## D-017 Playwright may use a system browser locally
+- Context: the cached Playwright Chromium (rev 1243) does not match `@playwright/test` 1.64 (rev 1248); downloading it costs ~300 MB on a nearly full system drive.
+- Decision: `playwright.config.js` reads `PW_CHANNEL` (`chrome` or `msedge`) and uses the installed system browser when set. CI installs Playwright's Chromium (`playwright install --with-deps chromium`).
+
+## D-018 Prototype CSS as the component layer; owned JSX primitives
+- Context: the plan asks for shadcn-style JSX primitives and 1:1 fidelity with the prototype.
+- Decision: the prototype's component/layout CSS (sections 2–6) is ported verbatim into `src/styles/components.css` inside `@layer components`, so Tailwind utilities still override it. Primitives in `src/shared/ui` are owned JSX (shadcn approach: source in repo) that render the prototype classes on top of the already-installed Radix packages (dialog, dropdown, popover, tabs, tooltip) and cmdk. Select, Progress, ScrollArea, Separator and Toast use native elements or local code instead of adding more Radix packages.
+- Consequence: no new dependencies; visual parity comes from shared class names and tokens.
+
+## D-019 Prototype rendering fixes
+- Context: in the collapsed rail the nav and brand SVGs shrank to 0px because the hidden label still occupied flex space.
+- Decision: added `flex-shrink:0` to `.nav-btn svg` and `.brand svg` in both the prototype and the app CSS; references re-recorded.
+
+## D-020 Visual regression baselines are per platform; prototype screenshots are references
+- Context: font rendering differs between Windows and Linux, and placeholder pages differ in content from the prototype's demo screens, so a pixel diff against the prototype is not meaningful yet.
+- Decision: prototype screenshots in `playwright/reference/` are fidelity references for review. The VR gate compares the app against its own committed baseline (2% threshold), stored per platform (`__screenshots__/visual/win32`). Linux baselines are generated in Gate 13; CI runs prototype + shell projects until then.
+
+## D-021 Focus return for Radix dialogs opened from arbitrary controls
+- Context: Radix modal dialogs return focus only to a Radix `Trigger`; our dialogs are opened from shell buttons, shortcuts and the palette, so focus was lost on close.
+- Decision: the `Dialog`/`Sheet` wrappers remember the focused element at open time and restore it in `onCloseAutoFocus`.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`.

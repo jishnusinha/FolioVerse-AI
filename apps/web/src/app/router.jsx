@@ -2,9 +2,15 @@ import { Navigate, Outlet } from 'react-router';
 import { APP_ROUTES, PUBLIC_ROUTES } from './routes.js';
 import { AppShell } from './AppShell.jsx';
 import { NotFoundPage, PlaceholderPage } from './PlaceholderPage.jsx';
+import { DesignGalleryPage } from '@/features/design/DesignGalleryPage.jsx';
+import { SettingsPage } from '@/features/settings/SettingsPage.jsx';
 
 /** Page components that have replaced placeholders, keyed by route id. */
-const PAGES = {};
+const PAGES = {
+  'docs-design': DesignGalleryPage,
+  settings: SettingsPage,
+  'settings-section': SettingsPage,
+};
 
 function element(route) {
   const Page = PAGES[route.id];
@@ -13,7 +19,7 @@ function element(route) {
 
 function PublicLayout() {
   return (
-    <main id="main" className="grid min-h-full place-items-center bg-fv-bg text-fv-text">
+    <main id="main" tabIndex={-1} style={{ height: '100%' }}>
       <Outlet />
     </main>
   );

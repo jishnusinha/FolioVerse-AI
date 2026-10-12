@@ -10,8 +10,8 @@
     "lint": "eslint src",
     "typecheck": "tsc -p jsconfig.json --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test",
-    "test:vr": "playwright test --project=visual"
+    "test:e2e": "vite build && playwright test --project=prototype --project=shell",
+    "test:vr": "vite build && playwright test --project=visual"
   },
   "dependencies": {
     "@dagrejs/dagre": "^1.1.4",

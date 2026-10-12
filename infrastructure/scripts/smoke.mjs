@@ -170,7 +170,7 @@ async function main() {
 
   await new Promise((r) => setTimeout(r, 2500));
   const receipt = await c.get(`/api/workspaces/${wid}/runs/${runId}/receipt`);
-  step(`receipt: model=${receipt.model?.model ?? receipt.plan?.primary?.model} cost=${receipt.cost?.total} ${receipt.cost?.currency} tier=${receipt.cost?.tier} demo=${receipt.cost?.isDemo}`);
+  step(`receipt: model=${receipt.modelCalls?.at(-1)?.model ?? receipt.modelPlan?.primary?.model} cost=${receipt.cost?.total} ${receipt.cost?.currency} tier=${receipt.cost?.tier} demo=${receipt.cost?.isDemo}`);
 
   const abst = await c.post(`/api/workspaces/${wid}/runs`, {
     graph: 'grounded_qa',

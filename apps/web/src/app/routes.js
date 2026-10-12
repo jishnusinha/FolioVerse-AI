@@ -37,7 +37,7 @@ export const PUBLIC_ROUTES = [
 
 /** @type {RouteDef[]} */
 export const APP_ROUTES = [
-  { id: 'home', path: '/app', title: 'Home', section: 'home', gate: 1 },
+  { id: 'home', path: '/app', title: 'Home', section: 'home', gate: 3 },
   { id: 'knowledge', path: '/app/knowledge', title: 'Folio Knowledge', section: 'knowledge', gate: 2 },
   { id: 'project', path: '/app/knowledge/projects/:projectId', title: 'Project', section: 'knowledge', gate: 2 },
   {
@@ -68,6 +68,7 @@ export const APP_ROUTES = [
   { id: 'admin-pricing', path: '/app/admin/pricing', title: 'Model prices', section: 'admin', gate: 9 },
   { id: 'admin-models', path: '/app/admin/models', title: 'Model registry', section: 'admin', gate: 9 },
   { id: 'docs', path: '/app/docs', title: 'Documentation', section: 'docs', gate: 12 },
+  { id: 'docs-design', path: '/app/docs/design', title: 'Component gallery', section: 'docs', gate: 1 },
   { id: 'docs-page', path: '/app/docs/:slug', title: 'Documentation', section: 'docs', gate: 12 },
   { id: 'settings', path: '/app/settings', title: 'Settings', section: 'settings', gate: 1 },
   { id: 'settings-section', path: '/app/settings/:section', title: 'Settings', section: 'settings', gate: 1 },

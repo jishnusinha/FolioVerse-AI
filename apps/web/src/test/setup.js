@@ -5,6 +5,7 @@ import { afterEach } from 'vitest';
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  delete document.documentElement.dataset.theme;
 });
 
 if (typeof window.matchMedia !== 'function') {
@@ -19,3 +20,15 @@ if (typeof window.matchMedia !== 'function') {
     dispatchEvent: () => false,
   });
 }
+
+// jsdom lacks these; cmdk and Radix call them.
+if (!('ResizeObserver' in window)) {
+  window.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+Element.prototype.scrollIntoView ??= function scrollIntoView() {};
+Element.prototype.hasPointerCapture ??= () => false;
+Element.prototype.releasePointerCapture ??= () => {};

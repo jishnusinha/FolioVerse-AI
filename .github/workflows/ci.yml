@@ -60,6 +60,24 @@ jobs:
       - name: Web build
         run: pnpm --filter @folioverse/web run build
 
+  web-e2e:
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @folioverse/web exec playwright install --with-deps chromium
+      # Visual baselines are committed for win32 only; the linux baseline is generated in Gate 13.
+      - name: Prototype checks and shell e2e
+        run: pnpm --filter @folioverse/web run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with: { name: web-e2e-results, path: apps/web/test-results, retention-days: 7 }
+
   api-integration:
     needs: changes
     if: needs.changes.outputs.api == 'true'

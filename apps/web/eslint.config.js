@@ -8,7 +8,7 @@ export default [
     rules: {
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
-      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_|^[A-Z]' }],
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_|^[A-Z]', varsIgnorePattern: '^_|^[A-Z]' }],
     },
   }),
 ];

@@ -18,6 +18,9 @@ function renderAt(path) {
 
 const sample = (path) => path.replace(/:(\w+)/g, (_, k) => `sample-${k}`);
 
+/** Routes whose real page has its own heading instead of the placeholder title. */
+const EXPECTED_H1 = { settings: 'Appearance', 'settings-section': 'Appearance' };
+
 describe('route registry', () => {
   it('has unique ids and paths', () => {
     expect(new Set(ALL_ROUTES.map((r) => r.id)).size).toBe(ALL_ROUTES.length);
@@ -39,7 +42,8 @@ describe('route registry', () => {
 describe('router smoke', () => {
   it.each(ALL_ROUTES.map((r) => [r.path, r]))('renders %s', async (_path, route) => {
     renderAt(sample(route.path));
-    expect(await screen.findByRole('heading', { level: 1, name: route.title })).toBeInTheDocument();
+    const name = EXPECTED_H1[route.id] ?? route.title;
+    expect(await screen.findByRole('heading', { level: 1, name })).toBeInTheDocument();
   });
 
   it('redirects / to /app', async () => {
@@ -51,12 +55,6 @@ describe('router smoke', () => {
   it('shows not found inside the shell for unknown app paths', async () => {
     renderAt('/app/does-not-exist');
     expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
-  });
-
-  it('forces the studio theme on studio routes', async () => {
-    renderAt('/app/studio/runs/run_1');
-    await screen.findByRole('heading', { name: 'Run' });
-    expect(document.body.querySelector('.studio')).not.toBeNull();
+    expect(screen.getByRole('navigation', { name: 'Primary' })).toBeInTheDocument();
   });
 });

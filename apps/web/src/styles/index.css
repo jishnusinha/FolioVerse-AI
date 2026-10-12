@@ -1,32 +1,13 @@
 @import 'tailwindcss';
 @import '@folioverse/design-tokens/tokens.css';
 @import '@folioverse/design-tokens/tailwind.css';
+@import './components.css';
+@import './shell.css';
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *, .studio, .studio *));
 
 @layer base {
-  html,
-  body,
   #root {
     height: 100%;
-  }
-  body {
-    background: var(--fv-bg);
-    color: var(--fv-text);
-    font-family: var(--fv-font-sans);
-    font-size: var(--fv-fs-md);
-    -webkit-font-smoothing: antialiased;
-  }
-  :focus-visible {
-    outline: 2px solid var(--fv-accent);
-    outline-offset: 2px;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
   }
 }
