@@ -1,0 +1,12 @@
+{
+  "name": "rec-holdout",
+  "isDemo": true,
+  "note": "Implicit positives of synthetic users; test holds each user's most recent 20 % (min 2).",
+  "seed": 7,
+  "users": 300,
+  "train": 5454,
+  "test": 1363,
+  "catalogSha256": "10ce46b573373c839dddc526a0a736bb01ee6dfc0da69b22ec2429a1d712a0b0",
+  "trainSha256": "46ceb6598cc15efdd847ce9dfd0f8bb62f2ff4cd18693eadfa7f87ea2267e8ca",
+  "testSha256": "f3b854415f2c8a1dcdee6bbc8f2c4c7ac5b18f470a0522edd8171e24dd022998"
+}

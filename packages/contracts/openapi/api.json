@@ -4637,6 +4637,482 @@
           "library"
         ]
       }
+    },
+    "/api/workspaces/{workspaceId}/discover/taste": {
+      "get": {
+        "operationId": "DiscoveryController_taste",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      },
+      "put": {
+        "operationId": "DiscoveryController_saveTaste",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TasteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/catalog": {
+      "get": {
+        "operationId": "DiscoveryController_catalog",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "kind",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "genre",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mood",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "theme",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/catalog/{itemId}": {
+      "get": {
+        "operationId": "DiscoveryController_item",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/catalog/{itemId}/similar": {
+      "get": {
+        "operationId": "DiscoveryController_similar",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "otherKind",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/recommendations": {
+      "post": {
+        "operationId": "DiscoveryController_recommend",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecommendDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/recommendations/latest": {
+      "get": {
+        "operationId": "DiscoveryController_latest",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "mode",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/recommendations/{setId}": {
+      "get": {
+        "operationId": "DiscoveryController_set",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "setId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/recommendations/{setId}/items/{itemId}/explain": {
+      "post": {
+        "operationId": "DiscoveryController_explain",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "setId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "itemId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/feedback": {
+      "post": {
+        "operationId": "DiscoveryController_feedback",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FeedbackDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/saved": {
+      "get": {
+        "operationId": "DiscoveryController_saved",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/model": {
+      "get": {
+        "operationId": "DiscoveryController_model",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/evaluations": {
+      "post": {
+        "operationId": "DiscoveryController_evaluate",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      },
+      "get": {
+        "operationId": "DiscoveryController_evaluations",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/discover/evaluations/{id}": {
+      "get": {
+        "operationId": "DiscoveryController_evaluation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "discovery"
+        ]
+      }
     }
   },
   "info": {
@@ -5773,6 +6249,164 @@
         "required": [
           "itemId"
         ]
+      },
+      "TasteDto": {
+        "type": "object",
+        "properties": {
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "moods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "themes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "seedItemIds": {
+            "description": "Catalog items picked as favourites",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "WeightsDto": {
+        "type": "object",
+        "properties": {
+          "semantic": {
+            "type": "number"
+          },
+          "tfidf": {
+            "type": "number"
+          },
+          "theme": {
+            "type": "number"
+          },
+          "preference": {
+            "type": "number"
+          },
+          "prior": {
+            "type": "number",
+            "description": "Capped at 0.10 after normalisation"
+          }
+        }
+      },
+      "LabDto": {
+        "type": "object",
+        "properties": {
+          "weights": {
+            "$ref": "#/components/schemas/WeightsDto"
+          },
+          "lambda": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "MMR relevance/diversity trade-off"
+          },
+          "perCreator": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "balanceMedia": {
+            "type": "boolean"
+          }
+        }
+      },
+      "RecommendDto": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "description": "What the member is in the mood for, in their own words"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "BOOK",
+              "FILM"
+            ]
+          },
+          "genres": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "moods": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "k": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 24
+          },
+          "lab": {
+            "description": "Recommendation Lab overrides; the set is logged as LAB and records no impressions",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LabDto"
+              }
+            ]
+          }
+        }
+      },
+      "FeedbackDto": {
+        "type": "object",
+        "properties": {
+          "itemId": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "SAVE",
+              "UNSAVE",
+              "LIKE",
+              "DISLIKE",
+              "CLEAR_RATING",
+              "DISMISS",
+              "UNDISMISS",
+              "CLICK"
+            ]
+          },
+          "setId": {
+            "type": "string"
+          },
+          "position": {
+            "type": "number"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "itemId",
+          "action"
+        ]
+      },
+      "EvaluateDto": {
+        "type": "object",
+        "properties": {
+          "k": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 20
+          }
+        }
       }
     }
   }

@@ -1,0 +1,95 @@
+{
+  "name": "rec-offline-eval",
+  "modelVersion": "recsys-hybrid v2",
+  "k": 10,
+  "users": 300,
+  "catalogItems": 530,
+  "isDemo": true,
+  "note": "Synthetic catalog and synthetic users (DEMO). Metrics show relative behaviour of the variants, not real-world quality.",
+  "metrics": {
+    "precision": "Precision@K",
+    "recall": "Recall@K",
+    "ndcg": "nDCG@K",
+    "hitRate": "Hit rate@K",
+    "coverage": "Catalog coverage",
+    "diversity": "Intra-list diversity (1 − cosine)",
+    "novelty": "Novelty (mean self-information, bits)",
+    "popularityPercentile": "Popularity bias (mean popularity percentile; 0.5 = none)"
+  },
+  "variants": [
+    {
+      "name": "popularity",
+      "label": "Most popular (baseline)",
+      "precision": 0.0193,
+      "recall": 0.0427,
+      "ndcg": 0.0324,
+      "hitRate": 0.18,
+      "coverage": 0.0302,
+      "diversity": 0.888,
+      "novelty": 3.531,
+      "popularityPercentile": 0.9902
+    },
+    {
+      "name": "item_knn",
+      "label": "Item-kNN collaborative filtering",
+      "precision": 0.038,
+      "recall": 0.0889,
+      "ndcg": 0.0677,
+      "hitRate": 0.33,
+      "coverage": 0.8472,
+      "diversity": 0.8357,
+      "novelty": 4.46,
+      "popularityPercentile": 0.6836
+    },
+    {
+      "name": "nmf",
+      "label": "NMF collaborative filtering",
+      "precision": 0.034,
+      "recall": 0.0737,
+      "ndcg": 0.0522,
+      "hitRate": 0.2967,
+      "coverage": 0.7226,
+      "diversity": 0.8428,
+      "novelty": 4.367,
+      "popularityPercentile": 0.7297
+    },
+    {
+      "name": "content",
+      "label": "Content only (semantic + TF-IDF + themes)",
+      "precision": 0.061,
+      "recall": 0.146,
+      "ndcg": 0.1044,
+      "hitRate": 0.4867,
+      "coverage": 0.9415,
+      "diversity": 0.6758,
+      "novelty": 4.805,
+      "popularityPercentile": 0.5347
+    },
+    {
+      "name": "hybrid",
+      "label": "Hybrid, no diversification",
+      "precision": 0.0587,
+      "recall": 0.1395,
+      "ndcg": 0.1035,
+      "hitRate": 0.4467,
+      "coverage": 0.8981,
+      "diversity": 0.7015,
+      "novelty": 4.611,
+      "popularityPercentile": 0.618
+    },
+    {
+      "name": "hybrid_mmr",
+      "label": "Hybrid + MMR (served)",
+      "precision": 0.0497,
+      "recall": 0.1158,
+      "ndcg": 0.0894,
+      "hitRate": 0.4,
+      "coverage": 0.9132,
+      "diversity": 0.7611,
+      "novelty": 4.627,
+      "popularityPercentile": 0.6151
+    }
+  ],
+  "durationMs": 6145,
+  "createdAt": "2026-10-12T17:04:59+00:00"
+}

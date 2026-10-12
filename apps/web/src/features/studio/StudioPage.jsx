@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
+import { EvaluationPanel } from '@/features/discover/EvaluationPanel.jsx';
 import { useCurrentWorkspace } from '@/features/auth/session.js';
 import { formatMs } from '@/shared/format.js';
 import { DemoBadge, StatusBadge } from '@/shared/StatusBadge.jsx';
@@ -12,9 +13,47 @@ import { layoutGraph, nodeState } from './graphLayout.js';
 
 const STATE_TEXT = { idle: '○ idle', running: '◐ running', streaming: '◆ streaming', succeeded: '✓ done', skipped: '– skipped', failed: '✕ failed' };
 
+function StudioTabs({ view }) {
+  return (
+    <nav className="tabs" aria-label="Studio sections" style={{ padding: '0 14px' }}>
+      <Link to="/app/studio" aria-current={view === 'runs' ? 'page' : undefined}>
+        Runs
+      </Link>
+      <Link to="/app/studio?view=evaluations" aria-current={view === 'evaluations' ? 'page' : undefined}>
+        Evaluations
+      </Link>
+    </nav>
+  );
+}
+
+/** Offline evaluation reports of the recommender (the same job as the Recommendation Lab panel). */
+function EvaluationsView() {
+  const workspace = useCurrentWorkspace();
+  return (
+    <div className="page">
+      <p className="eyebrow">Evaluations · {workspace?.name}</p>
+      <h1 style={{ fontSize: 22, margin: '4px 0 12px' }}>AI Developer Studio</h1>
+      <StudioTabs view="evaluations" />
+      <p className="callout" style={{ margin: '16px 0' }}>
+        Offline evaluation scores the served recommendation model and its baselines on a held-out split of synthetic users. It makes no model calls and adds no
+        cost. Answer-quality evaluations for the RAG graphs arrive with the full Studio.
+      </p>
+      <div className="dash">
+        <EvaluationPanel headingId="studio-eval" />
+      </div>
+    </div>
+  );
+}
+
 /** AI Developer Studio (read-only): run explorer, workflow graph, node inspector and recorded event timeline. */
 export function StudioPage() {
+  const [params] = useSearchParams();
   const { runId } = useParams();
+  if (!runId && params.get('view') === 'evaluations') return <EvaluationsView />;
+  return <RunsView runId={runId} />;
+}
+
+function RunsView({ runId }) {
   const workspace = useCurrentWorkspace();
   const wid = workspace?.id;
   const runs = useRuns(wid, { limit: 50 });
@@ -40,6 +79,7 @@ export function StudioPage() {
           <p className="eyebrow">Runs · {workspace?.name}</p>
           <h1 style={{ fontSize: 16, marginTop: 4 }}>AI Developer Studio</h1>
         </div>
+        <StudioTabs view="runs" />
         {runs.isPending ? (
           <div className="pad">
             <Skeleton height={48} />
@@ -55,7 +95,7 @@ export function StudioPage() {
                 <span className="mono">{r.graph}</span>
                 <StatusBadge family="run" value={r.status} />
               </span>
-              <span style={{ fontSize: 12.5 }}>{r.input?.question ?? r.input?.action ?? 'Run'}</span>
+              <span style={{ fontSize: 12.5 }}>{r.input?.question ?? r.input?.action ?? r.input?.text ?? 'Run'}</span>
               <span className="mono subtle" style={{ fontSize: 11 }}>
                 {r.id.slice(0, 8)} · {new Date(r.createdAt).toLocaleString()}
                 {r.isDemo ? ' · DEMO' : ''}

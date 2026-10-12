@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     mock_token_delay_ms: int = Field(8, alias="FV_MOCK_TOKEN_DELAY_MS")
     otel_endpoint: str | None = Field(None, alias="OTEL_EXPORTER_OTLP_ENDPOINT")
     log_level: str = Field("info", alias="LOG_LEVEL")
+    # Recommendations: DEMO catalog, training interactions, holdout and artifact directory (defaults: repo paths).
+    rec_catalog: str | None = Field(None, alias="FV_REC_CATALOG")
+    rec_holdout: str | None = Field(None, alias="FV_REC_HOLDOUT")
+    rec_artifact_dir: str | None = Field(None, alias="FV_REC_ARTIFACT_DIR")
 
     @property
     def public_key_pem(self) -> str:

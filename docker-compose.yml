@@ -82,7 +82,9 @@ services:
     build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
     image: folioverse/api:local
     env_file: [.env]
-    environment: *app-env
+    environment:
+      <<: *app-env
+      FV_DEMO_CATALOG: ${FV_DEMO_CATALOG:-true}
     command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
     depends_on:
       postgres: { condition: service_healthy }

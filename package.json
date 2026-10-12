@@ -16,7 +16,7 @@
     "lint": "pnpm -r --if-present run lint",
     "typecheck": "pnpm -r --if-present run typecheck",
     "test": "pnpm -r --if-present run test && pnpm run test:py",
-    "test:py": "python -m uv run --directory apps/ai-service pytest -q",
+    "test:py": "python -m uv run --directory apps/ai-service pytest -q && python -m uv run --directory packages/folioverse-ml pytest -q",
     "test:integration": "pnpm --filter @folioverse/api run test:integration",
     "test:e2e": "pnpm --filter @folioverse/web run test:e2e",
     "test:security": "node tests/security/run.mjs",

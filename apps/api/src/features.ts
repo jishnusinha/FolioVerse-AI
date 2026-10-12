@@ -1,4 +1,5 @@
 import { ArtifactsController } from './modules/artifacts/artifacts.controller';
+import { DiscoveryController } from './modules/discovery/discovery.controller';
 import { InsightsController } from './modules/insights/insights.controller';
 import { LibraryController } from './modules/library/library.controller';
 import { MetadataService } from './modules/library/metadata.service';
@@ -20,5 +21,6 @@ export const FEATURE_CONTROLLERS: any[] = [
   DnaController,
   ResearchController,
   LibraryController,
+  DiscoveryController,
 ];
 export const FEATURE_PROVIDERS: any[] = [MetadataService];

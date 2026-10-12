@@ -504,5 +504,5 @@ export function createFakeLibrary({ db, uuid, iso, ok, problem, noContent, excer
     return problem(404, 'Not found');
   }
 
-  return { library: L, handle, seed, chapters: CHAPTERS };
+  return { library: L, handle, seed, chapters: CHAPTERS, addBook, addItem };
 }

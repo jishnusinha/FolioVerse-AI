@@ -321,6 +321,63 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
   width. `EpubEngine` calls `rendition.reportLocation()` after every `display`/`next`/`prev` and after the first display.
   The preview Playwright project serves the built `dist`, so `pnpm build` must run before it.
 
+## D-066 Recsys "semantic" factor uses LSA, not a neural embedder
+- Context: the catalog is synthetic and the recommender must train offline in seconds with no downloads or paid calls.
+- Decision: the semantic factor is a truncated-SVD (LSA) projection of the TF-IDF matrix, kept separate from the
+  lexical TF-IDF factor. Swapping in a sentence embedder later only replaces this factor's vectors.
+
+## D-067 Model artifacts are npz + JSON with checksums
+- Decision: `rec_model_vN.json` manifest (data hashes, params, training counts, vocabulary) plus `.npz` arrays; every
+  file's sha256 is verified on load and nothing is unpickled. Versions increment in `FV_REC_ARTIFACT_DIR`
+  (default `.data/rec-artifacts`, gitignored); the served label is `recsys-hybrid vN`.
+
+## D-068 Hybrid weights and the quality prior cap
+- Decision: factors semantic / tfidf / theme / preference / prior (defaults 0.35 / 0.20 / 0.20 / 0.20 / 0.05). Weights
+  are clipped to [0, 1], normalised to sum 1, then the prior is capped at 0.10 and the excess is dropped, not
+  redistributed, so popularity cannot dominate. Themes use pseudo-relevance feedback from the top 10 items. The web
+  fake mirrors the same rule.
+
+## D-069 Diversity with MMR and caps
+- Decision: MMR over the top 200 scored candidates with λ (default 0.7), at most 2 per creator and 2 per franchise by
+  default, book/film balance on by default when no media type is chosen. Items similar to disliked ones lose up to
+  0.15 (scaled by semantic similarity). Cold start (no signals) uses the prior pool.
+
+## D-070 Profile sources
+- Decision: profile = declared taste (genres, moods, themes, favourite titles), query text, Library items, clicks and
+  feedback (`SAVE`, `LIKE`, `DISLIKE`, `DISMISS` and their undo actions), with part weights history 1.0, query 1.5,
+  declared 0.6, context 0.8. Dismissed items are excluded from later sets.
+
+## D-071 Impressions only for Discover
+- Decision: Discover sets write impression interactions; Lab re-ranks are experiments and do not, so tuning in the Lab
+  never changes the profile.
+
+## D-072 Saving a recommendation shelves it
+- Decision: SAVE on a book adds it to the member's Library as `TO_READ` with `externalIds.catalogId`; films go to the
+  saved shelf (shown as the watchlist) only. Re-saving is idempotent.
+
+## D-073 DEMO catalog load is opt-in by flag
+- Decision: the seed loads `datasets/synthetic/catalog` only when `FV_DEMO_CATALOG=true`. `.env.example`, `pnpm up`
+  and the compose `migrate` service default it to true for local use; a production deployment sets it explicitly.
+  Every item and metric derived from it is labelled DEMO.
+
+## D-074 `rec.evaluation_reports` table
+- Context: the plan's `rec` table list does not include evaluation storage.
+- Decision: offline evaluations are stored as rows (status, K, variants, metrics JSON, duration, model version) so the
+  Lab and Studio can list history; the job runs on the worker `maintenance` queue as `rec-eval`.
+
+## D-075 Shared catalog, private signals
+- Decision: catalog items and themes are global (not workspace-scoped); taste, interactions, sets and feedback are
+  scoped by `workspaceId` and `userId`. Non-members get 404.
+
+## D-076 Recommender outages are 503
+- Decision: any AI-service failure on a recommendation call (HTTP error or network error) becomes
+  `503 RECOMMENDER_UNAVAILABLE` with no upstream detail. The authz matrix treats that code as "allowed but upstream
+  down" so the test does not depend on the AI service.
+
+## D-077 Studio Evaluations tab
+- Decision: Studio gets a Runs / Evaluations switch via `?view=evaluations` (no new route), reusing the Lab's
+  evaluation panel so there is one implementation.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

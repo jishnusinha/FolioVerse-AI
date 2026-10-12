@@ -4,6 +4,7 @@
  * 401 without a session, 404 outside the workspace, 403 below the required role, problem+json errors.
  */
 import { createFakeAi } from './fakeAi.js';
+import { createFakeDiscover } from './fakeDiscover.js';
 import { FAKE_INSIGHT_ACTIONS } from './fakeKnowledge.js';
 import { createFakeLibrary } from './fakeLibrary.js';
 import { createFakeWriter } from './fakeWriter.js';
@@ -136,6 +137,7 @@ export function createFakeApi(opts = {}) {
   if (opts.writer !== false) fakeWriter.seed(personal, writing.id);
   const fakeLibrary = createFakeLibrary({ db, uuid, iso, ok, problem, noContent, excerpts: fakeWriter.writer.excerpts, opts });
   if (opts.library !== false && !opts.empty) fakeLibrary.seed(personal, libraryProject, addSource);
+  const fakeDiscover = createFakeDiscover({ db, uuid, iso, ok, problem, library: fakeLibrary });
 
   const member = (wid) => db.memberships.find((m) => m.workspaceId === wid);
   const live = (rows, wid) => rows.filter((r) => r.workspaceId === wid && !r.deletedAt);
@@ -341,6 +343,8 @@ export function createFakeApi(opts = {}) {
       }
     }
 
+    const discovered = fakeDiscover.handle(method, wid, rest, body, need, u.searchParams);
+    if (discovered) return discovered;
     const shelved = fakeLibrary.handle(method, wid, rest, body, need, u.searchParams);
     if (shelved) return shelved;
     const written = fakeWriter.handle(method, wid, rest, body, need, u.searchParams);
@@ -353,7 +357,7 @@ export function createFakeApi(opts = {}) {
     return u;
   }
 
-  return { db, handle, ai: fakeAi, writer: fakeWriter, library: fakeLibrary };
+  return { db, handle, ai: fakeAi, writer: fakeWriter, library: fakeLibrary, discover: fakeDiscover };
 }
 
 /** Routes `fetch` to a fake API inside jsdom tests. Returns the fake for assertions. */

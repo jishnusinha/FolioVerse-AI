@@ -5,7 +5,7 @@
  *                       natively; start the apps with `pnpm dev`.
  */
 import { ensureEnvFile } from './gen-keys.mjs';
-import { run } from './lib.mjs';
+import { loadEnv, run } from './lib.mjs';
 import { waitForStack } from './wait-for-health.mjs';
 
 const infraOnly = process.argv.includes('--infra');
@@ -25,7 +25,9 @@ await waitForStack({ apps: !infraOnly });
 if (infraOnly) {
   console.log('up: applying migrations and seed…');
   await run('pnpm', ['--filter', '@folioverse/api', 'run', 'db:migrate']);
-  await run('pnpm', ['--filter', '@folioverse/api', 'run', 'db:seed']);
+  // The local stack loads the synthetic DEMO discovery catalog unless .env sets FV_DEMO_CATALOG=false.
+  const demoCatalog = process.env.FV_DEMO_CATALOG ?? loadEnv().FV_DEMO_CATALOG ?? 'true';
+  await run('pnpm', ['--filter', '@folioverse/api', 'run', 'db:seed'], { env: { ...process.env, FV_DEMO_CATALOG: demoCatalog } });
 }
 
 console.log(`

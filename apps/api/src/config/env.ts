@@ -35,6 +35,8 @@ const schema = z.object({
   FV_METADATA_OPEN_LIBRARY: bool.default(false),
   FV_METADATA_GOOGLE_BOOKS: bool.default(false),
   GOOGLE_BOOKS_API_KEY: z.string().optional(),
+  FV_DEMO_CATALOG: bool.default(false),
+  FV_REC_CATALOG: z.string().optional(),
   FV_OPENAI_MODEL: z.string().optional(),
   FV_OLLAMA_MODEL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),

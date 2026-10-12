@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
+from . import recommend
 from .auth import require_internal, verify_scope
 from .events import Emitter, ndjson_stream
 from .graphs.checkpoints import list_checkpoints
@@ -79,6 +80,61 @@ async def search(req: SearchRequest):
         for p in r.packed
     ]
     return {"items": items, "abstain": r.abstain, "latencyMs": r.latency_ms}
+
+
+class RecommendRequest(BaseModel):
+    requestId: str
+    workspaceId: str
+    profile: dict = Field(default_factory=dict)
+    request: dict = Field(default_factory=dict)
+
+
+class SimilarRequest(BaseModel):
+    itemId: str
+    k: int = Field(default=6, ge=1, le=20)
+    otherKind: bool = False
+
+
+class EvaluateRequest(BaseModel):
+    k: int = Field(default=10, ge=1, le=50)
+    maxUsers: int | None = Field(default=None, ge=1)
+
+
+def _rec_unavailable(e: Exception) -> HTTPException:
+    return HTTPException(503, f"Recommendation model unavailable: {e}")
+
+
+@run_router.post("/recommendations")
+async def recommendations(req: RecommendRequest):
+    """Ranks the catalog for one profile. Pure scoring (no language model), so nothing is billed."""
+    try:
+        return await recommend.recommend(req.profile, req.request)
+    except FileNotFoundError as e:
+        raise _rec_unavailable(e) from e
+
+
+@run_router.post("/recommendations/similar")
+async def recommendations_similar(req: SimilarRequest):
+    try:
+        return {"items": await recommend.similar(req.itemId, req.k, req.otherKind)}
+    except FileNotFoundError as e:
+        raise _rec_unavailable(e) from e
+
+
+@run_router.get("/recommendations/model")
+async def recommendations_model():
+    try:
+        return recommend.manifest()
+    except FileNotFoundError as e:
+        raise _rec_unavailable(e) from e
+
+
+@run_router.post("/recommendations/evaluate")
+async def recommendations_evaluate(req: EvaluateRequest):
+    try:
+        return await recommend.offline_evaluation(req.k, req.maxUsers)
+    except FileNotFoundError as e:
+        raise _rec_unavailable(e) from e
 
 
 @run_router.post("/runs/units")

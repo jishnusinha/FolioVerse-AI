@@ -1422,3 +1422,206 @@ model BookMetadataCache {
   @@map("book_metadata_cache")
   @@schema("app")
 }
+
+// ───────────────────────────── discovery (rec) ─────────────────────────────
+
+enum CatalogKind {
+  BOOK
+  FILM
+
+  @@schema("rec")
+}
+
+enum InteractionKind {
+  IMPRESSION
+  CLICK
+  SAVE
+  UNSAVE
+  LIKE
+  DISLIKE
+  DISMISS
+  UNDISMISS
+  EXPLAIN
+
+  @@schema("rec")
+}
+
+enum RecSetMode {
+  DISCOVER
+  LAB
+
+  @@schema("rec")
+}
+
+enum EvalStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+
+  @@schema("rec")
+}
+
+/// Books and films that can be recommended. Global (not workspace data); the bundled catalog is synthetic DEMO data.
+model CatalogItem {
+  id          String      @id @db.Uuid
+  slug        String      @unique
+  kind        CatalogKind
+  title       String
+  creators    String[]    @default([])
+  year        Int?
+  genres      String[]    @default([])
+  moods       String[]    @default([])
+  description String      @default("")
+  franchise   String?
+  /// Pages for books, minutes for films.
+  length      Int?
+  quality     Float       @default(0)
+  popularity  Int         @default(0)
+  coverTone   Int         @default(1) @map("cover_tone")
+  isDemo      Boolean     @default(true) @map("is_demo")
+  origin      String      @default("SYNTHETIC")
+  externalIds Json        @default("{}") @map("external_ids")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  themes          ItemTheme[]
+  recommendations RecommendationItem[]
+
+  @@index([kind])
+  @@map("catalog_items")
+  @@schema("rec")
+}
+
+model ItemTheme {
+  itemId String @map("item_id") @db.Uuid
+  theme  String
+  weight Float  @default(1)
+
+  item CatalogItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, theme])
+  @@index([theme])
+  @@map("item_themes")
+  @@schema("rec")
+}
+
+/// Declared tastes from onboarding. Private to the member.
+model TasteProfile {
+  id          String    @id @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  genres      String[]  @default([])
+  moods       String[]  @default([])
+  themes      String[]  @default([])
+  /// Catalog items picked as favourites during onboarding.
+  seedItemIds String[]  @default([]) @map("seed_item_ids")
+  onboardedAt DateTime? @map("onboarded_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, userId])
+  @@map("taste_profiles")
+  @@schema("rec")
+}
+
+/// Append-only implicit event log (impressions with position, clicks, explanations, feedback actions).
+model Interaction {
+  id          String          @id @db.Uuid
+  workspaceId String          @map("workspace_id") @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  itemId      String          @map("item_id") @db.Uuid
+  kind        InteractionKind
+  setId       String?         @map("set_id") @db.Uuid
+  position    Int?
+  createdAt   DateTime        @default(now()) @map("created_at")
+
+  @@index([workspaceId, userId, createdAt])
+  @@index([itemId])
+  @@map("interactions")
+  @@schema("rec")
+}
+
+/// One logged recommender call: inputs, weights, model version, stage counts and the ranked list.
+model RecommendationSet {
+  id             String     @id @db.Uuid
+  workspaceId    String     @map("workspace_id") @db.Uuid
+  userId         String     @map("user_id") @db.Uuid
+  mode           RecSetMode @default(DISCOVER)
+  query          String?
+  filters        Json       @default("{}")
+  weights        Json       @default("{}")
+  lambda         Float      @default(0.7)
+  k              Int        @default(12)
+  modelVersion   String     @map("model_version")
+  stages         Json       @default("{}")
+  profileSummary Json       @default("{}") @map("profile_summary")
+  coldStart      Boolean    @default(false) @map("cold_start")
+  latencyMs      Int        @default(0) @map("latency_ms")
+  createdAt      DateTime   @default(now()) @map("created_at")
+
+  items RecommendationItem[]
+
+  @@index([workspaceId, userId, mode, createdAt])
+  @@map("recommendation_sets")
+  @@schema("rec")
+}
+
+model RecommendationItem {
+  setId        String   @map("set_id") @db.Uuid
+  rank         Int
+  itemId       String   @map("item_id") @db.Uuid
+  score        Float
+  baseRank     Int      @map("base_rank")
+  /// Per-factor value, weight and contribution; the score is their sum plus adjustments.
+  factors      Json
+  adjustments  Json     @default("[]")
+  sharedThemes String[] @default([]) @map("shared_themes")
+  becauseOf    Json?    @map("because_of")
+  rationale    String   @default("")
+
+  set  RecommendationSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  item CatalogItem       @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@id([setId, rank])
+  @@map("recommendation_items")
+  @@schema("rec")
+}
+
+/// Explicit judgement per member and item (saved, thumbs, dismissed). Current state; history is in interactions.
+model Feedback {
+  id            String   @id @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  itemId        String   @map("item_id") @db.Uuid
+  saved         Boolean  @default(false)
+  /// 1 = more like this, -1 = less like this.
+  rating        Int?
+  dismissed     Boolean  @default(false)
+  reason        String?
+  libraryItemId String?  @map("library_item_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@unique([workspaceId, userId, itemId])
+  @@map("feedback")
+  @@schema("rec")
+}
+
+/// Offline evaluation job and its report (metrics per variant on the rec-holdout split).
+model EvaluationReport {
+  id            String     @id @db.Uuid
+  workspaceId   String     @map("workspace_id") @db.Uuid
+  requestedById String     @map("requested_by_id") @db.Uuid
+  status        EvalStatus @default(QUEUED)
+  k             Int        @default(10)
+  modelVersion  String?    @map("model_version")
+  report        Json?
+  error         String?
+  createdAt     DateTime   @default(now()) @map("created_at")
+  startedAt     DateTime?  @map("started_at")
+  finishedAt    DateTime?  @map("finished_at")
+
+  @@index([workspaceId, createdAt])
+  @@map("evaluation_reports")
+  @@schema("rec")
+}

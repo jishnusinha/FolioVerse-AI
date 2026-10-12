@@ -39,6 +39,7 @@ const EXPECTED_H1 = {
   continuity: 'Manuscript not found',
   'manuscript-print': 'Manuscript not found',
   reader: 'Book not found',
+  discover: 'Find your next story',
 };
 const SIGNED_OUT = new Set(['login', 'register', 'forgot', 'reset', 'verify']);
 

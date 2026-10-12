@@ -1,8 +1,10 @@
 /**
- * Baseline seed: model registry only. Idempotent. Demo content (DEMO-labelled workspace, sources,
- * runs) is created separately by `pnpm demo` so a real deployment never gets fake data by default.
+ * Baseline seed: model registry, plus the synthetic DEMO discovery catalog when FV_DEMO_CATALOG=true.
+ * Idempotent. Other demo content (DEMO-labelled workspace, sources, runs) is created separately by
+ * `pnpm demo` so a real deployment never gets fake data by default.
  */
 import { PrismaClient } from '@prisma/client';
+import { catalogPath, loadCatalog, readCatalog } from '../src/modules/discovery/catalog';
 import { seedModels } from '../src/modules/models/seed-models';
 
 async function main() {
@@ -10,6 +12,12 @@ async function main() {
   try {
     const created = await seedModels(prisma, (m) => console.log(m));
     console.log(`seed: ${created.length} model config(s) created`);
+    if (process.env.FV_DEMO_CATALOG === 'true') {
+      const path = catalogPath();
+      if (!path) throw new Error('FV_DEMO_CATALOG=true but the catalog file was not found (set FV_REC_CATALOG)');
+      const r = await loadCatalog(prisma, readCatalog(path));
+      console.log(`seed: DEMO catalog ${r.total} items (${r.created} new, ${r.updated} updated)`);
+    }
   } finally {
     await prisma.$disconnect();
   }

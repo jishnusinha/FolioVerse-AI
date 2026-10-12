@@ -3,7 +3,8 @@
  * Backend vertical-slice smoke test against a running stack (no browser):
  * register -> upload -> ingest (READY) -> grounded_qa run -> SSE stream -> receipt -> insight artifacts
  * -> notes and search -> writer (save, suggestion accept, DNA extract, continuity, export)
- * -> library (EPUB shelf, progress, annotation, spoiler-guarded explain, reader excerpt) -> costs.
+ * -> library (EPUB shelf, progress, annotation, spoiler-guarded explain, reader excerpt)
+ * -> discovery (taste, recommendations, save to Library, Lab re-rank, rec_explain, offline evaluation) -> costs.
  * Also checks abstention (no model call) and cross-workspace 404.
  * Uses the deterministic mock model unless a live provider is configured. Prints no secrets.
  *
@@ -231,6 +232,51 @@ async function librarySmoke(c, wid, step, writer) {
   if (rn.source?.anchor?.itemId !== item.id) throw new Error('research note lost the reader anchor');
 }
 
+/**
+ * Gate 7: taste onboarding, a logged Discover set from the trained recsys artifact, "why this" factors, saving a
+ * book onto the Library shelf, a Lab re-rank under new weights, a rec_explain run and a worker-run offline evaluation.
+ */
+async function discoverySmoke(c, wid, step) {
+  const d = `/api/workspaces/${wid}/discover`;
+  const taste = await c.get(`${d}/taste`);
+  if (taste.catalogSize < 500) throw new Error(`catalog has ${taste.catalogSize} titles; run the seed with FV_DEMO_CATALOG=true`);
+  const seeds = taste.seeds.filter((s) => s.genres.includes('Sci-fi')).slice(0, 2).map((s) => s.id);
+  await c.put(`${d}/taste`, { genres: ['Sci-fi'], moods: ['Atmospheric'], themes: ['memory'], seedItemIds: seeds });
+  const set = await c.post(`${d}/recommendations`, { query: 'quiet science fiction about memory and isolation', k: 10 });
+  const top = set.items[0];
+  step(`discover: ${set.items.length} items from ${set.modelVersion} in ${set.latencyMs} ms; candidates=${JSON.stringify(set.stages.candidates)}`);
+  step(`why #1 "${top.item.title}" (${top.item.kind}): ${top.factors.map((f) => `${f.key}=${f.value.toFixed(2)}`).join(' ')}; themes=${top.sharedThemes.join(',')}`);
+  if (set.items.length !== 10 || !top.factors.length || set.coldStart) throw new Error('discover set incomplete');
+
+  const book = set.items.find((r) => r.item.kind === 'BOOK');
+  const savedBook = await c.post(`${d}/feedback`, { itemId: book.itemId, action: 'SAVE', setId: set.id, position: book.rank });
+  const shelf = await c.get(`/api/workspaces/${wid}/library/items/${savedBook.feedback.libraryItemId}`);
+  step(`saved "${book.item.title}" -> Library ${shelf.status} (demo=${shelf.book.isDemo})`);
+  if (shelf.status !== 'TO_READ') throw new Error('saved book did not reach the Library');
+
+  const lab = await c.post(`${d}/recommendations`, { query: set.query, k: 10, lab: { weights: { semantic: 0.1, theme: 1, prior: 1 }, lambda: 0.3 } });
+  const moved = lab.items.filter((r) => set.items.find((s) => s.itemId === r.itemId)?.rank !== r.rank).length;
+  step(`lab re-rank: weights=${JSON.stringify(lab.weights)} λ=${lab.lambda}; ${moved}/${lab.items.length} positions changed`);
+  if (lab.mode !== 'LAB' || lab.weights.prior > 0.1001) throw new Error('lab weights not applied');
+
+  const ex = await c.post(`${d}/recommendations/${set.id}/items/${top.itemId}/explain`);
+  const evs = await c.sse(`/api/workspaces/${wid}/runs/${ex.runId}/events`);
+  const fin = evs.find((e) => e.type === 'run.finished');
+  step(`rec_explain: ${fin?.data.outcome} "${(fin?.data.answer ?? '').slice(0, 110)}"`);
+  if (!fin?.data.answer) throw new Error('rec_explain produced no answer');
+
+  const report = await c.post(`${d}/evaluations`, { k: 10 });
+  let ev = report;
+  for (let i = 0; i < 90 && !['SUCCEEDED', 'FAILED'].includes(ev.status); i++) {
+    await new Promise((r) => setTimeout(r, 1000));
+    ev = await c.get(`${d}/evaluations/${report.id}`);
+  }
+  const served = ev.report?.variants?.find((v) => v.name === 'hybrid_mmr');
+  const pop = ev.report?.variants?.find((v) => v.name === 'popularity');
+  step(`evaluation ${ev.status}: hybrid_mmr nDCG@10=${served?.ndcg} coverage=${served?.coverage} vs popularity nDCG@10=${pop?.ndcg} (DEMO)`);
+  if (ev.status !== 'SUCCEEDED' || !(served?.ndcg > pop?.ndcg)) throw new Error(`evaluation failed: ${ev.error ?? ev.status}`);
+}
+
 async function main() {
   const step = (m) => console.log(`• ${m}`);
   const c = new Client(base);
@@ -299,6 +345,7 @@ async function main() {
 
   const writer = await writerSmoke(c, wid, done.sourceId, step);
   await librarySmoke(c, wid, step, writer);
+  await discoverySmoke(c, wid, step);
 
   const costs = await c.get(`/api/workspaces/${wid}/costs/summary`);
   step(`costs summary: ${JSON.stringify(costs).slice(0, 200)}`);

@@ -301,7 +301,57 @@ excerpt → research note carrying the library item id).
 Not done: live-model explanation quality (BLOCKED, no `OPENAI_API_KEY`; the mock answers extractively and is labelled
 DEMO); live Open Library / Google Books lookups (optional, flags off by default).
 
-## Gates 7–13 — PLANNED
+## Gate 7 — Discovery — DONE (DEMO catalog; live explanation model BLOCKED: no key; TMDB / Open Library importers not built)
+
+Validation: Python `pnpm test:py` 97/97 ai-service (`tests/test_recommend.py`) + 11/11 folioverse-ml
+(`tests/test_recsys.py`: catalog matches its manifest, weight normalisation and prior cap, scores decompose into
+factors, MMR creator/franchise caps and media balance, dislikes and cold start, cross-media similar, artifact round
+trip with sha256 check, version reuse, hybrid beats popularity offline), ruff clean; API `tsc` 0, eslint clean, integration 191/191
+(`discovery.spec.ts` 6 tests with a fake AI service: taste + vocabulary, Discover vs Lab sets and impressions, weight
+validation, `503 RECOMMENDER_UNAVAILABLE`, feedback → Library, `rec_explain` run, evaluation job, workspace isolation;
+authz matrix rows for all 15 discover routes); `contracts:check` OK (OpenAPI 117 paths); web `vitest run` 271/271
+(`discover.test.jsx` 9), `eslint src playwright` clean, `tsc` clean, `vite build` OK; Playwright
+`gate7-preview.spec.js` 1/1 (screenshots `apps/web/test-results/gate7/{onboarding,discover,why-this,lab}.png`, not
+baselines) and `slice-live.spec.js` "discover: onboard, why this, explain, lab re-rank and offline evaluation" 1/1
+against `pnpm dev` (screenshots `apps/web/test-results/gate7-live`); `docker compose --profile app config -q` OK;
+`node infrastructure/scripts/smoke.mjs` OK against `pnpm dev`: Discover returned 10 items from `recsys-hybrid v2` in
+44 ms, a saved book reached the Library as `TO_READ`, the Lab run moved 10/10 positions with prior ≤ 0.10,
+`rec_explain` → `ANSWERED`, evaluation `SUCCEEDED` with hybrid + MMR nDCG@10 0.0894 / coverage 0.913 vs popularity
+0.0324 / 0.030 (DEMO).
+
+- `FV-G07-DB-001` `rec` schema — DONE. Migration `0005_discovery`: `catalog_items`, `item_themes`, `taste_profiles`,
+  `interactions`, `recommendation_sets`, `recommendation_items`, `feedback`, `evaluation_reports` (D-074). Catalog is
+  shared; profiles, interactions, sets and feedback are per member and filtered by `workspaceId` + `userId` (D-075).
+- `FV-G07-CAT-002` Synthetic catalog — DONE (DEMO). `datasets/synthetic/make_catalog.py` (seed 7) → 530 items (330
+  books, 200 films), 8 genres, 8 moods, 40 themes, `isDemo` on every item, manifest with sha256; 300 synthetic users
+  with train/test interactions in `datasets/evaluation/rec-holdout`. Loaded idempotently by the seed when
+  `FV_DEMO_CATALOG=true` (default for `pnpm up` / compose, D-073). TMDB and Open Library importers [EXT] — NOT BUILT
+  (optional; no keys configured).
+- `FV-G07-ML-003` Recsys — DONE. `packages/folioverse-ml`: LSA "semantic" vectors, TF-IDF, theme overlap with
+  pseudo-relevance feedback, implicit-feedback CF preference, capped quality prior (D-066–D-068); candidate retrieval
+  per factor, weighted hybrid score with per-factor contributions, MMR with per-creator / per-franchise caps and
+  optional book/film balance (D-069); versioned npz + JSON artifact with sha256 per file, no pickles (D-067);
+  `python -m folioverse_ml train|evaluate`.
+- `FV-G07-API-004` Recommendations API — DONE. AI service `/internal/recommendations`, `/similar`, `/model`,
+  `/evaluate` (artifact trained on first use). Nest `DiscoveryService` builds the profile (taste seeds, clicks,
+  feedback, Library, D-070), stores sets and impressions (D-071), saves to the Library (D-072) and maps upstream
+  failures to `503 RECOMMENDER_UNAVAILABLE` (D-076). `rec_explain` is a T0 run (mock provider labelled DEMO) streamed
+  over SSE with citations to catalog fields.
+- `FV-G07-UI-005` Discover & Lab — DONE. Taste onboarding (genres, moods, themes, favourites, skip), Discover (query,
+  media type, mood/genre chips, "Why this?" sheet with signal bars, connections, related other-media titles, feedback,
+  "Explain in words"), saved shelf, Discovery Lab (weights with effective values, λ, max per creator, balance media,
+  four pipeline stages, rank shifts vs baseline, served-model card, profile used).
+- `FV-G07-EVAL-006` Offline evaluation — DONE (DEMO metrics). BullMQ `rec-eval` job → AI `/evaluate`: popularity,
+  item-kNN, NMF, content, hybrid, hybrid + MMR at K=10 (precision, recall, nDCG, hit rate, coverage, diversity,
+  novelty, popularity bias); stored in `rec.evaluation_reports`; shown in the Lab and in Studio → Evaluations
+  (`/app/studio?view=evaluations`, D-077). Baseline report committed at
+  `datasets/evaluation/results/rec_eval_baseline.json`.
+
+Not done: live-model explanations (BLOCKED, no `OPENAI_API_KEY`; mock is labelled DEMO); TMDB / Open Library catalog
+importers (optional [EXT], not built); real-world recommendation quality (only synthetic DEMO data exists); app
+Docker images with the catalog baked in were not built (disk constraint; Dockerfiles and compose validated only).
+
+## Gates 8–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.

@@ -20,7 +20,11 @@ FROM python:3.12-slim AS runtime
 RUN useradd --create-home --uid 10001 app
 COPY --from=build /venv /venv
 COPY --from=models --chown=app:app /models /models
-ENV PATH=/venv/bin:$PATH FASTEMBED_CACHE_PATH=/models PYTHONUNBUFFERED=1 FV_EMBEDDER=fastembed
+# DEMO discovery catalog and training interactions; the recommender trains its artifact on first use.
+COPY datasets/synthetic/catalog /data/catalog
+COPY datasets/evaluation/rec-holdout /data/rec-holdout
+ENV PATH=/venv/bin:$PATH FASTEMBED_CACHE_PATH=/models PYTHONUNBUFFERED=1 FV_EMBEDDER=fastembed \
+    FV_REC_CATALOG=/data/catalog/catalog.jsonl FV_REC_HOLDOUT=/data/rec-holdout FV_REC_ARTIFACT_DIR=/tmp/rec-artifacts
 WORKDIR /app
 USER app
 EXPOSE 8000 8001

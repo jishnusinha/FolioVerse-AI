@@ -2,6 +2,7 @@ import { Injectable, Logger, Module, OnModuleDestroy, OnModuleInit } from '@nest
 import { Job, Worker } from 'bullmq';
 import { DomainModule } from './domain.module';
 import { bullConnection, QUEUES, QueuesService } from './infra/queues.service';
+import { DiscoveryService } from './modules/discovery/discovery.service';
 import { IngestionExecutorService } from './modules/ingestion/ingestion-executor.service';
 import { BudgetService } from './modules/ledger/budget.service';
 import { LedgerService } from './modules/ledger/ledger.service';
@@ -25,6 +26,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly queues: QueuesService,
     private readonly models: ModelsService,
     private readonly prisma: PrismaService,
+    private readonly discovery: DiscoveryService,
   ) {}
 
   async onModuleInit() {
@@ -53,6 +55,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     make(QUEUES.maintenance, 1, async (job) => {
       if (job.name === 'reap') return this.runs.reap();
       if (job.name === 'purge') return this.purge.purgeExpired();
+      if (job.name === 'rec-eval') return this.discovery.runEvaluation(job.data.reportId);
       const handler = WORKER_FEATURE_HANDLERS[job.name];
       if (handler) return handler(job);
     });

@@ -133,6 +133,22 @@ const MATRIX: Record<string, Role> = {
   'POST /workspaces/:workspaceId/library/collections/:collectionId/items': 'VIEWER',
   'DELETE /workspaces/:workspaceId/library/collections/:collectionId/items/:itemId': 'VIEWER',
   'GET /workspaces/:workspaceId/library/stats': 'VIEWER',
+
+  'GET /workspaces/:workspaceId/discover/taste': 'VIEWER',
+  'PUT /workspaces/:workspaceId/discover/taste': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/catalog': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/catalog/:itemId': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/catalog/:itemId/similar': 'VIEWER',
+  'POST /workspaces/:workspaceId/discover/recommendations': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/recommendations/latest': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/recommendations/:setId': 'VIEWER',
+  'POST /workspaces/:workspaceId/discover/recommendations/:setId/items/:itemId/explain': 'EDITOR',
+  'POST /workspaces/:workspaceId/discover/feedback': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/saved': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/model': 'VIEWER',
+  'POST /workspaces/:workspaceId/discover/evaluations': 'EDITOR',
+  'GET /workspaces/:workspaceId/discover/evaluations': 'VIEWER',
+  'GET /workspaces/:workspaceId/discover/evaluations/:id': 'VIEWER',
   'GET /workspaces/:workspaceId/library/metadata/search': 'VIEWER',
 
   'GET /workspaces/:workspaceId/costs/summary': 'VIEWER',
@@ -145,6 +161,8 @@ const MATRIX: Record<string, Role> = {
 
 /** Server-sent event streams stay open for permitted callers, so only denials are asserted. */
 const STREAMS = new Set(['GET /workspaces/:workspaceId/events', 'GET /workspaces/:workspaceId/runs/:runId/events']);
+/** A permitted call that reached a synchronous AI-service dependency which is not running in this suite. */
+const UPSTREAM_CODES = new Set(['RECOMMENDER_UNAVAILABLE']);
 
 function workspaceRoutes(): string[] {
   const controllers: any[] = Reflect.getMetadata('controllers', AppModule) ?? [];
@@ -220,7 +238,9 @@ describe('authorization matrix', () => {
         if (allowed && STREAMS.has(route)) continue;
         const res = await members[role].send(method, url, method === 'get' ? undefined : {});
         if (allowed) {
-          expect({ role, status: res.status, denied: [401, 403].includes(res.status) || res.status >= 500 }).toMatchObject({ role, denied: false });
+          const upstreamDown = res.status === 503 && UPSTREAM_CODES.has(res.body?.code);
+          const denied = [401, 403].includes(res.status) || (res.status >= 500 && !upstreamDown);
+          expect({ role, status: res.status, denied }).toMatchObject({ role, denied: false });
         } else {
           expect({ role, status: res.status }).toEqual({ role, status: 403 });
         }
