@@ -30,6 +30,9 @@ const EXPECTED_H1 = {
   verify: 'Verify your email',
   onboarding: 'Name your workspace',
   project: 'Project not found',
+  document: 'Document not found',
+  'studio-run': 'AI Developer Studio',
+  costs: 'Your AI usage',
 };
 const SIGNED_OUT = new Set(['login', 'register', 'forgot', 'reset', 'verify']);
 

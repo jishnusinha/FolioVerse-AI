@@ -14,7 +14,8 @@ import { Toaster } from '@/shared/ui/toast.jsx';
 import { DropdownMenu, TooltipProvider } from '@/shared/ui/Radix.jsx';
 import { useQueryClient } from '@tanstack/react-query';
 import { RequireSession } from '@/features/auth/RequireSession.jsx';
-import { signOut, useMe } from '@/features/auth/session.js';
+import { signOut, useCurrentWorkspace, useMe } from '@/features/auth/session.js';
+import { useWorkspaceEvents } from '@/features/runs/useWorkspaceEvents.js';
 
 const SECTION_ICON = {
   home: 'home',
@@ -137,6 +138,8 @@ function ShellFrame() {
   const route = matches.at(-1)?.handle?.route;
   const forceDark = Boolean(route?.forceDark);
   const mainRef = useRef(null);
+  const workspace = useCurrentWorkspace();
+  useWorkspaceEvents(workspace?.id);
 
   const toggleTheme = useCallback(() => setTheme(resolved === 'dark' ? 'light' : 'dark'), [resolved, setTheme]);
   const openHelp = useCallback(() => setShortcutsOpen(true), [setShortcutsOpen]);

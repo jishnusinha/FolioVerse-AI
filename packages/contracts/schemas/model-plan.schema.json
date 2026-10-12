@@ -32,6 +32,27 @@
         "amount": { "type": "string" },
         "currency": { "type": "string" }
       }
+    },
+    "budgetGuard": {
+      "description": "Set only under a hard budget. The graph stops before generating when its real prompt could cost more than maxCost.",
+      "type": "object",
+      "required": ["maxCost", "prices"],
+      "additionalProperties": false,
+      "properties": {
+        "maxCost": { "type": "string" },
+        "prices": {
+          "type": "object",
+          "required": ["inputPerMTok", "outputPerMTok"],
+          "additionalProperties": false,
+          "properties": {
+            "inputPerMTok": { "type": "string" },
+            "outputPerMTok": { "type": "string" },
+            "cachedInputPerMTok": { "type": ["string", "null"] },
+            "reasoningPerMTok": { "type": ["string", "null"] },
+            "batchDiscount": { "type": ["string", "null"] }
+          }
+        }
+      }
     }
   }
 }

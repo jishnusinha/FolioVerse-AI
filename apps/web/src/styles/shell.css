@@ -199,4 +199,45 @@
     grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
     gap: 16px;
   }
+
+  .pdf-doc {
+    padding: 0 16px 24px;
+  }
+  .pdf-page {
+    position: relative;
+    width: fit-content;
+    margin: 24px auto;
+    border: 1px solid var(--fv-border);
+    box-shadow: var(--fv-shadow-1);
+    background: var(--fv-paper);
+  }
+  .pdf-hl {
+    position: absolute;
+    border-radius: 3px;
+    background: var(--fv-ai-soft);
+    outline: 1px dashed var(--fv-ai-line);
+    mix-blend-mode: multiply;
+    pointer-events: none;
+    animation: fade var(--fv-dur);
+  }
+
+  .studio-node-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+  }
+  .cost-bars {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 120px;
+  }
+  .cost-bars i {
+    flex: 1;
+    min-height: 1px;
+    background: var(--fv-chart-1);
+    border-radius: 2px 2px 0 0;
+  }
 }

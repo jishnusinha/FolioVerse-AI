@@ -10,6 +10,7 @@ export interface ReservationResult {
   periodId?: string;
   remaining?: string;
   limit?: string;
+  hard?: boolean;
 }
 
 @Injectable()
@@ -67,7 +68,7 @@ export class BudgetService {
     if (rows.length === 0) return { ok: false, periodId: cur.period.id, remaining: remaining.toFixed(8), limit: fresh.limitAmount.toString() };
     const reservationId = newId();
     await this.prisma.budgetReservation.create({ data: { id: reservationId, workspaceId, periodId: cur.period.id, runId, amount: amt } });
-    return { ok: true, reservationId, periodId: cur.period.id, remaining: remaining.toFixed(8), limit: fresh.limitAmount.toString() };
+    return { ok: true, reservationId, periodId: cur.period.id, remaining: remaining.toFixed(8), limit: fresh.limitAmount.toString(), hard: cur.policy.hard };
   }
 
   /** Releases every OPEN reservation for a run exactly once. */

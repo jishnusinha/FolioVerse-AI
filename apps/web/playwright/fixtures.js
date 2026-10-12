@@ -20,7 +20,7 @@ export const test = base.extend({
         await route.fulfill({
           status: res.status,
           headers: res.headers,
-          body: res.body == null ? '' : typeof res.body === 'string' ? res.body : JSON.stringify(res.body),
+          body: res.body == null ? '' : typeof res.body === 'string' || res.body instanceof Uint8Array ? Buffer.from(res.body) : JSON.stringify(res.body),
         });
       });
       await use(fake);

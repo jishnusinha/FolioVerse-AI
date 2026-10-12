@@ -15,7 +15,7 @@ describe('sign in', () => {
     type('Email', DEMO_USER.email);
     type('Password', DEMO_USER.password);
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    await screen.findByRole('heading', { level: 1, name: 'Cost Center' });
+    await screen.findByRole('heading', { level: 1, name: 'Your AI usage' });
     expect(router.state.location.pathname).toBe('/app/costs');
     expect(fake.db.log).toContain('POST /auth/login');
   });

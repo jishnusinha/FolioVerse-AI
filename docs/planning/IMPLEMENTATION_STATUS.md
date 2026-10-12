@@ -118,7 +118,55 @@ API `tsc` 0 and `eslint` clean; web `vitest run` 150/150, `eslint src` clean, `t
 Also fixed: mis-encoded `·` in the document title (`AppShell.jsx`); a lint error in `file-scan.ts`.
 Not done here: the unexplained untracked `apps/web/src/features/design/samples.js` (another session's file) is left
 untouched and uncommitted at the user's request.
-## Gate 3 — First Vertical Slice — PLANNED (backend slice already passing smoke; UI pending)
+## Gate 3 — First Vertical Slice — DONE (live OpenAI path BLOCKED: no key)
+
+Validation: Python `pytest` 70/70 and `ruff check` / `ruff format --check` clean; API integration 81/81 and unit 40/40,
+`tsc` 0; `contracts:check` OK; web `vitest run` 171/171, `eslint src` clean; Playwright `slice` (fake API) and
+`slice-live` against `pnpm dev` (register → upload → READY → ask → VALID citation → highlight → Studio → receipt →
+Costs, 18.4 s); `node infrastructure/scripts/smoke.mjs` OK.
+
+- `FV-G03-ING-001` Ingestion orchestration — DONE. BullMQ queues, `ingestion_jobs` state machine, `AiServiceClient`
+  (internal ES256 JWT, NDJSON reader, timeouts, retry by error class); `test/unit/ai-client.spec.ts` with a fake NDJSON server.
+- `FV-G03-ING-002` Ingest pipeline — DONE with deviation D-006 (purpose-built parsers instead of Unstructured).
+  `test_ingestion.py`: markdown, PDF word boxes, DOCX headings, EPUB spine, corrupt/unsupported files.
+- `FV-G03-ING-003` Chunking — DONE with deviation D-027 (offline token approximation instead of tiktoken). Determinism
+  and idempotent re-ingest tests.
+- `FV-G03-ING-004` Indexing — DONE. fastembed dense + BM25 sparse in Qdrant `fv_chunks_v1` with deterministic point ids;
+  READY/PARTIAL/FAILED/QUARANTINED transitions covered by `test_ingestion.py` and the API tenancy suite.
+- `FV-G03-ING-005` Ingestion SSE — DONE. `GET /api/workspaces/:id/events` (Redis Stream, Last-Event-ID); web
+  `useWorkspaceEvents()` mounted in the shell patches the source caches (`applyWorkspaceEvent`, unit-tested).
+- `FV-G03-RAG-006` Scope resolution — DONE. `context_scopes`, signed 5-minute ScopeToken; tampered or mismatched token →
+  401 (`test_scope_token_must_match_run`); cross-workspace isolation test.
+- `FV-G03-RAG-007` Hybrid retrieval — DONE. Dense + sparse prefetch → RRF, optional rerank flag, parent expansion, token
+  packer, `retrieval_events`; `test_eval_retrieval.py` logs recall@k on `qa-small.jsonl` (not gating, D-031).
+- `FV-G03-RAG-008` Providers — DONE for Mock; `OpenAIAdapter` implemented, live test BLOCKED (no `OPENAI_API_KEY`).
+- `FV-G03-RAG-009` `grounded_qa` — DONE. Abstention with zero model calls; citation fixtures in TS and Python; anchors
+  follow the quoted page (`test_anchors_pdf.py`, D-028). BudgetGuard: under a hard budget the plan carries
+  `budgetGuard {maxCost, prices}`; the graph re-prices the real prompt and routes to `budget_stop` (BUDGET_REJECTED,
+  no model call) instead of generating (`test_budget_guard.py`, API test "hands the graph a budget guard only under a
+  hard budget"). Pause-for-approval is deferred (D-033).
+- `FV-G03-RUN-010` Run lifecycle — DONE. Admission, reservation, Redis Stream relay, persisted events, cancel, heartbeat
+  reaper → INTERRUPTED (integration test), hard-budget rejection before any model call.
+- `FV-G03-CONV-011` Conversations — DONE. Threads, message tree, citations; fetch-based SSE with Last-Event-ID (D-026);
+  resume without duplicated text (web test with a cut stream). A new conversation scoped to one document is filed
+  under that document and its project (`threads.sourceId`), so the document page lists it.
+- `FV-G03-LEDGER-012` Ledger — DONE. Shared pricing fixtures pass in TS and Python; duplicate usage events are ignored;
+  runs without model calls get a zero FINALIZED receipt (D-029).
+- `FV-G03-RCPT-013` Receipt + evidence — DONE. Receipt endpoint; `RunReceipt`, evidence drawer, citation chip → PDF
+  highlight on the anchor page. Trace link: the receipt shows the run trace inside Studio; OTel trace ids arrive with
+  Gate 10.
+- `FV-G03-VIEW-014` Document page — DONE. react-pdf viewer with text layer and bbox highlight (direct `pdfjs-dist`
+  dependency, D-030), version selector, chat with streaming, branch selector, abstain, interrupted and BUDGET_REJECTED
+  states, ask disabled while indexing.
+- `FV-G03-STUDIO-015` Studio minimal — DONE. Run explorer, dagre graph from the graph JSON endpoint, node list, timeline,
+  replay of recorded events only. Pane placement fixed with explicit grid columns (the Gate 1 visual note).
+- `FV-G03-COST-016` Cost minimal — DONE. Month-to-date, per-run receipts with estimate/final badges, "No model call" rows.
+- `FV-G03-E2E-017` Slice E2E — DONE with the mock provider (`slice`, `slice-live` opt-in via `FV_E2E_BASE_URL`, D-032).
+  Live OpenAI dispatch BLOCKED.
+
+Also: Home page (continue a conversation, budget, recent runs, projects); visual baselines re-recorded against an empty
+fake workspace (D-034). Not done: OTel span linking (Gate 10), Linux visual baselines (Gate 13).
+
 ## Gates 4–13 — PLANNED
 
 ## External setup (Section N)

@@ -110,6 +110,52 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Context: `@nestjs/throttler` defaults to per-process memory; the plan asks for a Redis store.
 - Decision: `RedisThrottlerStorage` (one Lua script: INCR + PEXPIRE + block key) on the existing ioredis client.
 
+## D-026 Run and workspace streams use fetch-based SSE, not EventSource
+- Context: `EventSource` cannot send the CSRF/credential headers we need consistently, gives no status code on failure,
+  and cannot be faked in Vitest/Playwright without a polyfill.
+- Decision: `readEventStream` in `src/api/client.js` reads `text/event-stream` over `fetch`, sends `Last-Event-ID` on
+  reconnect, stops on 204/401/403/404 and backs off up to 30 s otherwise.
+
+## D-027 Offline token approximation instead of tiktoken
+- Context: tiktoken downloads its BPE files on first use, which breaks offline CI and the "no network" test rule.
+- Decision: `folioverse_ai.text.count_tokens` counts words and punctuation. Chunk sizes and the budget guard use it;
+  billing always uses provider-reported usage, never this estimate.
+
+## D-028 Citation anchors use the page of the quoted text
+- Context: a parent chunk can span pages; anchoring to the chunk's first page highlighted the wrong page.
+- Decision: `_quote_page` locates the validated quote inside the chunk's page spans and anchors to that page and box.
+
+## D-029 Zero-cost FINALIZED receipt for runs with no model call
+- Context: abstained and budget-stopped runs have no usage events, so their receipts showed no final tier.
+- Decision: the receipt reports tier FINALIZED with total 0 for a terminal run with no model calls (no ledger row is
+  invented); the Costs page shows such runs as "No model call".
+
+## D-030 Direct `pdfjs-dist` dependency
+- Context: react-pdf bundles its own pdfjs; the worker URL must match the exact version under Vite.
+- Decision: pin `pdfjs-dist` 4.8.69 directly and load the worker from that package.
+
+## D-031 Retrieval evaluation is logged, not gating
+- Context: recall@k on a tiny synthetic set is noisy; the plan marks it "logged, not gating".
+- Decision: `test_eval_retrieval.py` prints recall@k, page recall and abstain accuracy and only warns below the 0.8
+  recall floor; it fails only if ingestion or the dataset breaks.
+
+## D-032 Fake AI endpoints for web tests; live slice E2E is opt-in
+- Context: D-024's fake API covered Gate 2 only.
+- Decision: `src/test/fakeAi.js` adds runs, SSE events (with a cut-stream option), receipts, traces, threads, costs and
+  pages with DEMO prices. `playwright/slice-live.spec.js` runs the same flow against a real stack only when
+  `FV_E2E_BASE_URL` is set.
+
+## D-033 BudgetGuard stops before generate; approval pause deferred
+- Context: the plan asks for a BudgetGuard interrupt "when plan says so" but defines no policy.
+- Decision: the API adds `budgetGuard {maxCost = reservation + remaining headroom, prices}` to the ModelPlan only under a
+  hard budget. `grounded_qa` prices the real prompt plus `maxOutputTokens` and, if it exceeds `maxCost`, finishes as
+  BUDGET_REJECTED with no model call and nothing charged. An AWAITING_INPUT approval flow (pause and resume) needs a
+  product decision and is deferred to Gate 9 budgets.
+
+## D-034 Visual baselines use an empty fake workspace
+- Context: the seeded demo run made the shell screenshots depend on fake run data.
+- Decision: `visual.spec.js` uses `apiOptions: { empty: true }`; Win32 baselines were re-recorded.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

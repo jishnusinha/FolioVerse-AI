@@ -76,7 +76,7 @@ describe('app shell', () => {
 
   it('forces the Studio theme only on Studio routes', async () => {
     renderAt('/app/studio/runs/r1');
-    await screen.findByRole('heading', { name: 'Run' });
+    await screen.findByRole('heading', { level: 1, name: 'AI Developer Studio' });
     expect(document.getElementById('main')).toHaveClass('studio');
   });
 

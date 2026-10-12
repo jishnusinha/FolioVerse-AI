@@ -67,6 +67,19 @@ reservationId?: string
 amount?: string
 currency?: string
 }
+/**
+ * Set only under a hard budget. The graph stops before generating when its real prompt could cost more than maxCost.
+ */
+budgetGuard?: {
+maxCost: string
+prices: {
+inputPerMTok: string
+outputPerMTok: string
+cachedInputPerMTok?: (string | null)
+reasoningPerMTok?: (string | null)
+batchDiscount?: (string | null)
+}
+}
 }
 /**
  * This interface was referenced by `ModelPlan`'s JSON-Schema

@@ -15,7 +15,7 @@ test.describe('application shell (built app)', () => {
       ['/app/library', 'Library'],
       ['/app/discover', 'Discover'],
       ['/app/studio', 'AI Developer Studio'],
-      ['/app/costs', 'Cost Center'],
+      ['/app/costs', 'Your AI usage'],
       ['/app/docs/design', 'Component gallery'],
     ]) {
       await page.goto(path);

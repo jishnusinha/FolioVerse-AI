@@ -68,7 +68,7 @@ def build_anchor(source_version_id: str, chunk: dict, quote: str, page_text: str
                         selectors["bbox"] = box["bbox"]
                         break
         selectors["textQuote"] = q
-    if "bbox" not in selectors and loc.get("bbox"):
+    if "bbox" not in selectors and loc.get("bbox") and loc.get("page") == page:
         selectors["bbox"] = loc["bbox"]
     return {
         "sourceVersionId": source_version_id,

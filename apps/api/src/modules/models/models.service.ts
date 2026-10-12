@@ -18,6 +18,10 @@ export interface ModelPlan {
   temperature: number;
   isDemo: boolean;
   reservation?: { reservationId?: string; amount: string; currency: string };
+  budgetGuard?: {
+    maxCost: string;
+    prices: { inputPerMTok: string; outputPerMTok: string; cachedInputPerMTok?: string | null; reasoningPerMTok?: string | null; batchDiscount?: string | null };
+  };
 }
 
 @Injectable()

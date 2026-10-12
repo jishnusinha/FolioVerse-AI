@@ -12,6 +12,7 @@ from .retrieval.store import get_store
 from .routes import ingest_router, run_router
 from .settings import get_settings
 
+
 def configure_logging(level: str) -> None:
     logging.basicConfig(level=level.upper(), format="%(message)s")
     structlog.configure(

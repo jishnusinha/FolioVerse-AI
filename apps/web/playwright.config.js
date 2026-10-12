@@ -25,6 +25,8 @@ export default defineConfig({
     { name: 'visual', testMatch: /visual\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'shell', testMatch: /shell\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'auth-upload', testMatch: /auth-upload\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
+    { name: 'slice', testMatch: /slice\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
+    { name: 'slice-live', testMatch: /slice-live\.spec\.js/ },
     { name: 'preview', testMatch: /gate\d+-preview\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
   ],
   webServer: {

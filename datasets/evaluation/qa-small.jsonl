@@ -1,0 +1,12 @@
+{"id":"q01","question":"What is the base-case annual growth rate between 2026 and 2030?","doc":"atlas-brief.pdf","page":1,"evidence":"14.2%","answerable":true}
+{"id":"q02","question":"Which industries lead demand for assisted research tools?","doc":"atlas-brief.pdf","page":1,"evidence":"Regulated industries","answerable":true}
+{"id":"q03","question":"How fast does the market grow in the upside case?","doc":"atlas-brief.pdf","page":1,"evidence":"19% annual growth","answerable":true}
+{"id":"q04","question":"How do analysts describe the upside case?","doc":"atlas-brief.pdf","page":1,"evidence":"plausible but not probable","answerable":true}
+{"id":"q05","question":"What is the main pricing risk for standalone research tools?","doc":"atlas-brief.pdf","page":2,"evidence":"Bundled office suites","answerable":true}
+{"id":"q06","question":"Why is growth above 12% per year unlikely?","doc":"atlas-brief.pdf","page":2,"evidence":"procurement cycles exceed nine months","answerable":true}
+{"id":"q07","question":"How much time do data-residency reviews add to public-sector deals?","doc":"atlas-brief.pdf","page":2,"evidence":"eight weeks","answerable":true}
+{"id":"q08","question":"How many organisations did the survey cover?","doc":"atlas-brief.pdf","page":3,"evidence":"412 organisations","answerable":true}
+{"id":"q09","question":"How were survey responses weighted?","doc":"atlas-brief.pdf","page":3,"evidence":"weighted by organisation size","answerable":true}
+{"id":"q10","question":"Which region shows the fastest growth among mid-sized firms?","doc":"atlas-brief.pdf","page":3,"evidence":"APAC","answerable":true}
+{"id":"q11","question":"What does the brief say about pricing in Antarctica?","doc":"atlas-brief.pdf","answerable":false}
+{"id":"q12","question":"Who won the 1998 chess olympiad?","doc":"atlas-brief.pdf","answerable":false}

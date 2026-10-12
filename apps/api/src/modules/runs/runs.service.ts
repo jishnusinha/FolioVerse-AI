@@ -94,19 +94,26 @@ export class RunsService {
 
   async preflightEstimate(modelConfigId: string, inputText: string, maxOutputTokens: number) {
     const price = await this.ledger.priceFor(modelConfigId);
-    const priced = priceUsage(
-      price
-        ? {
-            inputPerMTok: price.inputPerMTok.toString(),
-            outputPerMTok: price.outputPerMTok.toString(),
-            cachedInputPerMTok: price.cachedInputPerMTok?.toString(),
-            reasoningPerMTok: price.reasoningPerMTok?.toString(),
-            batchDiscount: price.batchDiscount?.toString(),
-          }
-        : null,
-      { input: estimateTokens(inputText) + 3500, output: maxOutputTokens },
-    );
-    return { amount: priced.amount, priced: !!price, isDemo: !!price?.isDemo };
+    const prices = price
+      ? {
+          inputPerMTok: price.inputPerMTok.toString(),
+          outputPerMTok: price.outputPerMTok.toString(),
+          cachedInputPerMTok: price.cachedInputPerMTok?.toString() ?? null,
+          reasoningPerMTok: price.reasoningPerMTok?.toString() ?? null,
+          batchDiscount: price.batchDiscount?.toString() ?? null,
+        }
+      : null;
+    const priced = priceUsage(prices, { input: estimateTokens(inputText) + 3500, output: maxOutputTokens });
+    return { amount: priced.amount, priced: !!price, isDemo: !!price?.isDemo, prices };
+  }
+
+  /** The source behind the resolved versions when they all belong to one document, so its threads can be listed per document. */
+  private async singleSourceOf(svids: string[]) {
+    if (!svids.length) return null;
+    const vs = await this.prisma.sourceVersion.findMany({ where: { id: { in: svids } }, select: { sourceId: true } });
+    const ids = [...new Set(vs.map((v) => v.sourceId))];
+    if (ids.length !== 1) return null;
+    return this.prisma.source.findUnique({ where: { id: ids[0] }, select: { id: true, projectId: true } });
   }
 
   async create(workspaceId: string, user: AuthUser, spec: RunSpec) {
@@ -138,15 +145,16 @@ export class RunsService {
         threadId = t.id;
       } else {
         threadId = newId();
-        const singleSource = spec.scope?.sourceIds?.length === 1 ? spec.scope.sourceIds[0] : null;
+        const owner = await this.singleSourceOf(svids);
+        const projectId = spec.scope?.projectId ?? owner?.projectId ?? null;
         const scopeId = newId();
-        await this.prisma.contextScope.create({ data: { id: scopeId, workspaceId, projectId: spec.scope?.projectId ?? null, sourceVersionIds: svids } });
+        await this.prisma.contextScope.create({ data: { id: scopeId, workspaceId, projectId, sourceVersionIds: svids } });
         await this.prisma.thread.create({
           data: {
             id: threadId,
             workspaceId,
-            projectId: spec.scope?.projectId ?? null,
-            sourceId: singleSource,
+            projectId,
+            sourceId: owner?.id ?? null,
             title: question.slice(0, 80),
             contextScopeId: scopeId,
             createdById: user.id,
@@ -220,7 +228,16 @@ export class RunsService {
         isDemo: estimate.isDemo,
       },
     });
-    const planWithReservation = { ...plan, reservation: { reservationId: reservation.reservationId, amount: estimate.amount.toFixed(8), currency: 'USD' } };
+    // Under a hard budget the graph re-prices its real prompt and stops before generating if it could overspend.
+    const budgetGuard =
+      reservation.hard && estimate.prices && reservation.remaining != null
+        ? { maxCost: estimate.amount.plus(reservation.remaining).toFixed(8), prices: estimate.prices }
+        : undefined;
+    const planWithReservation = {
+      ...plan,
+      reservation: { reservationId: reservation.reservationId, amount: estimate.amount.toFixed(8), currency: 'USD' },
+      ...(budgetGuard ? { budgetGuard } : {}),
+    };
     await this.prisma.aiRun.update({ where: { id: runId }, data: { modelPlan: planWithReservation as any } });
 
     if (assistantMessageId && threadId) {
@@ -269,6 +286,8 @@ export class RunsService {
     );
     const citationSummary = citations.reduce<Record<string, number>>((a, c) => ({ ...a, [c.state]: (a[c.state] ?? 0) + 1 }), {});
     const durationMs = run.startedAt && run.finishedAt ? run.finishedAt.getTime() - run.startedAt.getTime() : null;
+    // A finished run that never called a model has nothing to bill: its final cost is zero.
+    const tier = TERMINAL.has(run.status) && calls.length === 0 && totals.tier === 'PREFLIGHT_ESTIMATE' ? 'FINALIZED' : totals.tier;
     return {
       run: {
         id: run.id,
@@ -288,7 +307,7 @@ export class RunsService {
       modelPlan: run.modelPlan,
       modelCalls: calls,
       tokens,
-      cost: { total: totals.total, estimate: totals.estimate, tier: totals.tier, currency: 'USD', isDemo: totals.isDemo, entries: totals.entries },
+      cost: { total: totals.total, estimate: totals.estimate, tier, currency: 'USD', isDemo: totals.isDemo, entries: totals.entries },
       retrieval: retrieval.map((r) => ({ id: r.id, query: r.query, params: r.params, candidates: (r.candidates as any[])?.length ?? 0, packed: (r.packed as any[])?.length ?? 0, latencyMs: r.latencyMs })),
       citations: { total: citations.length, byState: citationSummary },
       nodes: nodes.map((n) => ({ node: n.node, step: n.step, status: n.status, durationMs: n.durationMs })),

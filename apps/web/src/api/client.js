@@ -58,6 +58,78 @@ export async function api(path, opts = {}) {
   return data;
 }
 
+/**
+ * Splits a text/event-stream buffer into complete events. Returns the parsed events and the unparsed tail.
+ * @param {string} buf
+ * @returns {{ events: { id?: string, event?: string, data: string }[], rest: string }}
+ */
+export function parseSse(buf) {
+  const events = [];
+  const blocks = buf.replace(/\r\n/g, '\n').split('\n\n');
+  const rest = blocks.pop() ?? '';
+  for (const block of blocks) {
+    const ev = { data: '' };
+    const data = [];
+    for (const line of block.split('\n')) {
+      if (!line || line.startsWith(':')) continue;
+      const i = line.indexOf(':');
+      const field = i < 0 ? line : line.slice(0, i);
+      const value = i < 0 ? '' : line.slice(i + 1).replace(/^ /, '');
+      if (field === 'data') data.push(value);
+      else if (field === 'id') ev.id = value;
+      else if (field === 'event') ev.event = value;
+    }
+    if (data.length) {
+      ev.data = data.join('\n');
+      events.push(ev);
+    }
+  }
+  return { events, rest };
+}
+
+/**
+ * Reads one Server-Sent Events response with fetch (cookies, CSRF-free GET, refresh on 401).
+ * Resolves with the HTTP status when the server closes the stream; callers reconnect with the last seen id.
+ * @param {string} path  path below /api
+ * @param {{ lastEventId?: string, signal?: AbortSignal, onEvent: (ev: { id?: string, event?: string, data: string }) => void }} opts
+ * @returns {Promise<number>}
+ */
+export async function readEventStream(path, opts) {
+  const open = () =>
+    fetch(`/api${path}`, {
+      headers: { accept: 'text/event-stream', ...(opts.lastEventId ? { 'last-event-id': opts.lastEventId } : {}) },
+      credentials: 'same-origin',
+      signal: opts.signal,
+    });
+  let res = await open();
+  if (res.status === 401 && (await refresh())) res = await open();
+  if (!res.ok) {
+    const type = res.headers.get('content-type') || '';
+    const data = type.includes('json') ? await res.json() : { detail: await res.text() };
+    throw new ApiError(res.status, data);
+  }
+  if (res.status === 204) return 204;
+  if (!res.body) {
+    const { events } = parseSse(`${await res.text()}\n\n`);
+    events.forEach(opts.onEvent);
+    return res.status;
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    const { events, rest } = parseSse(buf);
+    buf = rest;
+    events.forEach(opts.onEvent);
+  }
+  const { events } = parseSse(`${buf}\n\n`);
+  events.forEach(opts.onEvent);
+  return res.status;
+}
+
 /** Sets the CSRF cookie if this browser does not have one yet. */
 export async function ensureCsrf() {
   if (!readCookie('fv_csrf')) await api('/auth/csrf');

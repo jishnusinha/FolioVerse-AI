@@ -3,6 +3,7 @@
  * All data is DEMO data. Behaviour mirrors the real endpoints closely enough for UI tests:
  * 401 without a session, 404 outside the workspace, 403 below the required role, problem+json errors.
  */
+import { createFakeAi } from './fakeAi.js';
 
 const PROBLEM = { 'content-type': 'application/problem+json' };
 const JSON_H = { 'content-type': 'application/json' };
@@ -30,8 +31,11 @@ const ok = (body, status = 200) => ({ status, headers: JSON_H, body });
 const noContent = () => ({ status: 204, headers: {}, body: null });
 
 /**
- * @param {{ signedIn?: boolean, role?: 'OWNER'|'ADMIN'|'EDITOR'|'VIEWER', advance?: boolean, empty?: boolean, emailVerified?: boolean }} [opts]
+ * @param {{ signedIn?: boolean, role?: 'OWNER'|'ADMIN'|'EDITOR'|'VIEWER', advance?: boolean, empty?: boolean, emailVerified?: boolean,
+ *   budgetLimit?: string, budgetHard?: boolean, streamCut?: number, pdfBytes?: Uint8Array }} [opts]
  *   `role` applies to an extra TEAM workspace; `advance` moves busy sources one ingestion step per list request.
+ *   `budgetLimit`/`budgetHard` set the monthly budget; `streamCut` ends a run's first event stream early;
+ *   `pdfBytes` is served as the file of every PDF version.
  */
 export function createFakeApi(opts = {}) {
   const userId = uuid();
@@ -100,13 +104,14 @@ export function createFakeApi(opts = {}) {
   };
 
   const knowledge = addProject(personal, 'Project Atlas', 'KNOWLEDGE', 'Market research on assisted-research tools (DEMO)');
+  let outlook = null;
   addProject(personal, 'My Writing', 'WRITER');
   addProject(personal, 'My Library', 'LIBRARY');
   if (!opts.empty) {
     const research = addFolder(knowledge, 'Market research');
     const y26 = addFolder(knowledge, '2026', research);
     addFolder(knowledge, 'Interviews');
-    addSource(knowledge, 'Market Outlook 2026.pdf', 'READY', y26, 300);
+    outlook = addSource(knowledge, 'Market Outlook 2026.pdf', 'READY', y26, 300);
     addSource(knowledge, 'Competitor Notes.md', 'READY', research, 200);
     addSource(knowledge, 'Analyst Briefing.docx', 'INDEXING', y26, 5);
     addSource(knowledge, 'Survey Export.pdf', 'FAILED', null, 50, { error: 'Parser timed out on page 31 (DEMO).' });
@@ -117,6 +122,9 @@ export function createFakeApi(opts = {}) {
     db.memberships.push({ workspaceId: team, role: opts.role });
     addProject(team, 'Shared Knowledge', 'KNOWLEDGE');
   }
+
+  const fakeAi = createFakeAi({ db, uuid, iso, ok, problem, noContent, opts });
+  fakeAi.seed(personal, outlook);
 
   const member = (wid) => db.memberships.find((m) => m.workspaceId === wid);
   const live = (rows, wid) => rows.filter((r) => r.workspaceId === wid && !r.deletedAt);
@@ -186,6 +194,7 @@ export function createFakeApi(opts = {}) {
     if (db.accessExpired) return problem(401, 'Session expired', 'TOKEN_EXPIRED');
     if (method !== 'GET' && headers['x-csrf-token'] !== FAKE_CSRF) return problem(403, 'CSRF token missing or invalid', 'CSRF');
 
+    if (path === '/models' && method === 'GET') return ok([fakeAi.model]);
     if (path === '/workspaces' && method === 'POST') {
       const id = uuid();
       db.workspaces.push({ id, name: body.name, kind: 'TEAM' });
@@ -277,7 +286,10 @@ export function createFakeApi(opts = {}) {
       }
       if (rest[2] === 'restore' && method === 'POST') return need('EDITOR') ?? ((s.deletedAt = null), ok(s));
       if (rest[2] === 'versions' && rest[4] === 'ingest' && method === 'POST') return need('EDITOR') ?? (setState(s, 'PARSING'), ok({ jobId: uuid() }, 201));
-      if (rest[2] === 'versions' && rest[4] === 'file') return { status: 200, headers: { 'content-type': s.mimeType }, body: 'DEMO file content' };
+      if (rest[2] === 'versions' && rest[4] === 'file') {
+        const bytes = s.mimeType === MIME.pdf && opts.pdfBytes ? opts.pdfBytes : 'DEMO file content';
+        return { status: 200, headers: { 'content-type': s.mimeType }, body: bytes };
+      }
     }
 
     if (r === 'uploads' && method === 'POST') {
@@ -316,7 +328,7 @@ export function createFakeApi(opts = {}) {
       }
     }
 
-    return problem(404, 'Not found');
+    return fakeAi.handle(method, wid, rest, body, headers, need, u.searchParams) ?? problem(404, 'Not found');
   }
 
   function publicUser() {
@@ -335,7 +347,7 @@ export function installFakeFetch(fake = createFakeApi()) {
     const headers = Object.fromEntries(Object.entries(init.headers ?? {}).map(([k, v]) => [k.toLowerCase(), v]));
     const body = typeof init.body === 'string' ? JSON.parse(init.body) : init.body;
     const res = fake.handle(init.method ?? 'GET', url, body, headers);
-    const payload = res.body == null ? null : typeof res.body === 'string' ? res.body : JSON.stringify(res.body);
+    const payload = res.body == null ? null : typeof res.body === 'string' || res.body instanceof Uint8Array ? res.body : JSON.stringify(res.body);
     return new Response(payload, { status: res.status, headers: res.headers });
   };
   return fake;

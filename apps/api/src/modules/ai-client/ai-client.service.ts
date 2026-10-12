@@ -12,6 +12,14 @@ export class AiServiceError extends Error {
   }
 }
 
+function parseLine(line: string) {
+  try {
+    return JSON.parse(line);
+  } catch {
+    throw new AiServiceError('AI service sent a malformed NDJSON line', 0, false);
+  }
+}
+
 export interface StreamOptions {
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -56,18 +64,25 @@ export class AiClientService {
     const decoder = new TextDecoder();
     let buf = '';
     for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
+      let chunk: ReadableStreamReadResult<Uint8Array>;
+      try {
+        chunk = await reader.read();
+      } catch (e) {
+        if (opts.signal?.aborted) throw e;
+        const timedOut = timeout.aborted;
+        throw new AiServiceError(timedOut ? 'AI service work unit timed out' : `AI service stream broke: ${(e as Error).message}`, 0, true);
+      }
+      if (chunk.done) break;
+      buf += decoder.decode(chunk.value, { stream: true });
       let nl: number;
       while ((nl = buf.indexOf('\n')) >= 0) {
         const line = buf.slice(0, nl).trim();
         buf = buf.slice(nl + 1);
-        if (line) yield JSON.parse(line);
+        if (line) yield parseLine(line);
       }
     }
     const tail = buf.trim();
-    if (tail) yield JSON.parse(tail);
+    if (tail) yield parseLine(tail);
   }
 
   async json<T = any>(path: string, init: { method?: string; body?: unknown } = {}, base: 'api' | 'ingest' = 'api'): Promise<T> {

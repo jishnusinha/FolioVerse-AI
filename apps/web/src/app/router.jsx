@@ -17,6 +17,10 @@ import { AcceptInvitePage } from '@/features/auth/AcceptInvitePage.jsx';
 import { KnowledgeHomePage } from '@/features/knowledge/KnowledgeHomePage.jsx';
 import { ProjectPage } from '@/features/knowledge/ProjectPage.jsx';
 import { TrashPage } from '@/features/knowledge/TrashPage.jsx';
+import { DocumentPage } from '@/features/documents/DocumentPage.jsx';
+import { HomePage } from '@/features/home/HomePage.jsx';
+import { StudioPage } from '@/features/studio/StudioPage.jsx';
+import { CostsPage } from '@/features/costs/CostsPage.jsx';
 import { Toaster } from '@/shared/ui/toast.jsx';
 
 /** Page components that have replaced placeholders, keyed by route id. */
@@ -28,7 +32,12 @@ const PAGES = {
   verify: VerifyEmailPage,
   onboarding: OnboardingPage,
   'accept-invite': AcceptInvitePage,
+  home: HomePage,
   knowledge: KnowledgeHomePage,
+  document: DocumentPage,
+  studio: StudioPage,
+  'studio-run': StudioPage,
+  costs: CostsPage,
   project: ProjectPage,
   trash: TrashPage,
   'docs-design': DesignGalleryPage,

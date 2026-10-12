@@ -26,7 +26,12 @@ def main() -> None:
         os.environ["ROLE"] = args.role
     loop = "asyncio:SelectorEventLoop" if sys.platform == "win32" else "auto"
     uvicorn.run(
-        "folioverse_ai.main:app", host=args.host, port=args.port, loop=loop, proxy_headers=True, log_level=os.environ.get("LOG_LEVEL", "info").lower()
+        "folioverse_ai.main:app",
+        host=args.host,
+        port=args.port,
+        loop=loop,
+        proxy_headers=True,
+        log_level=os.environ.get("LOG_LEVEL", "info").lower(),
     )
 
 

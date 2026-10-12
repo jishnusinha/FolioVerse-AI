@@ -122,6 +122,19 @@ async def gather_coverage(ctx: RunContext, budget: int = 6000, per_version_cap: 
     return {"packed": packed, "abstain": not packed, "topScore": 1.0}
 
 
+async def _quote_page(
+    repo, svid: str, first: int | None, loc: dict, quote: str
+) -> tuple[int | None, str | None]:
+    """Chunks can span pages; anchors use the covered page whose text contains the quote."""
+    pages = sorted({b["page"] for b in loc.get("boxes", []) if b.get("page")} | ({first} if first else set()))
+    texts: dict[int, str | None] = {}
+    for p in pages:
+        texts[p] = await repo.page_text(svid, p)
+        if quote and texts[p] and quote in texts[p]:
+            return p, texts[p]
+    return first, texts.get(first) if first else None
+
+
 async def validate_and_emit(ctx: RunContext, answer: str, packed: list[dict]) -> dict:
     """Validates [S#] markers deterministically and emits citation.validated with anchors."""
     context = {p["marker"]: p for p in packed}
@@ -132,14 +145,11 @@ async def validate_and_emit(ctx: RunContext, answer: str, packed: list[dict]) ->
         anchor = None
         if res.item:
             item = res.item
-            chunk = {
-                "id": item["chunkId"],
-                "page_start": item.get("page"),
-                "locator": item.get("locator") or {},
-            }
-            page_text = (
-                await repo.page_text(item["sourceVersionId"], item["page"]) if item.get("page") else None
+            loc = item.get("locator") or {}
+            page, page_text = await _quote_page(
+                repo, item["sourceVersionId"], item.get("page"), loc, res.quote
             )
+            chunk = {"id": item["chunkId"], "page_start": page, "locator": loc}
             anchor = build_anchor(item["sourceVersionId"], chunk, res.quote, page_text)
         data = {"marker": marker, "state": res.state, "score": res.score, "quote": res.quote[:600]}
         if anchor:
