@@ -6,6 +6,7 @@ import { QueuesModule } from './infra/queues.service';
 import { RedisModule } from './infra/redis.service';
 import { StorageModule } from './infra/storage.service';
 import { AiClientModule } from './modules/ai-client/ai-client.service';
+import { ArtifactsService } from './modules/artifacts/artifacts.service';
 import { EventsModule } from './modules/events/events.service';
 import { IngestionExecutorService } from './modules/ingestion/ingestion-executor.service';
 import { BudgetService } from './modules/ledger/budget.service';
@@ -18,6 +19,7 @@ import { RunsService } from './modules/runs/runs.service';
 import { SourcesService } from './modules/sources/sources.service';
 
 const services = [
+  ArtifactsService,
   BudgetService,
   LedgerService,
   ModelsService,

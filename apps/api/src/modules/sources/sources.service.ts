@@ -153,6 +153,12 @@ export class SourcesService {
       });
       await tx.source.update({ where: { id: sourceId }, data: { currentVersionId: versionId, ingestionState: 'SCANNING' } });
       await tx.uploadSession.update({ where: { id: s.id }, data: { completedAt: new Date(), state: 'SCANNING', sourceId } });
+      if (s.sourceId) {
+        await tx.$executeRaw`
+          UPDATE app.artifacts SET stale = true, updated_at = now()
+           WHERE workspace_id = ${workspaceId}::uuid AND NOT stale
+             AND source_version_ids && ARRAY(SELECT id FROM app.source_versions WHERE source_id = ${sourceId}::uuid AND id <> ${versionId}::uuid)`;
+      }
     });
     await this.stage(workspaceId, sourceId, versionId, 'SCANNING', 0.1);
 

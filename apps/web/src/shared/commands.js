@@ -2,12 +2,13 @@ import { create } from 'zustand';
 import { SECTIONS } from '@/app/routes.js';
 
 /**
- * @typedef {{ id: string, label: string, group: 'Go to' | 'Actions' | string, to?: string, run?: () => void, keywords?: string[], shortcut?: string[] }} Command
+ * @typedef {{ id: string, label: string, group: 'Go to' | 'Actions' | string, to?: string, run?: () => void, keywords?: string[], shortcut?: string[], hint?: string }} Command
  */
 
 /** Navigation commands derived from the route registry. */
 export const NAV_COMMANDS = [
   ...SECTIONS.map((s) => ({ id: `go:${s.id}`, label: s.label, group: 'Go to', to: s.to })),
+  { id: 'go:search', label: 'Search everywhere', group: 'Go to', to: '/app/search', keywords: ['find', 'documents', 'notes', 'artifacts'] },
   { id: 'go:rec-lab', label: 'Recommendation Lab', group: 'Go to', to: '/app/discover/recommendation-lab' },
   { id: 'go:admin-costs', label: 'Cost administration', group: 'Go to', to: '/app/admin/costs' },
   { id: 'go:admin-pricing', label: 'Model prices', group: 'Go to', to: '/app/admin/pricing' },

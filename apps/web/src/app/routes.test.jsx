@@ -31,6 +31,7 @@ const EXPECTED_H1 = {
   onboarding: 'Name your workspace',
   project: 'Project not found',
   document: 'Document not found',
+  artifact: 'Artifact not found',
   'studio-run': 'AI Developer Studio',
   costs: 'Your AI usage',
 };

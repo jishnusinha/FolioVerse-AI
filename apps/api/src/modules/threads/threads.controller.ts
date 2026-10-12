@@ -1,14 +1,17 @@
-import { Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Query } from '@nestjs/common';
-import { ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, Patch, Put, Query } from '@nestjs/common';
+import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
+import { ArrayMaxSize, ArrayMinSize, IsArray, IsBoolean, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
 import type { Prisma } from '@prisma/client';
 import { RequireRole } from '../../common/auth.decorators';
-import { isUuid } from '../../common/ids';
+import { isUuid, newId } from '../../common/ids';
 import { PrismaService } from '../../infra/prisma.service';
 
 class UpdateThreadDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MinLength(1) @MaxLength(120) title?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() archived?: boolean;
+}
+class ThreadScopeDto {
+  @ApiProperty() @IsArray() @ArrayMinSize(1) @ArrayMaxSize(50) @IsUUID('all', { each: true }) sourceVersionIds: string[];
 }
 
 @ApiTags('threads')
@@ -47,7 +50,31 @@ export class ThreadsController {
     const t = await this.thread(workspaceId, threadId);
     const messages = await this.prisma.message.findMany({ where: { threadId, workspaceId }, orderBy: { createdAt: 'asc' }, include: { citations: true } });
     const scope = t.contextScopeId ? await this.prisma.contextScope.findUnique({ where: { id: t.contextScopeId } }) : null;
-    return { ...t, scope, messages };
+    return { ...t, scope: scope ? { ...scope, sources: await this.scopeSources(workspaceId, scope.sourceVersionIds) } : null, messages };
+  }
+
+  /** Attaches or detaches sources: later questions in this thread use a new context scope; earlier answers keep theirs. */
+  @RequireRole('EDITOR')
+  @Put(':threadId/scope')
+  async setScope(@Param('workspaceId') workspaceId: string, @Param('threadId') threadId: string, @Body() dto: ThreadScopeDto) {
+    const t = await this.thread(workspaceId, threadId);
+    const ids = [...new Set(dto.sourceVersionIds)];
+    const versions = await this.prisma.sourceVersion.findMany({ where: { id: { in: ids }, workspaceId }, select: { id: true, sourceId: true } });
+    const live = await this.prisma.source.count({ where: { id: { in: [...new Set(versions.map((v) => v.sourceId))] }, workspaceId, deletedAt: null } });
+    if (versions.length !== ids.length || live !== new Set(versions.map((v) => v.sourceId)).size) {
+      throw new BadRequestException({ message: 'Every source in the scope must exist in this workspace', code: 'INVALID_SCOPE' });
+    }
+    const id = newId();
+    await this.prisma.contextScope.create({ data: { id, workspaceId, projectId: t.projectId, sourceVersionIds: ids } });
+    await this.prisma.thread.update({ where: { id: threadId }, data: { contextScopeId: id } });
+    return { id, sourceVersionIds: ids, sources: await this.scopeSources(workspaceId, ids) };
+  }
+
+  private async scopeSources(workspaceId: string, svids: string[]) {
+    const versions = await this.prisma.sourceVersion.findMany({ where: { id: { in: svids }, workspaceId } });
+    const sources = await this.prisma.source.findMany({ where: { id: { in: versions.map((v) => v.sourceId) }, workspaceId }, select: { id: true, title: true } });
+    const title = new Map(sources.map((s) => [s.id, s.title]));
+    return versions.map((v) => ({ sourceVersionId: v.id, sourceId: v.sourceId, title: title.get(v.sourceId) ?? 'Deleted document', versionNo: v.versionNo, ingestionState: v.ingestionState }));
   }
 
   @RequireRole('EDITOR')

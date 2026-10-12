@@ -188,10 +188,17 @@ def entities(text: str, min_count: int = 2, limit: int = 18) -> list[tuple[str, 
     return [(e, c) for e, c in counts.most_common(limit * 2) if c >= min_count][:limit]
 
 
+def concepts(text: str, min_count: int = 2, limit: int = 12) -> list[str]:
+    """Recurring key terms; stands in for named entities in non-fiction with few proper nouns."""
+    counts = Counter(w for w in content_words(text) if len(w) >= 5 and w.isalpha())
+    return [w.capitalize() for w, c in counts.most_common(limit) if c >= min_count]
+
+
 def cooccurrence(text: str, ents: list[str]) -> list[tuple[str, str, int]]:
     pairs: Counter = Counter()
     for s in split_sentences(text):
-        present = [e for e in ents if e in s]
+        low = s.lower()
+        present = [e for e in ents if e.lower() in low]
         for i, a in enumerate(present):
             for b in present[i + 1 :]:
                 pairs[tuple(sorted((a, b)))] += 1

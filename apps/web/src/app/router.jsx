@@ -18,6 +18,8 @@ import { KnowledgeHomePage } from '@/features/knowledge/KnowledgeHomePage.jsx';
 import { ProjectPage } from '@/features/knowledge/ProjectPage.jsx';
 import { TrashPage } from '@/features/knowledge/TrashPage.jsx';
 import { DocumentPage } from '@/features/documents/DocumentPage.jsx';
+import { ArtifactPage } from '@/features/insights/ArtifactPage.jsx';
+import { SearchPage } from '@/features/insights/SearchPage.jsx';
 import { HomePage } from '@/features/home/HomePage.jsx';
 import { StudioPage } from '@/features/studio/StudioPage.jsx';
 import { CostsPage } from '@/features/costs/CostsPage.jsx';
@@ -35,6 +37,8 @@ const PAGES = {
   home: HomePage,
   knowledge: KnowledgeHomePage,
   document: DocumentPage,
+  artifact: ArtifactPage,
+  search: SearchPage,
   studio: StudioPage,
   'studio-run': StudioPage,
   costs: CostsPage,

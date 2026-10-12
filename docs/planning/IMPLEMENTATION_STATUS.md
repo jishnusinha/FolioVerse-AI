@@ -167,7 +167,46 @@ Costs, 18.4 s); `node infrastructure/scripts/smoke.mjs` OK.
 Also: Home page (continue a conversation, budget, recent runs, projects); visual baselines re-recorded against an empty
 fake workspace (D-034). Not done: OTel span linking (Gate 10), Linux visual baselines (Gate 13).
 
-## Gates 4–13 — PLANNED
+## Gate 4 — Knowledge Advanced — DONE (live model path BLOCKED: no key)
+
+Validation: Python `pytest` 86/86, `ruff check` / `ruff format --check` clean; API unit 46/46, integration 97/97
+(`knowledge.spec.ts` new), `tsc` 0, eslint clean; `contracts:check` OK; web `vitest run` 198/198, `eslint src` clean,
+`vite build` OK (knowledge map chunk lazy-loaded); Playwright `visual`/`shell`/`auth-upload`/`slice`/`preview` pass,
+`gate4-preview.spec.js` (Chrome, fake API) covers knowledge map, Lens → note → "Show in document", artifact page,
+search page and palette search; `node infrastructure/scripts/smoke.mjs` OK against `pnpm dev` (insight
+`quick_summary` and `knowledge_map` artifacts with validated citations, note + `search?q=procurement` finds note and
+passage with `semantic=OK`).
+
+- `FV-G04-INS-001` Insight registry — DONE. 14 actions in `packages/contracts/fixtures/insight-actions.json` mapped to
+  graph and tier; the API registry (`insight-actions.spec.ts`), the web fake and Python (`test_insight_actions.py`) are
+  checked against it (D-036). Summaries/key facts T0 over packed context, study tools T1, `multi_doc_compare`,
+  `risk_contradiction` (risks and contradictions with evidence pairs), `knowledge_map` JSON. Mock knowledge maps fall
+  back to recurring key terms when a document has few proper nouns (D-043).
+- `FV-G04-ART-002` Artifacts — DONE. `artifacts` table (migration `0002_knowledge`), list/get/rename/archive/delete API,
+  per-version pins with `currentVersionId`; uploading a new version marks pinned artifacts stale (integration test).
+  Every successful insight run is saved automatically (D-035). Web: project artifact list, artifact page (pins, stale
+  callout, regenerate on current version, rename/archive/delete, citations → document).
+- `FV-G04-SRCH-003` Workspace search — DONE. Postgres FTS over source/thread/artifact titles and notes (GIN indexes in
+  SQL only, D-037) merged with semantic passages from Qdrant through the AI service under a one-minute scope token
+  (D-038); semantic failure degrades to `UNAVAILABLE`. Web: `/app/search` grouped results and palette "In this
+  workspace" results.
+- `FV-G04-CONV-004` Conversations — DONE. Thread rename/archive/search, branch compare dialog, attach/detach sources
+  mid-thread creates a new `context_scope` that later questions inherit (D-039; integration test).
+- `FV-G04-DOCX-005` Reading view — DONE. DOCX/MD/TXT canonical text with numbered paragraph anchors (`p-<page>-<n>`)
+  and a version diff summary (`sources/diff.ts`, `diff.spec.ts`; "Changes since v<n>" on the document page).
+- `FV-G04-LENS-006` Folio Lens knowledge actions — DONE. Explain, define, list facts, ask, find related (workspace
+  search, D-041), add to notes with a selection anchor (page, text quote, text position from DOM ranges) and compare;
+  "Show in document" returns to the exact passage (PDF switches to the text view when there is no bbox, D-042). Ask
+  actions run as grounded chat questions (D-040); viewers only get "Find related evidence".
+- `FV-G04-BATCH-007` Batch ops and ingestion retry — DONE in Gate 2/3 (multi-select move/delete, retry failed
+  ingestion); unchanged here.
+- `FV-G04-MAP-008` Knowledge map — DONE. `@xyflow/react` + dagre canvas (lazy chunk) with an accessible concept list;
+  node → evidence drawer (web test and Gate 4 preview spec).
+
+Not done: live-model insight quality (BLOCKED, no `OPENAI_API_KEY`); the web fake serves the same pages for every
+version of the demo PDF (D-044).
+
+## Gates 5–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.

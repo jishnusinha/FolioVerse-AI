@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Backend vertical-slice smoke test against a running stack (no browser):
- * register -> upload -> ingest (READY) -> grounded_qa run -> SSE stream -> receipt -> costs.
- * Also checks abstention (no model call) and cross-workspace 404.
+ * register -> upload -> ingest (READY) -> grounded_qa run -> SSE stream -> receipt -> insight artifacts
+ * -> notes and search -> costs. Also checks abstention (no model call) and cross-workspace 404.
  * Uses the deterministic mock model unless a live provider is configured. Prints no secrets.
  *
  *   node infrastructure/scripts/smoke.mjs [--base http://localhost:3000]
@@ -180,6 +180,27 @@ async function main() {
   const abEvents = await c.sse(`/api/workspaces/${wid}/runs/${abst.runId ?? abst.id ?? abst.run?.id}/events`);
   const abFinished = abEvents.find((e) => e.type === 'run.finished');
   step(`abstention: outcome=${abFinished?.data.outcome} modelCalls=${abEvents.filter((e) => e.type === 'usage.recorded').length}`);
+
+  const artifacts = [];
+  for (const [graph, action] of [
+    ['insight', 'quick_summary'],
+    ['knowledge_map', 'knowledge_map'],
+  ]) {
+    const ins = await c.post(`/api/workspaces/${wid}/runs`, { graph, input: { action }, scope: { sourceIds: [done.sourceId] } });
+    const insEvents = await c.sse(`/api/workspaces/${wid}/runs/${ins.runId}/events`);
+    const fin = insEvents.find((e) => e.type === 'run.finished');
+    if (!fin?.data.artifactId) throw new Error(`${action}: no artifact (${JSON.stringify(fin?.data ?? insEvents.at(-1)).slice(0, 200)})`);
+    const art = await c.get(`/api/workspaces/${wid}/artifacts/${fin.data.artifactId}`);
+    artifacts.push(art);
+    if (!art.citations.length) throw new Error(`${action}: artifact has no validated citations`);
+    step(`insight ${action}: ${art.kind} "${art.title}" format=${art.format} pins=${art.pins.length} citations=${art.citations.length}`);
+  }
+
+  const note = await c.post(`/api/workspaces/${wid}/notes`, { body: 'Check the procurement assumption.', sourceId: done.sourceId, quote: 'Procurement cycles shortened to 90 days' });
+  const found = await c.get(`/api/workspaces/${wid}/search?q=procurement`);
+  const byType = found.items.reduce((a, it) => ({ ...a, [it.type]: (a[it.type] ?? 0) + 1 }), {});
+  step(`search "procurement": ${JSON.stringify(byType)} semantic=${found.semantic.status}`);
+  if (!found.items.some((it) => it.type === 'note' && it.id === note.id) || found.semantic.status !== 'OK' || !byType.passage) throw new Error('search check failed');
 
   const costs = await c.get(`/api/workspaces/${wid}/costs/summary`);
   step(`costs summary: ${JSON.stringify(costs).slice(0, 200)}`);

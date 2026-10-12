@@ -156,6 +156,52 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Context: the seeded demo run made the shell screenshots depend on fake run data.
 - Decision: `visual.spec.js` uses `apiOptions: { empty: true }`; Win32 baselines were re-recorded.
 
+## D-035 Insight artifacts are saved automatically per run
+- Context: the plan lists an artifacts table but not when an artifact is created.
+- Decision: the run executor saves an artifact when an artifact graph finishes SUCCEEDED or PARTIAL, pinned to the
+  packed source versions; `run.finished` carries `artifactId`. Users archive or delete artifacts they don't want instead of
+  saving them explicitly.
+
+## D-036 Insight action registry is a contract fixture
+- Decision: `packages/contracts/fixtures/insight-actions.json` holds the 14 actions with graph and tier. The API registry
+  and the web fake are TypeScript/JS copies checked for equality in tests; Python reads the fixture in its test.
+
+## D-037 Full-text indexes live only in SQL migrations
+- Context: Prisma cannot express expression GIN indexes.
+- Decision: `0002_knowledge` creates `to_tsvector('english', …)` GIN indexes on source/thread/artifact titles and note
+  text by hand; the Prisma schema does not declare them, so they must not be dropped by future `migrate diff` output.
+
+## D-038 Semantic search uses a per-search scope token
+- Decision: search signs a 60-second scope token listing the workspace's READY current versions for a random search id;
+  the AI service accepts filters only from that token. If the AI service fails, keyword results are returned with
+  `semantic.status = UNAVAILABLE`.
+
+## D-039 Changing a thread's sources creates a new context scope
+- Decision: `PUT /threads/:id/scope` stores a new `context_scope` and points the thread at it; runs in that thread without
+  an explicit scope inherit it. Earlier runs keep their original scope, so receipts and replays stay accurate.
+
+## D-040 Folio Lens ask actions are grounded chat questions
+- Decision: explain, define, list facts and compare send a templated question through `grounded_qa` in the document's
+  chat (with citations and a receipt), instead of separate graphs. They are disabled when asking is blocked or for viewers.
+
+## D-041 "Find related evidence" uses workspace search
+- Decision: the Lens calls `/search` with the selected text scoped to the project and shows passages, notes and artifacts;
+  no model call, so it is free and available to viewers.
+
+## D-042 "Show in document" for text anchors switches the PDF to the text view
+- Context: notes anchored by text quote have no bbox to highlight on the rendered PDF.
+- Decision: when the anchor has no bbox the document opens in the text view and highlights the quote (whitespace-insensitive
+  match; selection offsets computed from DOM ranges because Chrome's `Selection.toString()` collapses newlines).
+
+## D-043 Mock knowledge maps fall back to key terms
+- Context: the extractive knowledge map used repeated proper nouns, which yields an empty map for short non-fiction.
+- Decision: with fewer than three entities the mock adds recurring key terms; node markers become cited claims
+  (`label [S#]`) so map nodes carry validated citations.
+
+## D-044 The web fake serves the same pages for every version
+- Decision: `fakeKnowledge.js` returns the demo PDF's pages for any version id and a scripted diff; real per-version text
+  is covered by the API integration tests.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

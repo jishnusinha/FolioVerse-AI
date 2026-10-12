@@ -862,3 +862,67 @@ model Notification {
   @@map("notifications")
   @@schema("app")
 }
+
+// ───────────────────────────── knowledge outputs ─────────────────────────────
+
+enum ArtifactKind {
+  SUMMARY
+  KEY_FACTS
+  STUDY_NOTES
+  FLASHCARDS
+  QUIZ
+  TASKS
+  REPORT
+  COMPARISON
+  RISK_REPORT
+  KNOWLEDGE_MAP
+
+  @@schema("app")
+}
+
+/// Saved output of an insight action. Pinned to the source versions it was generated from;
+/// `stale` is set when one of those sources gets a newer version.
+model Artifact {
+  id               String       @id @db.Uuid
+  workspaceId      String       @map("workspace_id") @db.Uuid
+  projectId        String?      @map("project_id") @db.Uuid
+  sourceId         String?      @map("source_id") @db.Uuid
+  runId            String       @unique @map("run_id") @db.Uuid
+  kind             ArtifactKind
+  action           String
+  title            String
+  format           String
+  content          Json
+  sourceVersionIds String[]     @map("source_version_ids") @db.Uuid
+  stale            Boolean      @default(false)
+  fallback         Boolean      @default(false)
+  isDemo           Boolean      @default(false) @map("is_demo")
+  createdById      String       @map("created_by_id") @db.Uuid
+  archivedAt       DateTime?    @map("archived_at")
+  createdAt        DateTime     @default(now()) @map("created_at")
+  updatedAt        DateTime     @updatedAt @map("updated_at")
+
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, sourceId])
+  @@map("artifacts")
+  @@schema("app")
+}
+
+/// A note, optionally anchored to a passage of a source version (Folio Lens "Add to notes").
+model Note {
+  id              String   @id @db.Uuid
+  workspaceId     String   @map("workspace_id") @db.Uuid
+  projectId       String?  @map("project_id") @db.Uuid
+  sourceId        String?  @map("source_id") @db.Uuid
+  sourceVersionId String?  @map("source_version_id") @db.Uuid
+  body            String
+  quote           String?
+  anchor          Json?
+  createdById     String   @map("created_by_id") @db.Uuid
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  @@index([workspaceId, sourceId])
+  @@map("notes")
+  @@schema("app")
+}

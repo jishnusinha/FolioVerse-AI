@@ -7,6 +7,7 @@ import { PrismaService } from '../../infra/prisma.service';
 import { QUEUES, QueuesService } from '../../infra/queues.service';
 import { CANCEL_KEY, RedisService } from '../../infra/redis.service';
 import { AiClientService, AiServiceError } from '../ai-client/ai-client.service';
+import { ArtifactsService } from '../artifacts/artifacts.service';
 import { EventsService } from '../events/events.service';
 import { BudgetService } from '../ledger/budget.service';
 import { TERMINAL } from './runs.service';
@@ -39,6 +40,7 @@ export class RunExecutorService {
     private readonly crypto: CryptoService,
     private readonly queues: QueuesService,
     private readonly budgets: BudgetService,
+    private readonly artifacts: ArtifactsService,
   ) {}
 
   private async setStatus(runId: string, status: RunStatus, seq: number, extra: Record<string, unknown> = {}) {
@@ -256,7 +258,14 @@ export class RunExecutorService {
         where: { id: run.id },
         data: { status, outcome, finishedAt: new Date(), result: { answer, artifact: finished.artifact ?? null } as any, lastSeq: seq + 1 },
       });
-      await emit('run.finished', { status, outcome, answer, artifact: finished.artifact ?? null });
+      const artifactId =
+        finished.artifact && (status === 'SUCCEEDED' || status === 'PARTIAL') && outcome !== 'ABSTAINED'
+          ? await this.artifacts.recordFromRun(run.id, finished.artifact).catch((e) => {
+              rootLogger.error({ runId: run.id, err: (e as Error).message }, 'artifact save failed');
+              return null;
+            })
+          : null;
+      await emit('run.finished', { status, outcome, answer, artifact: finished.artifact ?? null, artifactId });
     } else if (failed) {
       const status: RunStatus = failed.errorClass === 'CANCELLED' ? 'CANCELLED' : 'FAILED';
       if (run.messageId) await this.prisma.message.update({ where: { id: run.messageId }, data: { status: 'FAILED', content: text } });

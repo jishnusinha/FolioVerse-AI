@@ -135,7 +135,7 @@ async function ask(question) {
 describe('document workspace', () => {
   it('shows the earlier answer and opens its citation at the cited passage', async () => {
     await openDocument();
-    const chat = screen.getByRole('complementary', { name: 'Grounded conversation' });
+    const chat = screen.getByRole('region', { name: 'Grounded conversation' });
     expect(await within(chat).findByText(/compound annual rate of 14\.2%/)).toBeInTheDocument();
     expect(within(chat).getByText('What is the base-case growth rate?', { selector: 'p' })).toBeInTheDocument();
 
@@ -156,7 +156,7 @@ describe('document workspace', () => {
     const { fake } = await openDocument();
     await screen.findByText(/compound annual rate of 14\.2%/);
     await ask('How many organisations did the survey cover?');
-    const chat = screen.getByRole('complementary', { name: 'Grounded conversation' });
+    const chat = screen.getByRole('region', { name: 'Grounded conversation' });
     expect(await within(chat).findByText(/The survey covered 412 organisations across three regions/)).toBeInTheDocument();
     await waitFor(() => expect(within(chat).getAllByRole('button', { name: 'Citation S1: Verified quote, Exact location' })).toHaveLength(2));
     await waitFor(() => expect(within(chat).getAllByText('Run receipt')).toHaveLength(2));
@@ -170,7 +170,7 @@ describe('document workspace', () => {
     const { fake } = await openDocument({ streamCut: 9 });
     await screen.findByText(/compound annual rate of 14\.2%/);
     await ask('What are the main pricing risks?');
-    const chat = screen.getByRole('complementary', { name: 'Grounded conversation' });
+    const chat = screen.getByRole('region', { name: 'Grounded conversation' });
     await waitFor(
       () => expect(within(chat).getByText(/The main pricing risk/).closest('p')).toHaveTextContent(/^The main pricing risk is bundled office suites S1\W*\.$/),
       { timeout: 4000 },

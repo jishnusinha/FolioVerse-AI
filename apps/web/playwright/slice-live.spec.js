@@ -45,7 +45,7 @@ test.describe('gate 3 vertical slice (live stack)', () => {
 
     await page.getByLabel('Ask a grounded question').fill('How many organisations did the survey cover?');
     await page.getByRole('button', { name: 'Ask', exact: true }).click();
-    const chat = page.getByRole('complementary', { name: 'Grounded conversation' });
+    const chat = page.getByRole('region', { name: 'Grounded conversation' });
     const chip = chat.getByRole('button', { name: /^Citation S\d+: Verified quote/ }).first();
     await expect(chip).toBeVisible({ timeout: 120_000 });
     await expect(chat.getByText('Answered')).toBeVisible();

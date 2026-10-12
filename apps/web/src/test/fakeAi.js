@@ -4,6 +4,7 @@
  * A run's events are served by `GET runs/:id/events`; the run and its message complete when the final
  * event has been served, as with the real worker.
  */
+import { actionFor, createFakeKnowledge, scriptedArtifact, scriptedCitations } from './fakeKnowledge.js';
 
 /** Page text of the synthetic Atlas brief (`datasets/synthetic/docs/atlas-brief.pdf`). */
 export const ATLAS_PAGES = [
@@ -107,6 +108,11 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     streamCut: opts.streamCut ?? 0,
   };
   db.ai = ai;
+  const readyPages = (vid) => {
+    const v = db.versions.find((x) => x.id === vid);
+    return v && ['READY', 'PARTIAL'].includes(v.ingestionState) ? ATLAS_PAGES : [];
+  };
+  const knowledge = createFakeKnowledge({ db, uuid, iso, ok, problem, noContent, pages: readyPages });
 
   const spent = (wid) => ai.costEntries.filter((e) => e.workspaceId === wid && e.entryType === 'FINAL').reduce((a, e) => a + Number(e.amount), 0);
   function budgetStatus(wid) {
@@ -205,6 +211,50 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     return { events: ev, outcome: 'ANSWERED', answer: fact.answer, citations: [{ ...citation, sourceVersionId: svid, chunkId }], calls: 1 };
   }
 
+  /** Insight action events: retrieval, streamed markdown (if any), validated citations, usage and an artifact in `run.finished`. */
+  function insightScript(run, action, svids) {
+    const ev = [];
+    let seq = 0;
+    const at = new Date(run.createdAt).getTime();
+    const push = (type, data) => {
+      seq += 1;
+      ev.push({ id: `${STREAM_BASE + seq}-0`, schemaVersion: 1, type, seq, ts: new Date(at + seq * 40).toISOString(), runId: run.id, data });
+    };
+    const scripted = scriptedArtifact(action);
+    const citations = scriptedCitations(svids, (page) => ATLAS_PAGES[page - 1].text, uuid);
+    const artifactId = uuid();
+    let step = 0;
+    const node = (name, durationMs, body) => {
+      step += 1;
+      push('node.started', { node: name, step });
+      body?.();
+      push('node.finished', { node: name, step, status: 'SUCCEEDED', durationMs });
+    };
+    push('run.state', { status: 'RUNNING' });
+    node('retrieve', 40, () =>
+      push('retrieval.completed', {
+        candidates: 10,
+        packed: citations.length,
+        topScore: 0.8,
+        contextTokens: 900,
+        abstain: false,
+        sources: citations.map((c) => ({ marker: c.marker, chunkId: c.chunkId, sourceVersionId: c.sourceVersionId, page: c.anchor.selectors.page, score: 0.8 })),
+      }),
+    );
+    node('generate', 520, () => {
+      if (!scripted.text) return;
+      push('run.state', { status: 'STREAMING' });
+      for (const piece of scripted.text.match(/.{1,24}(\s|$)|.+/gs)) push('token.delta', { text: piece });
+    });
+    node('validate_citations', 4, () => citations.forEach((c) => push('citation.validated', c)));
+    push('usage.recorded', { provider: MODEL.provider, model: MODEL.model, modelConfigId: MODEL.id, attempt: 1, status: 'SUCCEEDED', reported: true, usage: { inputTokens: 1200, outputTokens: 80 }, isDemo: true });
+    node('assemble', 1);
+    node('finalize', 1);
+    const artifact = { kind: action.id, title: action.label, format: scripted.format, content: scripted.content, fallback: false, sourceVersionIds: svids };
+    push('run.finished', { status: 'SUCCEEDED', outcome: 'ANSWERED', answer: scripted.text, artifact, artifactId });
+    return { events: ev, outcome: 'ANSWERED', answer: scripted.text, citations, calls: 1, artifactId, scripted };
+  }
+
   /** Applies a run's recorded outcome: run status, message, node executions and the FINAL cost entry. */
   function complete(run) {
     if (TERMINAL.has(run.status)) return;
@@ -215,6 +265,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     run.startedAt = new Date(startedAt + 40).toISOString();
     run.finishedAt = new Date(startedAt + 40 * s.events.length).toISOString();
     run.result = { answer: s.answer };
+    if (s.artifactId) knowledge.recordFromRun(run, s.artifactId, s.scripted);
     const msg = ai.messages.find((m) => m.id === run.messageId);
     if (msg) {
       msg.status = run.status === 'INTERRUPTED' ? 'FAILED' : s.outcome === 'ABSTAINED' ? 'ABSTAINED' : 'COMPLETE';
@@ -246,34 +297,19 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     }
   }
 
-  function createRun(wid, body, createdAt = iso()) {
-    const question = (body.input?.question ?? '').trim();
-    if (!question) return problem(400, 'A question is required', 'VALIDATION');
-    const svids = (body.scope?.sourceVersionIds ?? []).filter((id) => {
+  const readyScope = (wid, ids) =>
+    ids.filter((id) => {
       const v = db.versions.find((x) => x.id === id && x.workspaceId === wid);
       const s = v && db.sources.find((x) => x.id === v.sourceId);
       return v && s && !s.deletedAt && ['READY', 'PARTIAL'].includes(v.ingestionState);
     });
-    if (!svids.length) return problem(400, 'No ready sources in scope. Wait for ingestion to finish or pick other sources.', 'EMPTY_SCOPE');
+  const EMPTY_SCOPE = 'No ready sources in scope. Wait for ingestion to finish or pick other sources.';
 
-    let thread = body.threadId ? ai.threads.find((t) => t.id === body.threadId && t.workspaceId === wid) : null;
-    if (body.threadId && !thread) return problem(404, 'Thread not found');
-    if (!thread) {
-      const owner = db.sources.find((s) => s.id === db.versions.find((v) => v.id === svids[0]).sourceId);
-      thread = { id: uuid(), workspaceId: wid, projectId: owner.projectId, sourceId: owner.id, title: question.slice(0, 80), archivedAt: null, createdAt, updatedAt: createdAt };
-      ai.threads.push(thread);
-    }
-    thread.updatedAt = createdAt;
-    const inThread = ai.messages.filter((m) => m.threadId === thread.id);
-    const parent = body.parentMessageId ?? inThread.at(-1)?.id ?? null;
-    const userMessage = { id: uuid(), workspaceId: wid, threadId: thread.id, parentMessageId: parent, role: 'USER', content: question, status: 'COMPLETE', aiRunId: null, createdAt, citations: [] };
-    ai.messages.push(userMessage);
-
-    const estimate = costOf(Math.ceil(question.length / 4) + 3500, MODEL.maxOutputTokens);
+  function newRun(wid, body, svids, extra, createdAt) {
     const run = {
       id: uuid(),
       workspaceId: wid,
-      threadId: thread.id,
+      threadId: null,
       messageId: null,
       graph: body.graph,
       tier: 'T1',
@@ -290,8 +326,53 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       createdAt,
       startedAt: null,
       finishedAt: null,
+      ...extra,
     };
     ai.runs.push(run);
+    return run;
+  }
+
+  function createInsightRun(wid, body, createdAt) {
+    const action = actionFor(body.graph, body.input?.action ?? body.input?.params?.action);
+    if (!action) return problem(400, `Unknown action for graph ${body.graph}`, 'UNKNOWN_ACTION');
+    const svids = readyScope(wid, body.scope?.sourceVersionIds ?? []);
+    if (!svids.length) return problem(400, EMPTY_SCOPE, 'EMPTY_SCOPE');
+    const sources = new Set(svids.map((id) => db.versions.find((v) => v.id === id).sourceId));
+    if (sources.size < action.minSources) return problem(400, `${action.label} needs at least ${action.minSources} documents in scope`, 'NEEDS_MORE_SOURCES');
+    const estimate = costOf(3500, MODEL.maxOutputTokens);
+    const run = newRun(wid, body, svids, { tier: action.tier, input: { ...body.input, action: action.id } }, createdAt);
+    const remaining = Number(budgetStatus(wid).remaining);
+    if (ai.budget.hard && estimate > remaining) {
+      Object.assign(run, { status: 'BUDGET_REJECTED', finishedAt: createdAt, error: { code: 'BUDGET', message: 'Budget limit reached before any model call', estimate: usd(estimate), remaining: usd(remaining) } });
+      return ok({ runId: run.id, threadId: null, messageId: null, status: 'BUDGET_REJECTED', estimate: usd(estimate), remaining: usd(remaining) }, 201);
+    }
+    ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: MODEL.id, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'MODEL', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
+    ai.script.set(run.id, insightScript(run, action, svids));
+    return ok({ runId: run.id, threadId: null, messageId: null, status: 'QUEUED', estimate: usd(estimate), model: run.modelPlan.primary }, 201);
+  }
+
+  function createRun(wid, body, createdAt = iso()) {
+    if (body.graph && body.graph !== 'grounded_qa') return createInsightRun(wid, body, createdAt);
+    const question = (body.input?.question ?? '').trim();
+    if (!question) return problem(400, 'A question is required', 'VALIDATION');
+    let thread = body.threadId ? ai.threads.find((t) => t.id === body.threadId && t.workspaceId === wid) : null;
+    if (body.threadId && !thread) return problem(404, 'Thread not found');
+    const svids = readyScope(wid, body.scope?.sourceVersionIds ?? thread?.scope ?? []);
+    if (!svids.length) return problem(400, EMPTY_SCOPE, 'EMPTY_SCOPE');
+
+    if (!thread) {
+      const owner = db.sources.find((s) => s.id === db.versions.find((v) => v.id === svids[0]).sourceId);
+      thread = { id: uuid(), workspaceId: wid, projectId: owner.projectId, sourceId: owner.id, title: question.slice(0, 80), scope: svids, archivedAt: null, createdAt, updatedAt: createdAt };
+      ai.threads.push(thread);
+    }
+    thread.updatedAt = createdAt;
+    const inThread = ai.messages.filter((m) => m.threadId === thread.id);
+    const parent = body.parentMessageId ?? inThread.at(-1)?.id ?? null;
+    const userMessage = { id: uuid(), workspaceId: wid, threadId: thread.id, parentMessageId: parent, role: 'USER', content: question, status: 'COMPLETE', aiRunId: null, createdAt, citations: [] };
+    ai.messages.push(userMessage);
+
+    const estimate = costOf(Math.ceil(question.length / 4) + 3500, MODEL.maxOutputTokens);
+    const run = newRun(wid, body, svids, { threadId: thread.id }, createdAt);
     const remaining = Number(budgetStatus(wid).remaining);
     if (ai.budget.hard && estimate > remaining) {
       Object.assign(run, { status: 'BUDGET_REJECTED', finishedAt: createdAt, error: { code: 'BUDGET', message: 'Budget limit reached before any model call', estimate: usd(estimate), remaining: usd(remaining) } });
@@ -384,6 +465,36 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     ],
   };
 
+  const INSIGHT_GRAPHS = new Set(['insight', 'risk_contradiction', 'multi_doc_compare', 'knowledge_map']);
+  const insightGraph = (name) => {
+    const chain = ['__start__', 'retrieve', 'generate', 'validate_citations', 'assemble', 'finalize', '__end__'];
+    return {
+      name,
+      tier: 'T1',
+      description: 'Retrieve evidence, generate the artifact, validate citations, assemble.',
+      nodes: chain.map((id) => ({ id, label: id, kind: id.startsWith('__') ? 'terminal' : 'node' })),
+      edges: chain.slice(1).map((target, i) => ({ source: chain[i], target, conditional: false })),
+    };
+  };
+
+  function scopeSources(svids) {
+    return svids.map((svid) => {
+      const v = db.versions.find((x) => x.id === svid);
+      const s = db.sources.find((x) => x.id === v?.sourceId);
+      return { sourceVersionId: svid, sourceId: v?.sourceId, title: s?.title ?? 'Deleted document', versionNo: v?.versionNo, ingestionState: v?.ingestionState };
+    });
+  }
+
+  /** Runs one insight action to completion (tests that need a saved artifact). Returns the artifact id. */
+  function seedInsight(wid, source, actionId = 'quick_summary') {
+    const action = actionFor('insight', actionId) ?? actionFor('risk_contradiction', actionId) ?? actionFor('knowledge_map', actionId);
+    const res = createRun(wid, { graph: action.graph, input: { action: actionId }, scope: { sourceVersionIds: [source.currentVersionId] } }, iso(60));
+    const run = ai.runs.find((r) => r.id === res.body.runId);
+    complete(run);
+    ai.served.set(run.id, 1);
+    return ai.script.get(run.id).artifactId;
+  }
+
   /** Seeds one finished conversation so Home, Studio and Costs have something to show. */
   function seed(wid, source) {
     if (!source) return;
@@ -408,7 +519,12 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       const rows = ai.costEntries.filter((e) => e.workspaceId === wid).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return ok(rows.slice(0, Number(query.get('limit')) || 100));
     }
-    if (rest[0] === 'graphs' && method === 'GET') return rest[1] === GRAPH.name ? ok(GRAPH) : problem(404, 'Unknown graph');
+    if (rest[0] === 'graphs' && method === 'GET') {
+      if (rest[1] === GRAPH.name) return ok(GRAPH);
+      return INSIGHT_GRAPHS.has(rest[1]) ? ok(insightGraph(rest[1])) : problem(404, 'Unknown graph');
+    }
+    const known = knowledge.handle(method, wid, rest, body, need, query, { citationsForRun: (runId) => ai.script.get(runId)?.citations ?? [], threads: ai.threads });
+    if (known) return known;
     if (rest[0] === 'sources' && rest[2] === 'versions' && rest[4] === 'pages' && method === 'GET') {
       const v = db.versions.find((x) => x.id === rest[3] && x.sourceId === rest[1] && x.workspaceId === wid);
       if (!v) return problem(404, 'Not found');
@@ -418,12 +534,39 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     if (rest[0] === 'threads') {
       if (rest.length === 1 && method === 'GET') {
         const sid = query.get('sourceId');
-        const rows = ai.threads.filter((t) => t.workspaceId === wid && !t.archivedAt && (!sid || t.sourceId === sid)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-        return ok(rows.map((t) => ({ ...t, messageCount: ai.messages.filter((m) => m.threadId === t.id).length })));
+        const q = query.get('q')?.toLowerCase();
+        const archived = query.get('archived') === 'true';
+        const rows = ai.threads
+          .filter(
+            (t) =>
+              t.workspaceId === wid &&
+              Boolean(t.archivedAt) === archived &&
+              (!sid || t.sourceId === sid) &&
+              (!q || t.title.toLowerCase().includes(q) || ai.messages.some((m) => m.threadId === t.id && m.content.toLowerCase().includes(q))),
+          )
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+        return ok(rows.map(({ scope: _scope, ...t }) => ({ ...t, messageCount: ai.messages.filter((m) => m.threadId === t.id).length })));
       }
       const t = ai.threads.find((x) => x.id === rest[1] && x.workspaceId === wid);
       if (!t) return problem(404, 'Not found');
-      if (method === 'GET') return ok({ ...t, scope: null, messages: ai.messages.filter((m) => m.threadId === t.id) });
+      const { scope: svids, ...thread } = t;
+      if (rest.length === 2 && method === 'GET') {
+        return ok({ ...thread, scope: svids ? { id: `scope-${t.id}`, sourceVersionIds: svids, sources: scopeSources(svids) } : null, messages: ai.messages.filter((m) => m.threadId === t.id) });
+      }
+      const denied = need('EDITOR');
+      if (denied) return denied;
+      if (rest.length === 2 && method === 'PATCH') {
+        if (body.title !== undefined) t.title = body.title;
+        if (body.archived !== undefined) t.archivedAt = body.archived ? iso() : null;
+        return ok(thread);
+      }
+      if (rest[2] === 'scope' && method === 'PUT') {
+        const ids = [...new Set(body?.sourceVersionIds ?? [])];
+        const valid = ids.length > 0 && ids.every((id) => db.versions.some((v) => v.id === id && v.workspaceId === wid && !db.sources.find((s) => s.id === v.sourceId)?.deletedAt));
+        if (!valid) return problem(400, 'Every source in the scope must exist in this workspace', 'INVALID_SCOPE');
+        t.scope = ids;
+        return ok({ id: `scope-${t.id}-${ids.length}`, sourceVersionIds: ids, sources: scopeSources(ids) });
+      }
     }
 
     if (r === 'runs' && method === 'POST') return need('EDITOR') ?? createRun(wid, body);
@@ -458,5 +601,5 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     return undefined;
   }
 
-  return { ai, handle, seed, model: MODEL };
+  return { ai, handle, seed, seedInsight, knowledge, model: MODEL };
 }

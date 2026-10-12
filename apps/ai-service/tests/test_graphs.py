@@ -154,9 +154,15 @@ async def test_compare_and_knowledge_map(repo):
     term, _, _ = await run("multi_doc_compare", WS_A, [a, b], {})
     assert "## Document 1" in term["data"]["answer"] and "## Document 2" in term["data"]["answer"]
     n = await ingest(NOVEL, WS_A, "Novel")
-    term, _, _ = await run("knowledge_map", WS_A, [n], {})
-    labels = {x["label"] for x in term["data"]["artifact"]["content"]["nodes"]}
-    assert {"Mara", "Tomas"} <= labels
+    term, events, _ = await run("knowledge_map", WS_A, [n], {})
+    nodes = term["data"]["artifact"]["content"]["nodes"]
+    assert {"Mara", "Tomas"} <= {x["label"] for x in nodes}
+    cited = {e["data"]["marker"]: e["data"] for e in events if e["type"] == "citation.validated"}
+    assert {x["marker"] for x in nodes if x["marker"]} <= set(cited)
+    assert all(c["state"] == "VALID" and c.get("anchor") for c in cited.values())
+    term, events, _ = await run("knowledge_map", WS_A, [a], {})
+    assert term["data"]["artifact"]["content"]["nodes"], "non-fiction falls back to key concepts"
+    assert any(e["type"] == "citation.validated" for e in events)
 
 
 async def test_research_writing_bounded_tool_loop(repo):

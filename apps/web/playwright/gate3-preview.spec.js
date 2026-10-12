@@ -10,7 +10,7 @@ test('gate 3 screens', async ({ page, fakeApi }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   const s = fakeApi.db.sources.find((x) => x.title === 'Market Outlook 2026.pdf');
   await page.goto(`/app/knowledge/projects/${s.projectId}/documents/${s.id}`);
-  const chat = page.getByRole('complementary', { name: 'Grounded conversation' });
+  const chat = page.getByRole('region', { name: 'Grounded conversation' });
   await chat.getByRole('button', { name: /^Citation S1/ }).click();
   await page.getByRole('dialog').getByRole('button', { name: /Open at location/ }).click();
   await expect(page.locator('[data-hl="true"]')).toBeVisible({ timeout: 15_000 });

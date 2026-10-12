@@ -8,6 +8,7 @@ import { Icon } from '@/shared/icons.jsx';
 import { BUSY_INGEST, stateOf } from '@/shared/states.js';
 import { can, useCurrentWorkspace } from '@/features/auth/session.js';
 import { WorkspaceSwitcher } from '@/features/workspaces/WorkspaceSwitcher.jsx';
+import { ProjectArtifacts } from '@/features/insights/ProjectArtifacts.jsx';
 import { ConfirmDialog, MoveDialog, NameDialog, NewFolderDialog } from './dialogs.jsx';
 import { fileType, folderScope, folderTree, formatBytes, relativeTime } from './files.js';
 import { keys, useFolders, useProject, useProjects, useSource, useSources } from './queries.js';
@@ -478,6 +479,8 @@ export function ProjectPage() {
               </tbody>
             </table>
           </div>
+
+          <ProjectArtifacts wid={wid} projectId={projectId} />
 
           <h2 className="sect-h" style={{ marginTop: 28 }}>
             Ingestion pipeline

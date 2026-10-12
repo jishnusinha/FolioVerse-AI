@@ -7,6 +7,7 @@ import { useRestoreFocus, useRovingTabIndex } from '../a11y/focus.js';
 export const LENS_ACTIONS = {
   K: [
     ['explain', 'Explain selection'],
+    ['define', 'Define term'],
     ['ask', 'Ask about this'],
     ['related', 'Find related evidence'],
     ['note', 'Add to notes'],
@@ -40,7 +41,8 @@ const clip = (s, n = 90) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
  * Folio Lens: anchored action popover for a text selection.
  * @param {{ open: boolean, kind: 'K'|'W'|'R', text: string, anchor: { left: number, top: number, bottom: number, width: number } | null,
  *   onClose: () => void, onAction: (id: string) => void, onAsk?: (q: string) => void, autoFocus?: boolean,
- *   result?: { phase: 'loading'|'streaming'|'done'|'abstain'|'error', text?: string, message?: string, onRetry?: () => void } | null,
+ *   result?: { phase: 'loading'|'streaming'|'done'|'abstain'|'error', text?: string, message?: string, onRetry?: () => void,
+ *     items?: { id: string, title: string, page?: number | null, snippet?: string, onOpen: () => void }[] } | null,
  *   actions?: [string, string][] }} props
  */
 export function FolioLens({ open, kind, text, anchor, onClose, onAction, onAsk, autoFocus = false, result = null, actions }) {
@@ -159,6 +161,29 @@ function LensResult({ result }) {
           <button type="button" className="btn sm" onClick={result.onRetry}>
             Retry
           </button>
+        )}
+      </div>
+    );
+  }
+  if (result.items) {
+    return (
+      <div className="lens-r" aria-live="polite">
+        {result.items.length ? (
+          <ul className="lens-list" aria-label="Related evidence">
+            {result.items.map((it) => (
+              <li key={it.id}>
+                <button type="button" className="lens-a lens-item" onClick={it.onOpen}>
+                  <b>
+                    {it.title}
+                    {it.page ? ` · p. ${it.page}` : ''}
+                  </b>
+                  <span className="subtle">{clip(it.snippet ?? '', 140)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="muted">{result.message ?? 'No related passages were found in this workspace.'}</p>
         )}
       </div>
     );

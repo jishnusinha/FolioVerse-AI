@@ -4,6 +4,7 @@
  * 401 without a session, 404 outside the workspace, 403 below the required role, problem+json errors.
  */
 import { createFakeAi } from './fakeAi.js';
+import { FAKE_INSIGHT_ACTIONS } from './fakeKnowledge.js';
 
 const PROBLEM = { 'content-type': 'application/problem+json' };
 const JSON_H = { 'content-type': 'application/json' };
@@ -32,10 +33,11 @@ const noContent = () => ({ status: 204, headers: {}, body: null });
 
 /**
  * @param {{ signedIn?: boolean, role?: 'OWNER'|'ADMIN'|'EDITOR'|'VIEWER', advance?: boolean, empty?: boolean, emailVerified?: boolean,
- *   budgetLimit?: string, budgetHard?: boolean, streamCut?: number, pdfBytes?: Uint8Array }} [opts]
+ *   budgetLimit?: string, budgetHard?: boolean, streamCut?: number, pdfBytes?: Uint8Array, artifacts?: string[] }} [opts]
  *   `role` applies to an extra TEAM workspace; `advance` moves busy sources one ingestion step per list request.
  *   `budgetLimit`/`budgetHard` set the monthly budget; `streamCut` ends a run's first event stream early;
- *   `pdfBytes` is served as the file of every PDF version.
+ *   `pdfBytes` is served as the file of every PDF version; `artifacts` lists insight actions to run on the
+ *   Market Outlook PDF up front, each leaving a saved artifact.
  */
 export function createFakeApi(opts = {}) {
   const userId = uuid();
@@ -125,6 +127,7 @@ export function createFakeApi(opts = {}) {
 
   const fakeAi = createFakeAi({ db, uuid, iso, ok, problem, noContent, opts });
   fakeAi.seed(personal, outlook);
+  if (opts.artifacts && outlook) for (const id of opts.artifacts) fakeAi.seedInsight(personal, outlook, id);
 
   const member = (wid) => db.memberships.find((m) => m.workspaceId === wid);
   const live = (rows, wid) => rows.filter((r) => r.workspaceId === wid && !r.deletedAt);
@@ -195,6 +198,7 @@ export function createFakeApi(opts = {}) {
     if (method !== 'GET' && headers['x-csrf-token'] !== FAKE_CSRF) return problem(403, 'CSRF token missing or invalid', 'CSRF');
 
     if (path === '/models' && method === 'GET') return ok([fakeAi.model]);
+    if (path === '/insight-actions' && method === 'GET') return ok(FAKE_INSIGHT_ACTIONS);
     if (path === '/workspaces' && method === 'POST') {
       const id = uuid();
       db.workspaces.push({ id, name: body.name, kind: 'TEAM' });
@@ -319,6 +323,7 @@ export function createFakeApi(opts = {}) {
           s.currentVersionId = vid;
           s.ingestionState = state;
           s.updatedAt = iso();
+          fakeAi.knowledge.markStale(s.id, vid);
         } else {
           s = addSource(p, up.filename, state, up.folderId ? { id: up.folderId } : null, 0);
           db.versions.find((v) => v.id === s.currentVersionId).sizeBytes = up.sizeBytes;
@@ -336,7 +341,7 @@ export function createFakeApi(opts = {}) {
     return u;
   }
 
-  return { db, handle };
+  return { db, handle, ai: fakeAi };
 }
 
 /** Routes `fetch` to a fake API inside jsdom tests. Returns the fake for assertions. */

@@ -8,6 +8,7 @@ import { AuthUser, CurrentUser, RequireRole } from '../../common/auth.decorators
 import { isUuid } from '../../common/ids';
 import { PrismaService } from '../../infra/prisma.service';
 import { StorageService } from '../../infra/storage.service';
+import { diffParagraphs, paragraphs } from './diff';
 import { SourcesService } from './sources.service';
 
 class CreateUploadDto {
@@ -172,6 +173,29 @@ export class SourcesController {
   async pages(@Param('workspaceId') workspaceId: string, @Param('sourceId') sourceId: string, @Param('versionId') versionId: string) {
     await this.sources.getVersion(workspaceId, sourceId, versionId);
     return this.prisma.sourcePage.findMany({ where: { sourceVersionId: versionId, workspaceId }, orderBy: { pageNo: 'asc' } });
+  }
+
+  /** Paragraph-level summary of changes from `against` (default: the previous version) to this version. */
+  @Get('sources/:sourceId/versions/:versionId/diff')
+  async diff(
+    @Param('workspaceId') workspaceId: string,
+    @Param('sourceId') sourceId: string,
+    @Param('versionId') versionId: string,
+    @Query('against') against?: string,
+  ) {
+    const to = await this.sources.getVersion(workspaceId, sourceId, versionId);
+    const from = against
+      ? await this.sources.getVersion(workspaceId, sourceId, against)
+      : await this.prisma.sourceVersion.findFirst({ where: { workspaceId, sourceId, versionNo: { lt: to.versionNo } }, orderBy: { versionNo: 'desc' } });
+    if (!from) return { from: null, to: { id: to.id, versionNo: to.versionNo }, summary: null };
+    const load = (id: string) => this.prisma.sourcePage.findMany({ where: { sourceVersionId: id, workspaceId }, orderBy: { pageNo: 'asc' }, select: { pageNo: true, text: true } });
+    const [a, b] = await Promise.all([load(from.id), load(to.id)]);
+    const ready = a.length > 0 && b.length > 0;
+    return {
+      from: { id: from.id, versionNo: from.versionNo },
+      to: { id: to.id, versionNo: to.versionNo },
+      summary: ready ? diffParagraphs(paragraphs(a), paragraphs(b)) : null,
+    };
   }
 
   @Get('sources/:sourceId/versions/:versionId/chunks')

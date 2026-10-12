@@ -12,7 +12,15 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
-from .extract import cite, contradictions, cooccurrence, entities, key_sentences, risk_sentences
+from .extract import (
+    cite,
+    concepts,
+    contradictions,
+    cooccurrence,
+    entities,
+    key_sentences,
+    risk_sentences,
+)
 from .nodes import do_retrieve, gather_coverage, validate_and_emit
 from .runtime import call_model, ctx_of, format_context, node, parse_json
 
@@ -84,6 +92,24 @@ def _risks(packed, st):
     else:
         out.append("- No conflicting figures were found across the selected sources.")
     return "\n".join(out)
+
+
+def _contradictions(packed, st):
+    cs = contradictions(packed)
+    if not cs:
+        return "## Contradictions\n- No conflicting figures were found across the selected sources."
+    return "## Contradictions\n" + "\n".join(
+        f"- {c['a']['text']} [{c['a']['marker']}]. However, {c['b']['text'][0].lower() + c['b']['text'][1:]} [{c['b']['marker']}]."
+        for c in cs
+    )
+
+
+TASK_CUES = re.compile(r"\b(must|should|need(?:s)? to|required|deadline|by \w+ \d{4}|action|recommend)", re.I)
+
+
+def _tasks(packed, st):
+    sents = [x for x in key_sentences(packed, 16) if TASK_CUES.search(x[1])] or key_sentences(packed, 4)
+    return "## Tasks\n" + "\n".join(f"- [ ] {s} [{m}]." for m, s in sents[:8])
 
 
 def _study_notes(packed, st):
@@ -169,10 +195,12 @@ def _kmap(packed, st):
 
     text = " ".join(p["text"] for p in packed)
     ents = [e for e, _ in entities(text)]
+    if len(ents) < 3:
+        ents += [c for c in concepts(text) if c.lower() not in {e.lower() for e in ents}]
     marker_of = {}
     for e in ents:
         for p in packed:
-            if e in p["text"]:
+            if e.lower() in p["text"].lower():
                 marker_of[e] = p["marker"]
                 break
     nodes = [{"id": f"n{i}", "label": e, "marker": marker_of.get(e)} for i, e in enumerate(ents)]
@@ -204,6 +232,17 @@ TASKS: dict[str, Task] = {
         "List risks, then contradictions between sources, as bullets under '## Risks' and '## Contradictions'.",
         _risks,
         max_tokens=1200,
+    ),
+    "contradictions": Task(
+        "Contradictions",
+        "List statements in different sources that conflict, as bullets under '## Contradictions'. Say so if none.",
+        _contradictions,
+        max_tokens=1000,
+    ),
+    "extract_tasks": Task(
+        "Tasks",
+        "Extract action items, obligations and deadlines as a '## Tasks' checklist ('- [ ] ...').",
+        _tasks,
     ),
     "study_notes": Task(
         "Study notes", "Write study notes with headings and bullets.", _study_notes, max_tokens=1200
@@ -246,6 +285,8 @@ GRAPH_ACTIONS = {
     "risk_contradiction": "risks",
     "knowledge_map": "knowledge_map",
 }
+# Graphs that serve more than one action; the run input picks one of these.
+GRAPH_ACTION_CHOICES = {"risk_contradiction": {"risks", "contradictions"}}
 
 
 def _task(state: ArtifactState) -> Task:
@@ -301,6 +342,9 @@ def _json_text(obj: Any) -> str:
         if isinstance(v, str) and "[S" in v:
             parts.append(v.strip().rstrip(".") + ".")
         elif isinstance(v, dict):
+            marker, claim = v.get("marker"), v.get("label") or v.get("text")
+            if isinstance(marker, str) and isinstance(claim, str) and re.fullmatch(r"S\d+", marker):
+                parts.append(f"{claim.strip().rstrip('.')} [{marker}].")
             for x in v.values():
                 walk(x)
         elif isinstance(v, list):
@@ -389,7 +433,11 @@ def build(checkpointer=None):
 def initial_state_for(graph: str):
     def init(inp: dict) -> ArtifactState:
         params = inp.get("params") or {}
-        action = GRAPH_ACTIONS.get(graph) or params.get("action") or "quick_summary"
+        requested = inp.get("action") or params.get("action")
+        if graph in GRAPH_ACTION_CHOICES:
+            action = requested if requested in GRAPH_ACTION_CHOICES[graph] else GRAPH_ACTIONS[graph]
+        else:
+            action = GRAPH_ACTIONS.get(graph) or requested or "quick_summary"
         return {"action": action, "question": (inp.get("question") or "").strip(), "params": params}
 
     return init

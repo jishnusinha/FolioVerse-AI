@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from .auth import require_internal
+from .auth import require_internal, verify_scope
 from .events import Emitter, ndjson_stream
 from .graphs.checkpoints import list_checkpoints
 from .graphs.registry import GRAPHS, describe
@@ -12,6 +12,7 @@ from .graphs.runner import run_unit
 from .ingestion.pipeline import run_ingestion
 from .providers import available_providers
 from .repo import get_repo
+from .retrieval.retrieve import retrieve
 from .retrieval.store import get_store
 
 NDJSON = "application/x-ndjson"
@@ -49,6 +50,35 @@ class IngestUnit(BaseModel):
 class PurgeRequest(BaseModel):
     workspaceId: str
     sourceVersionIds: list[str]
+
+
+class SearchRequest(BaseModel):
+    searchId: str
+    workspaceId: str
+    query: str = Field(min_length=1, max_length=500)
+    scopeToken: str
+    topK: int = Field(default=8, ge=1, le=20)
+
+
+@run_router.post("/search")
+async def search(req: SearchRequest):
+    """Semantic passage search for the workspace search page. No model call, nothing billed."""
+    scope = verify_scope(req.scopeToken, req.searchId, req.workspaceId)
+    if not scope.source_version_ids:
+        return {"items": [], "abstain": True}
+    r = await retrieve(req.query, scope, {"topK": req.topK, "contextBudget": 4000})
+    items = [
+        {
+            "chunkId": p["chunkId"],
+            "sourceVersionId": p["sourceVersionId"],
+            "page": p.get("page"),
+            "headingPath": (p.get("locator") or {}).get("headingPath") or [],
+            "snippet": p["childText"][:320],
+            "score": p["score"],
+        }
+        for p in r.packed
+    ]
+    return {"items": items, "abstain": r.abstain, "latencyMs": r.latency_ms}
 
 
 @run_router.post("/runs/units")

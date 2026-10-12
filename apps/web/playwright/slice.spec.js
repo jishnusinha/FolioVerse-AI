@@ -32,7 +32,7 @@ test.describe('gate 3 vertical slice (fake API)', () => {
 
     await page.getByLabel('Ask a grounded question').fill('How many organisations did the survey cover?');
     await page.getByRole('button', { name: 'Ask', exact: true }).click();
-    const chat = page.getByRole('complementary', { name: 'Grounded conversation' });
+    const chat = page.getByRole('region', { name: 'Grounded conversation' });
     await expect(chat.getByText(/The survey covered 412 organisations across three regions/)).toBeVisible();
     const chip = chat.getByRole('button', { name: 'Citation S1: Verified quote, Exact location' });
     await expect(chip).toBeVisible();

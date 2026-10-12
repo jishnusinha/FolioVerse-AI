@@ -75,6 +75,8 @@ export function reduceRunEvent(s, env) {
       next.status = d.status ?? 'SUCCEEDED';
       next.outcome = d.outcome ?? null;
       next.answer = d.answer ?? s.text;
+      next.artifact = d.artifact ?? null;
+      next.artifactId = d.artifactId ?? null;
       if (d.error) next.error = d.error;
       next.done = true;
       break;

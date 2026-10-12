@@ -13,13 +13,14 @@ import { runKeys, useModels, useReceipt, useThread, useThreads } from '../runs/q
 import { useRunEvents } from '../runs/useRunEvents.js';
 import { visibleText } from '../runs/runState.js';
 import { branches, latestLeaf, messageOutcome, pathTo, preflightEstimate } from './conversation.js';
+import { BranchCompareDialog, ScopeBar, ThreadMenu } from './ConversationTools.jsx';
 
 /**
  * Grounded conversation about one document version.
- * @param {{ wid: string, source: any, version: any, canAsk: boolean, blockedReason?: string | null, projectName?: string,
- *   onOpenCitation: (citation: any) => void }} props
+ * @param {{ wid: string, source: any, version: any, projectId: string, canAsk: boolean, canEdit: boolean, blockedReason?: string | null,
+ *   projectName?: string, onOpenCitation: (citation: any) => void, request?: { kind: 'ask' | 'prefill', text: string, at: number } | null }} props
  */
-export function ChatPanel({ wid, source, version, canAsk, blockedReason, projectName, onOpenCitation }) {
+export function ChatPanel({ wid, source, version, projectId, canAsk, canEdit, blockedReason, projectName, onOpenCitation, request }) {
   const qc = useQueryClient();
   const threads = useThreads(wid, source.id);
   const [threadId, setThreadId] = useState(/** @type {string | null} */ (null));
@@ -29,8 +30,11 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState(/** @type {any} */ (null));
   const [evidence, setEvidence] = useState(/** @type {any} */ (null));
+  const [extraScope, setExtraScope] = useState(/** @type {any[]} */ ([]));
+  const [comparing, setComparing] = useState(false);
   const models = useModels();
   const scrollRef = useRef(null);
+  const composerRef = useRef(/** @type {HTMLTextAreaElement | null} */ (null));
   const askId = useId();
 
   const list = useMemo(() => threads.data ?? [], [threads.data]);
@@ -72,14 +76,15 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
         method: 'POST',
         body: {
           graph: 'grounded_qa',
-          ...(activeThreadId ? { threadId: activeThreadId } : {}),
+          // An existing thread searches its own scope (see ScopeBar); a new one starts from this version plus attached documents.
+          ...(activeThreadId ? { threadId: activeThreadId } : { scope: { sourceVersionIds: [version.id, ...extraScope.map((s) => s.sourceVersionId)] } }),
           ...(parentMessageId !== undefined && parentMessageId !== null ? { parentMessageId } : {}),
           input: { question: q },
-          scope: { sourceVersionIds: [version.id] },
           ...(model !== 'auto' ? { modelPreference: model } : {}),
         },
       });
       setQuestion('');
+      setExtraScope([]);
       if (res.threadId && res.threadId !== activeThreadId) setThreadId(res.threadId);
       if (res.status === 'BUDGET_REJECTED') {
         setNotice({ kind: 'budget', question: q, estimate: res.estimate, remaining: res.remaining });
@@ -94,6 +99,18 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
       setSending(false);
     }
   }
+
+  const [handled, setHandled] = useState(0);
+  useEffect(() => {
+    if (!request || request.at === handled) return;
+    setHandled(request.at);
+    if (request.kind === 'ask' && canAsk) ask(request.text, leaf ?? null);
+    else {
+      setQuestion(request.text);
+      composerRef.current?.focus();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once per Lens request
+  }, [request]);
 
   function openEvidence(message, marker, live) {
     const c = live?.[marker] ?? message.citations?.find((x) => x.marker === marker);
@@ -113,22 +130,19 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
   }
 
   return (
-    <aside className="chat" aria-label="Grounded conversation">
+    <div className="chat-inner" aria-label="Grounded conversation" role="region">
       <div className="chat-h">
         <div className="row between" style={{ alignItems: 'flex-end' }}>
           <h2 style={{ fontSize: 15 }}>Ask {projectName ?? 'this document'}</h2>
           <ModelSelector options={options} value={model} onChange={setModel} disabled={!canAsk} />
         </div>
-        <div className="row" aria-label="Conversation scope">
-          <span className="srcchip">
-            {source.title.replace(/\.\w+$/, '')} <span className="mono">v{version.versionNo}</span>
-          </span>
+        <div className="row">
           {list.length > 0 && (
-            <label className="row subtle" style={{ gap: 6, fontSize: 12 }}>
+            <label className="row subtle grow" style={{ gap: 6, fontSize: 12 }}>
               Thread
               <select
                 className="select"
-                style={{ width: 'auto', height: 28, fontSize: 12 }}
+                style={{ width: 'auto', maxWidth: 260, height: 28, fontSize: 12 }}
                 value={threadId ?? ''}
                 onChange={(e) => {
                   setThreadId(e.target.value);
@@ -144,7 +158,36 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
               </select>
             </label>
           )}
+          <ThreadMenu
+            wid={wid}
+            sourceId={source.id}
+            thread={activeThreadId ? thread.data ?? null : null}
+            canEdit={canEdit}
+            onSelect={(id) => {
+              setThreadId(id);
+              setLeafId(null);
+            }}
+            onArchived={() => {
+              setThreadId(null);
+              setLeafId(null);
+            }}
+          />
         </div>
+        <ScopeBar
+          wid={wid}
+          projectId={projectId}
+          source={source}
+          version={version}
+          thread={activeThreadId ? thread.data ?? null : null}
+          extra={extraScope}
+          setExtra={setExtraScope}
+          canEdit={canEdit}
+        />
+        {branchList.length > 1 && (
+          <Button size="sm" variant="ghost" onClick={() => setComparing(true)} style={{ alignSelf: 'flex-start' }}>
+            Compare branches
+          </Button>
+        )}
         {branchList.length > 1 && (
           <div className="btree" role="group" aria-label="Conversation branches">
             {branchList.map((b, i) => {
@@ -212,6 +255,7 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
           Ask a grounded question
         </label>
         <textarea
+          ref={composerRef}
           id={askId}
           placeholder={canAsk ? 'Ask about this document…' : blockedReason ?? 'Asking is unavailable'}
           value={question}
@@ -256,7 +300,8 @@ export function ChatPanel({ wid, source, version, canAsk, blockedReason, project
             : undefined
         }
       />
-    </aside>
+      {comparing && <BranchCompareDialog open={comparing} onOpenChange={setComparing} messages={messages} branches={branchList} />}
+    </div>
   );
 }
 

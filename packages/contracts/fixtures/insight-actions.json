@@ -1,0 +1,19 @@
+{
+  "description": "Folio insight actions (prototype INS list). Each action runs one graph at one tier and saves one artifact kind. Shared by the API (registry endpoint, tier resolution) and the AI service (task coverage test).",
+  "actions": [
+    { "id": "quick_summary", "label": "Quick Summary", "graph": "insight", "tier": "T0", "kind": "SUMMARY", "group": "Summaries", "minSources": 1 },
+    { "id": "executive_summary", "label": "Executive Summary", "graph": "insight", "tier": "T0", "kind": "SUMMARY", "group": "Summaries", "minSources": 1 },
+    { "id": "detailed_breakdown", "label": "Detailed Breakdown", "graph": "insight", "tier": "T0", "kind": "SUMMARY", "group": "Summaries", "minSources": 1 },
+    { "id": "explain_simply", "label": "Explain Simply", "graph": "insight", "tier": "T0", "kind": "SUMMARY", "group": "Summaries", "minSources": 1 },
+    { "id": "key_facts", "label": "Extract Key Facts", "graph": "insight", "tier": "T0", "kind": "KEY_FACTS", "group": "Summaries", "minSources": 1 },
+    { "id": "risks", "label": "Identify Risks", "graph": "risk_contradiction", "tier": "T1", "kind": "RISK_REPORT", "group": "Analysis", "minSources": 1 },
+    { "id": "contradictions", "label": "Find Contradictions", "graph": "risk_contradiction", "tier": "T1", "kind": "RISK_REPORT", "group": "Analysis", "minSources": 1 },
+    { "id": "quiz", "label": "Generate Questions", "graph": "insight", "tier": "T1", "kind": "QUIZ", "group": "Study", "minSources": 1 },
+    { "id": "study_notes", "label": "Create Study Notes", "graph": "insight", "tier": "T1", "kind": "STUDY_NOTES", "group": "Study", "minSources": 1 },
+    { "id": "flashcards", "label": "Generate Flashcards", "graph": "insight", "tier": "T1", "kind": "FLASHCARDS", "group": "Study", "minSources": 1 },
+    { "id": "compare", "label": "Compare with Another Document", "graph": "multi_doc_compare", "tier": "T1", "kind": "COMPARISON", "group": "Analysis", "minSources": 2 },
+    { "id": "extract_tasks", "label": "Extract Tasks", "graph": "insight", "tier": "T0", "kind": "TASKS", "group": "Analysis", "minSources": 1 },
+    { "id": "research_report", "label": "Generate Research Report", "graph": "insight", "tier": "T1", "kind": "REPORT", "group": "Reports", "minSources": 1 },
+    { "id": "knowledge_map", "label": "Create Knowledge Map", "graph": "knowledge_map", "tier": "T1", "kind": "KNOWLEDGE_MAP", "group": "Reports", "minSources": 1 }
+  ]
+}

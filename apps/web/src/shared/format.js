@@ -16,6 +16,10 @@ export function formatInt(n) {
   return n == null ? '—' : Number(n).toLocaleString('en-US');
 }
 
+export function formatDate(iso) {
+  return iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+}
+
 export function formatMs(ms) {
   if (ms == null) return '—';
   return ms < 1000 ? `${Math.round(ms)} ms` : `${(ms / 1000).toFixed(1)} s`;

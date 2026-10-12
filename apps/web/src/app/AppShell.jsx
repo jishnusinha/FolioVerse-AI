@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useMatches, useNavigate } from 'react-router';
 import { SECTIONS } from './routes.js';
 import { Icon, Logo } from '@/shared/icons.jsx';
@@ -16,6 +16,10 @@ import { useQueryClient } from '@tanstack/react-query';
 import { RequireSession } from '@/features/auth/RequireSession.jsx';
 import { signOut, useCurrentWorkspace, useMe } from '@/features/auth/session.js';
 import { useWorkspaceEvents } from '@/features/runs/useWorkspaceEvents.js';
+import { useSearch } from '@/features/insights/queries.js';
+import { SEARCH_GROUPS, searchHref, useDebouncedValue } from '@/features/insights/search.js';
+
+const SEARCH_TYPE_LABEL = Object.fromEntries(SEARCH_GROUPS.map(([type, label]) => [type, label.replace(/s$/, '')]));
 
 const SECTION_ICON = {
   home: 'home',
@@ -141,6 +145,30 @@ function ShellFrame() {
   const workspace = useCurrentWorkspace();
   useWorkspaceEvents(workspace?.id);
 
+  const [paletteQuery, setPaletteQuery] = useState('');
+  const searchTerm = useDebouncedValue(paletteQuery, 200);
+  const found = useSearch(workspace?.id, searchTerm, { semantic: false, enabled: paletteOpen });
+  const searchCommands = useMemo(() => {
+    const q = paletteQuery.trim();
+    if (q.length < 2) return [];
+    const hits = (found.data?.items ?? []).slice(0, 8).map((it) => ({
+      id: `hit:${it.type}:${it.id}`,
+      label: it.title,
+      group: 'In this workspace',
+      to: searchHref(it),
+      keywords: [q],
+      hint: SEARCH_TYPE_LABEL[it.type],
+    }));
+    return [...hits, { id: 'search:all', label: `Search everywhere for “${q}”`, group: 'In this workspace', to: `/app/search?q=${encodeURIComponent(q)}`, keywords: [q] }];
+  }, [found.data, paletteQuery]);
+  const onPaletteOpenChange = useCallback(
+    (o) => {
+      setPaletteOpen(o);
+      if (!o) setPaletteQuery('');
+    },
+    [setPaletteOpen],
+  );
+
   const toggleTheme = useCallback(() => setTheme(resolved === 'dark' ? 'light' : 'dark'), [resolved, setTheme]);
   const openHelp = useCallback(() => setShortcutsOpen(true), [setShortcutsOpen]);
   useGlobalShortcuts({ navigate, togglePalette, toggleRail, openHelp });
@@ -246,7 +274,14 @@ function ShellFrame() {
           </main>
         </div>
       </div>
-      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} commands={commands} onNavigate={navigate} />
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={onPaletteOpenChange}
+        commands={searchCommands.length ? [...commands, ...searchCommands] : commands}
+        onNavigate={navigate}
+        query={paletteQuery}
+        onQueryChange={setPaletteQuery}
+      />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
       <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen} title="Notifications">
         <p className="empty">No notifications yet. Ingestion results, budget alerts and proposed story facts will appear here.</p>

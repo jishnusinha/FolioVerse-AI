@@ -43,6 +43,7 @@ const MATRIX: Record<string, Role> = {
   'GET /workspaces/:workspaceId/sources/:sourceId/versions/:versionId/file': 'VIEWER',
   'GET /workspaces/:workspaceId/sources/:sourceId/versions/:versionId/pages': 'VIEWER',
   'GET /workspaces/:workspaceId/sources/:sourceId/versions/:versionId/chunks': 'VIEWER',
+  'GET /workspaces/:workspaceId/sources/:sourceId/versions/:versionId/diff': 'VIEWER',
   'POST /workspaces/:workspaceId/sources/:sourceId/versions/:versionId/ingest': 'EDITOR',
 
   'POST /workspaces/:workspaceId/runs': 'EDITOR',
@@ -62,6 +63,17 @@ const MATRIX: Record<string, Role> = {
   'GET /workspaces/:workspaceId/threads/:threadId': 'VIEWER',
   'PATCH /workspaces/:workspaceId/threads/:threadId': 'EDITOR',
   'DELETE /workspaces/:workspaceId/threads/:threadId': 'EDITOR',
+  'PUT /workspaces/:workspaceId/threads/:threadId/scope': 'EDITOR',
+
+  'GET /workspaces/:workspaceId/artifacts': 'VIEWER',
+  'GET /workspaces/:workspaceId/artifacts/:artifactId': 'VIEWER',
+  'PATCH /workspaces/:workspaceId/artifacts/:artifactId': 'EDITOR',
+  'DELETE /workspaces/:workspaceId/artifacts/:artifactId': 'EDITOR',
+  'GET /workspaces/:workspaceId/notes': 'VIEWER',
+  'POST /workspaces/:workspaceId/notes': 'EDITOR',
+  'PATCH /workspaces/:workspaceId/notes/:noteId': 'EDITOR',
+  'DELETE /workspaces/:workspaceId/notes/:noteId': 'EDITOR',
+  'GET /workspaces/:workspaceId/search': 'VIEWER',
 
   'GET /workspaces/:workspaceId/costs/summary': 'VIEWER',
   'GET /workspaces/:workspaceId/costs/entries': 'VIEWER',

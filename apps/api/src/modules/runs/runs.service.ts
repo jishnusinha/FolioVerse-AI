@@ -10,6 +10,7 @@ import { EventsService } from '../events/events.service';
 import { BudgetService } from '../ledger/budget.service';
 import { LedgerService } from '../ledger/ledger.service';
 import { estimateTokens, priceUsage } from '../ledger/pricing';
+import { actionFor, ARTIFACT_GRAPHS } from '../insights/insight-actions';
 import { ModelsService } from '../models/models.service';
 
 export const GRAPH_TIERS: Record<string, 'T0' | 'T1' | 'T2'> = {
@@ -117,15 +118,35 @@ export class RunsService {
   }
 
   async create(workspaceId: string, user: AuthUser, spec: RunSpec) {
-    const tier = GRAPH_TIERS[spec.graph];
+    let tier = GRAPH_TIERS[spec.graph];
     if (!tier) throw new BadRequestException({ message: 'Unknown graph', code: 'UNKNOWN_GRAPH' });
     if (spec.options?.inject && !env().FV_LAB_FAULTS) throw new BadRequestException({ message: 'Failure injection is disabled', code: 'LAB_DISABLED' });
     if (spec.options?.inject && !spec.lab) throw new BadRequestException({ message: 'Failure injection is only allowed for lab runs', code: 'LAB_ONLY' });
+
+    const action = ARTIFACT_GRAPHS.has(spec.graph as any) ? actionFor(spec.graph, spec.input?.action) : null;
+    if (ARTIFACT_GRAPHS.has(spec.graph as any)) {
+      if (!action) throw new BadRequestException({ message: 'Unknown insight action for this graph', code: 'UNKNOWN_ACTION' });
+      tier = action.tier;
+      spec = { ...spec, input: { ...spec.input, action: action.id, params: { ...(spec.input.params ?? {}), action: action.id } } };
+    }
+
+    // A follow-up in an existing thread keeps the thread's current scope unless the caller sets one.
+    if (spec.threadId && !spec.scope && isUuid(spec.threadId)) {
+      const t = await this.prisma.thread.findFirst({ where: { id: spec.threadId, workspaceId } });
+      const cs = t?.contextScopeId ? await this.prisma.contextScope.findUnique({ where: { id: t.contextScopeId } }) : null;
+      if (cs) spec = { ...spec, scope: { sourceVersionIds: cs.sourceVersionIds, ...(cs.projectId ? { projectId: cs.projectId } : {}) } };
+    }
 
     let svids: string[] = [];
     if (RETRIEVAL_GRAPHS.has(spec.graph)) {
       svids = await this.resolveScope(workspaceId, spec.scope);
       if (!svids.length) throw new BadRequestException({ message: 'No ready sources in scope. Wait for ingestion to finish or pick other sources.', code: 'EMPTY_SCOPE' });
+      if (action && action.minSources > 1) {
+        const docs = await this.prisma.sourceVersion.findMany({ where: { id: { in: svids } }, select: { sourceId: true }, distinct: ['sourceId'] });
+        if (docs.length < action.minSources) {
+          throw new BadRequestException({ message: `${action.label} needs at least ${action.minSources} ready documents.`, code: 'NEEDS_MORE_SOURCES' });
+        }
+      }
     }
 
     const plan = await this.models.resolvePlan(spec.modelPreference);
