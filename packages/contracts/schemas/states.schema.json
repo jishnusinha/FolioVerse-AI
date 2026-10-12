@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/states.schema.json",
+  "title": "States",
+  "description": "Shared state vocabularies. The web STATES module, Prisma enums and Python enums must match these exactly.",
+  "$defs": {
+    "IngestionState": {
+      "enum": ["UPLOADING", "UPLOADED", "SCANNING", "PREVIEW_READY", "PARSING", "INDEXING", "READY", "PARTIAL", "FAILED", "QUARANTINED"]
+    },
+    "RunStatus": {
+      "enum": ["QUEUED", "RUNNING", "STREAMING", "AWAITING_INPUT", "SUCCEEDED", "PARTIAL", "FAILED", "CANCELLED", "INTERRUPTED", "BUDGET_REJECTED"]
+    },
+    "RunOutcome": { "enum": ["ANSWERED", "ABSTAINED", "PARTIAL"] },
+    "CitationState": { "enum": ["VALID", "WEAK", "UNRESOLVED", "PERMISSION_REVOKED", "SOURCE_PURGED"] },
+    "AnchorState": { "enum": ["EXACT", "SHIFTED", "FUZZY", "ORPHANED"] },
+    "SuggestionState": { "enum": ["PENDING", "ACCEPTED", "REJECTED", "STALE", "SUPERSEDED"] },
+    "CostTier": { "enum": ["PREFLIGHT_ESTIMATE", "LIVE_ESTIMATE", "FINALIZED", "FINAL_ESTIMATED", "RECONCILED", "VARIANCE"] },
+    "CostClass": { "enum": ["AI_API", "LOCAL_COMPUTE", "CLOUD_INFRA"] },
+    "DnaStatus": { "enum": ["CANON", "PROPOSED", "RETIRED"] },
+    "DnaOrigin": { "enum": ["AUTHOR", "AI_EXTRACTED"] },
+    "GraphName": {
+      "enum": [
+        "grounded_qa", "insight", "multi_doc_compare", "risk_contradiction", "knowledge_map", "writer_revision",
+        "continuity_check", "dna_extraction", "passage_explain", "research_writing", "rec_explain"
+      ]
+    }
+  }
+}

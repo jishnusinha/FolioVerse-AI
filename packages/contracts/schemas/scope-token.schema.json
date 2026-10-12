@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/scope-token.schema.json",
+  "title": "ScopeTokenClaims",
+  "description": "ES256-signed claims minted by the API. The AI service derives every vector-store filter from these claims only.",
+  "type": "object",
+  "required": ["iss", "aud", "sub", "wid", "svids", "iat", "exp", "typ"],
+  "properties": {
+    "iss": { "const": "folioverse-api" },
+    "aud": { "const": "folioverse-ai" },
+    "typ": { "const": "scope" },
+    "sub": { "type": "string", "description": "ai_run id" },
+    "wid": { "type": "string", "description": "workspace id" },
+    "svids": { "type": "array", "items": { "type": "string" }, "description": "allowed source_version ids" },
+    "iat": { "type": "integer" },
+    "exp": { "type": "integer" }
+  }
+}

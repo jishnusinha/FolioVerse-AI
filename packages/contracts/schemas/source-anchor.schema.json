@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/source-anchor.schema.json",
+  "title": "SourceAnchor",
+  "description": "Multi-selector pointer into an immutable source version. Readers resolve the most specific selector available and report an anchor state.",
+  "type": "object",
+  "required": ["sourceVersionId", "selectors"],
+  "additionalProperties": false,
+  "properties": {
+    "sourceVersionId": { "type": "string" },
+    "chunkId": { "type": "string" },
+    "selectors": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "page": { "type": "integer", "minimum": 1 },
+        "bbox": {
+          "type": "array",
+          "items": { "type": "number" },
+          "minItems": 4,
+          "maxItems": 4,
+          "description": "[x0, top, x1, bottom] in PDF points relative to the page"
+        },
+        "textPosition": {
+          "type": "object",
+          "required": ["start", "end"],
+          "additionalProperties": false,
+          "properties": { "start": { "type": "integer", "minimum": 0 }, "end": { "type": "integer", "minimum": 0 } }
+        },
+        "textQuote": {
+          "type": "object",
+          "required": ["exact"],
+          "additionalProperties": false,
+          "properties": { "exact": { "type": "string" }, "prefix": { "type": "string" }, "suffix": { "type": "string" } }
+        },
+        "blockId": { "type": "string" },
+        "cfi": { "type": "string" },
+        "headingPath": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "state": { "$ref": "states.schema.json#/$defs/AnchorState" }
+  }
+}

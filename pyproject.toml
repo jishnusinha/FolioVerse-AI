@@ -1,0 +1,5 @@
+[tool.uv.workspace]
+members = ["apps/ai-service", "packages/folioverse-ml"]
+
+[tool.ruff]
+extend = "packages/shared-config/ruff.toml"

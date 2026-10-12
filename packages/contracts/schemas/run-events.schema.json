@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/run-events.schema.json",
+  "title": "RunEventData",
+  "description": "Payload (envelope.data) per run event type.",
+  "$defs": {
+    "RunStarted": {
+      "type": "object",
+      "required": ["graph", "tier"],
+      "properties": {
+        "graph": { "$ref": "states.schema.json#/$defs/GraphName" },
+        "tier": { "enum": ["T0", "T1", "T2"] },
+        "model": { "type": "string" },
+        "isDemo": { "type": "boolean" }
+      }
+    },
+    "RunState": {
+      "type": "object",
+      "required": ["status"],
+      "properties": { "status": { "$ref": "states.schema.json#/$defs/RunStatus" }, "reason": { "type": "string" } }
+    },
+    "NodeStarted": {
+      "type": "object",
+      "required": ["node", "step"],
+      "properties": { "node": { "type": "string" }, "step": { "type": "integer" } }
+    },
+    "NodeFinished": {
+      "type": "object",
+      "required": ["node", "step", "durationMs", "status"],
+      "properties": {
+        "node": { "type": "string" },
+        "step": { "type": "integer" },
+        "durationMs": { "type": "number" },
+        "status": { "enum": ["OK", "ERROR", "SKIPPED"] },
+        "summary": { "type": "object" }
+      }
+    },
+    "RetrievalCompleted": {
+      "type": "object",
+      "required": ["candidates", "packed"],
+      "properties": {
+        "candidates": { "type": "integer" },
+        "packed": { "type": "integer" },
+        "topScore": { "type": "number" },
+        "contextTokens": { "type": "integer" },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["marker", "chunkId", "sourceVersionId"],
+            "properties": {
+              "marker": { "type": "string", "pattern": "^S[0-9]+$" },
+              "chunkId": { "type": "string" },
+              "sourceVersionId": { "type": "string" },
+              "title": { "type": "string" },
+              "page": { "type": "integer" },
+              "score": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "TokenDelta": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string" } } },
+    "CitationValidated": {
+      "type": "object",
+      "required": ["marker", "state"],
+      "properties": {
+        "marker": { "type": "string" },
+        "state": { "$ref": "states.schema.json#/$defs/CitationState" },
+        "score": { "type": "number" },
+        "anchor": { "$ref": "source-anchor.schema.json" },
+        "quote": { "type": "string" }
+      }
+    },
+    "UsageRecorded": {
+      "type": "object",
+      "required": ["usageEventId", "modelCallId", "provider", "model", "usage", "reported"],
+      "properties": {
+        "usageEventId": { "type": "string" },
+        "modelCallId": { "type": "string" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "reported": { "type": "boolean", "description": "true when token counts came from the provider response" },
+        "usage": { "$ref": "#/$defs/Usage" },
+        "latencyMs": { "type": "number" },
+        "isDemo": { "type": "boolean" }
+      }
+    },
+    "Usage": {
+      "type": "object",
+      "required": ["input", "output"],
+      "properties": {
+        "input": { "type": "integer", "minimum": 0 },
+        "output": { "type": "integer", "minimum": 0 },
+        "cachedInput": { "type": "integer", "minimum": 0 },
+        "reasoning": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "CostUpdated": {
+      "type": "object",
+      "required": ["tier", "amount", "currency"],
+      "properties": {
+        "tier": { "$ref": "states.schema.json#/$defs/CostTier" },
+        "amount": { "type": "string", "pattern": "^-?[0-9]+(\\.[0-9]+)?$" },
+        "currency": { "type": "string" }
+      }
+    },
+    "MessageCheckpoint": {
+      "type": "object",
+      "required": ["text"],
+      "properties": { "text": { "type": "string" } }
+    },
+    "RunFinished": {
+      "type": "object",
+      "required": ["status", "outcome"],
+      "properties": {
+        "status": { "$ref": "states.schema.json#/$defs/RunStatus" },
+        "outcome": { "$ref": "states.schema.json#/$defs/RunOutcome" },
+        "answer": { "type": "string" },
+        "artifact": { "type": "object" }
+      }
+    },
+    "RunFailed": {
+      "type": "object",
+      "required": ["errorClass", "message", "retryable"],
+      "properties": {
+        "errorClass": { "enum": ["PROVIDER", "RETRIEVAL", "VALIDATION", "TIMEOUT", "CANCELLED", "BUDGET", "INTERNAL"] },
+        "message": { "type": "string" },
+        "retryable": { "type": "boolean" }
+      }
+    }
+  }
+}

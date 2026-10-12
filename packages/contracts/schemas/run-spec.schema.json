@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/run-spec.schema.json",
+  "title": "RunSpec",
+  "description": "Client request to start an AI run (POST /api/runs).",
+  "type": "object",
+  "required": ["graph", "input"],
+  "additionalProperties": false,
+  "properties": {
+    "graph": { "$ref": "states.schema.json#/$defs/GraphName" },
+    "threadId": { "type": "string" },
+    "parentMessageId": { "type": "string" },
+    "input": {
+      "type": "object",
+      "properties": {
+        "question": { "type": "string", "maxLength": 8000 },
+        "action": { "type": "string" },
+        "text": { "type": "string", "maxLength": 50000 },
+        "params": { "type": "object" }
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "projectId": { "type": "string" },
+        "sourceIds": { "type": "array", "items": { "type": "string" } },
+        "sourceVersionIds": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "modelPreference": { "type": "string", "description": "model_configs.id or alias; resolved server-side" },
+    "lab": { "type": "boolean", "description": "Studio lab run (playground, battle, failure injection)" },
+    "options": {
+      "type": "object",
+      "properties": {
+        "topK": { "type": "integer", "minimum": 1, "maximum": 50 },
+        "fusion": { "enum": ["rrf", "dense", "sparse"] },
+        "rerank": { "type": "boolean" },
+        "inject": { "enum": ["provider_timeout", "provider_429", "malformed_output", "retrieval_down"] }
+      }
+    }
+  }
+}

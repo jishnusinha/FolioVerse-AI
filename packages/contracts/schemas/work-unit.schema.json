@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/work-unit.schema.json",
+  "title": "WorkUnit",
+  "description": "Bounded, held-open streaming HTTP request from api-worker to the AI service. The response body is NDJSON EventEnvelope lines.",
+  "$defs": {
+    "RunUnitRequest": {
+      "type": "object",
+      "required": ["runId", "workspaceId", "graph", "input", "modelPlan", "scopeToken"],
+      "properties": {
+        "runId": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "graph": { "$ref": "states.schema.json#/$defs/GraphName" },
+        "input": { "type": "object" },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["role", "content"],
+            "properties": { "role": { "enum": ["user", "assistant"] }, "content": { "type": "string" } }
+          }
+        },
+        "modelPlan": { "$ref": "model-plan.schema.json" },
+        "scopeToken": { "type": "string" },
+        "options": { "type": "object" },
+        "resumeFromCheckpoint": { "type": "string" },
+        "traceparent": { "type": "string" }
+      }
+    },
+    "IngestUnitRequest": {
+      "type": "object",
+      "required": ["jobId", "workspaceId", "sourceId", "sourceVersionId", "mimeType", "objectUrl"],
+      "properties": {
+        "jobId": { "type": "string" },
+        "workspaceId": { "type": "string" },
+        "projectId": { "type": "string" },
+        "sourceId": { "type": "string" },
+        "sourceVersionId": { "type": "string" },
+        "title": { "type": "string" },
+        "mimeType": { "type": "string" },
+        "objectUrl": { "type": "string", "description": "short-lived signed GET URL" },
+        "sha256": { "type": "string" },
+        "traceparent": { "type": "string" }
+      }
+    }
+  }
+}

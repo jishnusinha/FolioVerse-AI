@@ -1,0 +1,6 @@
+pnpm-lock.yaml
+uv.lock
+**/dist
+**/generated
+design-prototype
+apps/api/prisma/migrations

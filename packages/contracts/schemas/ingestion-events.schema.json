@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/ingestion-events.schema.json",
+  "title": "IngestionEventData",
+  "$defs": {
+    "IngestionStage": {
+      "type": "object",
+      "required": ["sourceVersionId", "state"],
+      "properties": {
+        "sourceId": { "type": "string" },
+        "sourceVersionId": { "type": "string" },
+        "jobId": { "type": "string" },
+        "state": { "$ref": "states.schema.json#/$defs/IngestionState" },
+        "progress": { "type": "number", "minimum": 0, "maximum": 1 },
+        "message": { "type": "string" }
+      }
+    },
+    "IngestionFinished": {
+      "type": "object",
+      "required": ["sourceVersionId", "state", "stats"],
+      "properties": {
+        "sourceVersionId": { "type": "string" },
+        "state": { "enum": ["READY", "PARTIAL", "FAILED", "QUARANTINED"] },
+        "stats": {
+          "type": "object",
+          "properties": {
+            "pages": { "type": "integer" },
+            "elements": { "type": "integer" },
+            "parentChunks": { "type": "integer" },
+            "childChunks": { "type": "integer" },
+            "failedPages": { "type": "array", "items": { "type": "integer" } },
+            "embedder": { "type": "string" },
+            "collection": { "type": "string" }
+          }
+        },
+        "error": { "type": "string" }
+      }
+    }
+  }
+}

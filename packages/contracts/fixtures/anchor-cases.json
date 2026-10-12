@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "description": "Re-anchoring a textQuote/textPosition selector from an old text into a new text. EXACT: quote found at the same offsets. SHIFTED: exact quote found elsewhere (nearest to old start). FUZZY: best window similarity >= 0.8. ORPHANED otherwise.",
+  "fuzzyThreshold": 0.8,
+  "cases": [
+    {
+      "name": "unchanged",
+      "oldText": "Mara crossed the bridge at dawn. The river was silver.",
+      "newText": "Mara crossed the bridge at dawn. The river was silver.",
+      "anchor": { "textPosition": { "start": 33, "end": 54 }, "textQuote": { "exact": "The river was silver." } },
+      "expected": { "state": "EXACT", "start": 33, "end": 54 }
+    },
+    {
+      "name": "prefix_inserted",
+      "oldText": "Mara crossed the bridge at dawn. The river was silver.",
+      "newText": "Rain fell. Mara crossed the bridge at dawn. The river was silver.",
+      "anchor": { "textPosition": { "start": 33, "end": 54 }, "textQuote": { "exact": "The river was silver." } },
+      "expected": { "state": "SHIFTED", "start": 44, "end": 65 }
+    },
+    {
+      "name": "minor_edit",
+      "oldText": "Mara crossed the bridge at dawn. The river was silver.",
+      "newText": "Mara crossed the bridge at dawn. The river was silvery.",
+      "anchor": { "textPosition": { "start": 33, "end": 54 }, "textQuote": { "exact": "The river was silver." } },
+      "expected": { "state": "FUZZY" }
+    },
+    {
+      "name": "deleted",
+      "oldText": "Mara crossed the bridge at dawn. The river was silver.",
+      "newText": "Mara crossed the bridge at dawn.",
+      "anchor": { "textPosition": { "start": 33, "end": 54 }, "textQuote": { "exact": "The river was silver." } },
+      "expected": { "state": "ORPHANED" }
+    },
+    {
+      "name": "duplicate_quote_nearest",
+      "oldText": "Go north. Then rest. Go north. Then rest.",
+      "newText": "X. Go north. Then rest. Go north. Then rest.",
+      "anchor": { "textPosition": { "start": 21, "end": 30 }, "textQuote": { "exact": "Go north." } },
+      "expected": { "state": "SHIFTED", "start": 24, "end": 33 }
+    }
+  ]
+}

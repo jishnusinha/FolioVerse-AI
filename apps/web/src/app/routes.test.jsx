@@ -1,0 +1,62 @@
+import { describe, expect, it } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { createMemoryRouter, RouterProvider } from 'react-router';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ALL_ROUTES, APP_ROUTES, SECTIONS, hrefFor } from './routes.js';
+import { routeObjects } from './router.jsx';
+import { createQueryClient } from '@/shared/queryClient.js';
+
+function renderAt(path) {
+  const router = createMemoryRouter(routeObjects, { initialEntries: [path] });
+  render(
+    <QueryClientProvider client={createQueryClient()}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>,
+  );
+  return router;
+}
+
+const sample = (path) => path.replace(/:(\w+)/g, (_, k) => `sample-${k}`);
+
+describe('route registry', () => {
+  it('has unique ids and paths', () => {
+    expect(new Set(ALL_ROUTES.map((r) => r.id)).size).toBe(ALL_ROUTES.length);
+    expect(new Set(ALL_ROUTES.map((r) => r.path)).size).toBe(ALL_ROUTES.length);
+  });
+
+  it('every navigation section points at a registered route', () => {
+    for (const s of SECTIONS) expect(APP_ROUTES.some((r) => r.path === s.to)).toBe(true);
+  });
+
+  it('builds hrefs and rejects missing params', () => {
+    expect(hrefFor('document', { projectId: 'p 1', sourceId: 's1' })).toBe(
+      '/app/knowledge/projects/p%201/documents/s1',
+    );
+    expect(() => hrefFor('document', { projectId: 'p1' })).toThrow(/sourceId/);
+  });
+});
+
+describe('router smoke', () => {
+  it.each(ALL_ROUTES.map((r) => [r.path, r]))('renders %s', async (_path, route) => {
+    renderAt(sample(route.path));
+    expect(await screen.findByRole('heading', { level: 1, name: route.title })).toBeInTheDocument();
+  });
+
+  it('redirects / to /app', async () => {
+    const router = renderAt('/');
+    await screen.findByRole('heading', { level: 1, name: 'Home' });
+    expect(router.state.location.pathname).toBe('/app');
+  });
+
+  it('shows not found inside the shell for unknown app paths', async () => {
+    renderAt('/app/does-not-exist');
+    expect(await screen.findByRole('heading', { name: 'Not found' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument();
+  });
+
+  it('forces the studio theme on studio routes', async () => {
+    renderAt('/app/studio/runs/run_1');
+    await screen.findByRole('heading', { name: 'Run' });
+    expect(document.body.querySelector('.studio')).not.toBeNull();
+  });
+});

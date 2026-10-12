@@ -1,0 +1,7 @@
+packages:
+  - "apps/web"
+  - "apps/api"
+  - "apps/docs"
+  - "packages/contracts"
+  - "packages/design-tokens"
+  - "packages/shared-config"

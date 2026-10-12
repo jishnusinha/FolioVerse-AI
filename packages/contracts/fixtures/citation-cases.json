@@ -1,0 +1,48 @@
+{
+  "schemaVersion": 1,
+  "description": "Deterministic citation validation. Each [S#] marker in the answer is checked against the packed context. Unknown marker -> UNRESOLVED. Lexical support (content-word containment of the claim sentence in the cited chunk) >= 0.45 -> VALID, otherwise WEAK.",
+  "thresholds": { "valid": 0.45 },
+  "cases": [
+    {
+      "name": "single_valid",
+      "context": {
+        "S1": "The outlook projects 14.2% annual growth in its base case through 2030, driven by enterprise adoption."
+      },
+      "answer": "The base case projects 14.2% annual growth through 2030 [S1].",
+      "expected": { "S1": "VALID" }
+    },
+    {
+      "name": "unknown_marker",
+      "context": { "S1": "Revenue grew in the northern region." },
+      "answer": "Revenue grew in the north [S1]. Margins collapsed [S7].",
+      "expected": { "S1": "VALID", "S7": "UNRESOLVED" }
+    },
+    {
+      "name": "weak_support",
+      "context": { "S1": "The committee met on Tuesday to discuss parking allocations for staff." },
+      "answer": "Quarterly revenue doubled because of the new pricing model [S1].",
+      "expected": { "S1": "WEAK" }
+    },
+    {
+      "name": "multiple_markers_one_sentence",
+      "context": {
+        "S1": "Procurement cycles shortened to 90 days in 2025.",
+        "S2": "Upside scenario reaches 19% growth if procurement accelerates."
+      },
+      "answer": "If procurement accelerates the upside reaches 19% growth [S2], and cycles already shortened to 90 days [S1].",
+      "expected": { "S1": "VALID", "S2": "VALID" }
+    },
+    {
+      "name": "repeated_marker_takes_best",
+      "context": { "S1": "Lantern keepers trade light for memories in the orbiting city." },
+      "answer": "Something unrelated about taxes [S1]. Lantern keepers trade light for memories [S1].",
+      "expected": { "S1": "VALID" }
+    },
+    {
+      "name": "no_markers",
+      "context": { "S1": "Anything." },
+      "answer": "An answer with no citations at all.",
+      "expected": {}
+    }
+  ]
+}

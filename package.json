@@ -1,0 +1,36 @@
+{
+  "name": "folioverse",
+  "private": true,
+  "version": "0.1.0",
+  "description": "FolioVerse AI — knowledge, writing, reading and discovery platform",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "node infrastructure/scripts/dev.mjs",
+    "gen-keys": "node infrastructure/scripts/gen-keys.mjs",
+    "up": "node infrastructure/scripts/up.mjs",
+    "down": "node infrastructure/scripts/down.mjs",
+    "check:env": "node infrastructure/scripts/check-env.mjs",
+    "lint": "pnpm -r --if-present run lint",
+    "typecheck": "pnpm -r --if-present run typecheck",
+    "test": "pnpm -r --if-present run test && pnpm run test:py",
+    "test:py": "python -m uv run --directory apps/ai-service pytest -q",
+    "test:integration": "pnpm --filter @folioverse/api run test:integration",
+    "test:e2e": "pnpm --filter @folioverse/web run test:e2e",
+    "test:security": "node tests/security/run.mjs",
+    "contracts:gen": "node packages/contracts/scripts/generate.mjs",
+    "contracts:check": "node packages/contracts/scripts/check.mjs",
+    "tokens:build": "pnpm --filter @folioverse/design-tokens run build",
+    "db:migrate": "pnpm --filter @folioverse/api run db:migrate",
+    "db:seed": "pnpm --filter @folioverse/api run db:seed",
+    "demo": "node infrastructure/scripts/demo.mjs",
+    "docs:build": "pnpm --filter @folioverse/docs run build",
+    "kaggle:smoke": "node ml-notebooks/run-smoke.mjs",
+    "format": "prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.3.3"
+  }
+}

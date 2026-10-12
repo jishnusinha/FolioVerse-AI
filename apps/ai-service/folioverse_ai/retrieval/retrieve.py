@@ -1,0 +1,192 @@
+"""Hybrid retrieval: dense + BM25 sparse -> reciprocal rank fusion -> optional rerank -> budget packing.
+
+All vector filters come from the verified scope (workspace + allowed source versions).
+Per-candidate ranks are kept so Studio's RAG X-Ray can show why each passage was chosen.
+"""
+
+import asyncio
+import time
+from dataclasses import dataclass, field
+
+from ..auth import Scope
+from ..repo import get_repo
+from ..settings import get_settings
+from ..text import containment, count_tokens
+from .embedder import get_embedder, get_reranker
+from .store import VectorStore, get_store
+
+RRF_K = 60
+
+
+@dataclass
+class Candidate:
+    chunk_id: str
+    parent_id: str | None
+    source_version_id: str
+    title: str | None
+    page: int | None
+    dense_rank: int | None = None
+    sparse_rank: int | None = None
+    dense_score: float = 0.0
+    sparse_score: float = 0.0
+    fused: float = 0.0
+    rerank: float | None = None
+    lexical: float = 0.0
+
+
+@dataclass
+class Retrieval:
+    query: str
+    candidates: list[Candidate]
+    packed: list[dict]
+    abstain: bool
+    top_dense: float
+    context_tokens: int
+    latency_ms: float
+    params: dict = field(default_factory=dict)
+
+    def context(self) -> dict[str, dict]:
+        return {p["marker"]: p for p in self.packed}
+
+
+def rrf(dense: list, sparse: list, k: int = RRF_K) -> dict[str, Candidate]:
+    out: dict[str, Candidate] = {}
+    for kind, hits in (("dense", dense), ("sparse", sparse)):
+        for rank, h in enumerate(hits, start=1):
+            p = h.payload or {}
+            cid = p.get("chunk_id") or str(h.id)
+            c = out.get(cid) or Candidate(
+                cid, p.get("parent_id"), p["source_version_id"], p.get("title"), p.get("page")
+            )
+            if kind == "dense":
+                c.dense_rank, c.dense_score = rank, float(h.score)
+            else:
+                c.sparse_rank, c.sparse_score = rank, float(h.score)
+            c.fused += 1.0 / (k + rank)
+            out[cid] = c
+    return out
+
+
+async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Retrieval:
+    options = options or {}
+    s = get_settings()
+    started = time.perf_counter()
+    if options.get("inject") == "retrieval_down":
+        raise ConnectionError("Vector store unavailable (injected failure)")
+    embedder = get_embedder()
+    store: VectorStore = get_store()
+    flt = VectorStore.scope_filter(scope.workspace_id, scope.source_version_ids)
+    fusion = options.get("fusion", "rrf")
+    top_k = int(options.get("topK", s.top_k))
+    pool = max(top_k * 4, 20)
+
+    qd = await asyncio.to_thread(embedder.embed_query, query)
+    qs = await asyncio.to_thread(embedder.sparse_query, query)
+    dense_hits = (
+        await asyncio.to_thread(store.search_dense, qd, flt, pool) if fusion in ("rrf", "dense") else []
+    )
+    sparse_hits = (
+        await asyncio.to_thread(store.search_sparse, qs, flt, pool) if fusion in ("rrf", "sparse") else []
+    )
+    fused = rrf(dense_hits, sparse_hits)
+    ranked = sorted(fused.values(), key=lambda c: c.fused, reverse=True)[:pool]
+
+    repo = get_repo()
+    child_rows = await repo.get_chunks([c.chunk_id for c in ranked])
+    for c in ranked:
+        row = child_rows.get(c.chunk_id)
+        c.lexical = round(containment(query, row["text"]), 4) if row else 0.0
+
+    reranker = get_reranker() if options.get("rerank", s.rerank) else None
+    if reranker and ranked:
+        scores = await asyncio.to_thread(
+            reranker.score,
+            query,
+            [child_rows[c.chunk_id]["text"] for c in ranked if c.chunk_id in child_rows],
+        )
+        for c, sc in zip([c for c in ranked if c.chunk_id in child_rows], scores, strict=False):
+            c.rerank = sc
+        ranked.sort(key=lambda c: c.rerank if c.rerank is not None else -1e9, reverse=True)
+
+    top = ranked[:top_k]
+    top_dense = max((c.dense_score for c in ranked), default=0.0)
+    best_lexical = max((c.lexical for c in ranked), default=0.0)
+    abstain = not ranked or (top_dense < embedder.abstain_threshold and best_lexical < 0.25)
+
+    packed, used = [], 0
+    budget = int(options.get("contextBudget", s.context_budget_tokens))
+    parents = await repo.get_chunks([c.parent_id for c in top if c.parent_id])
+    seen_parents: set[str] = set()
+    for c in top:
+        child = child_rows.get(c.chunk_id)
+        if not child:
+            continue
+        parent = parents.get(c.parent_id) if c.parent_id else None
+        text, level = child["text"], "CHILD"
+        if parent and c.parent_id not in seen_parents and used + parent["token_count"] <= budget:
+            text, level = parent["text"], "PARENT"
+            seen_parents.add(c.parent_id)
+        elif c.parent_id in seen_parents:
+            continue
+        t = count_tokens(text)
+        if used + t > budget:
+            if used == 0:
+                text = text[: budget * 4]
+                t = count_tokens(text)
+            else:
+                break
+        used += t
+        packed.append(
+            {
+                "marker": f"S{len(packed) + 1}",
+                "chunkId": c.chunk_id,
+                "parentId": c.parent_id,
+                "sourceVersionId": c.source_version_id,
+                "title": c.title,
+                "page": child.get("page_start"),
+                "level": level,
+                "text": text,
+                "childText": child["text"],
+                "locator": child.get("locator"),
+                "score": round(c.rerank if c.rerank is not None else c.fused, 6),
+            }
+        )
+
+    latency = (time.perf_counter() - started) * 1000
+    params = {
+        "topK": top_k,
+        "fusion": fusion,
+        "rrfK": RRF_K,
+        "rerank": bool(reranker),
+        "budget": budget,
+        "embedder": embedder.name,
+        "pool": pool,
+    }
+    return Retrieval(query, ranked, packed, abstain, round(top_dense, 4), used, round(latency, 2), params)
+
+
+def candidates_json(r: Retrieval) -> list[dict]:
+    return [
+        {
+            "chunkId": c.chunk_id,
+            "sourceVersionId": c.source_version_id,
+            "title": c.title,
+            "page": c.page,
+            "denseRank": c.dense_rank,
+            "sparseRank": c.sparse_rank,
+            "denseScore": round(c.dense_score, 4),
+            "sparseScore": round(c.sparse_score, 4),
+            "fused": round(c.fused, 6),
+            "rerank": c.rerank,
+            "lexical": c.lexical,
+            "packed": any(p["chunkId"] == c.chunk_id for p in r.packed),
+        }
+        for c in r.candidates
+    ]
+
+
+def packed_json(r: Retrieval) -> list[dict]:
+    return [
+        {k: v for k, v in p.items() if k not in ("text", "childText")} | {"tokens": count_tokens(p["text"])}
+        for p in r.packed
+    ]

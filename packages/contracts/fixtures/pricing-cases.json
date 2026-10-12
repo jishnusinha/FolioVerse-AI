@@ -1,0 +1,501 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "name": "simple_input_output",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 1000,
+        "output": 500
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00750000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "zero_usage",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 0,
+        "output": 0
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00000000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "only_input",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 12345,
+        "output": 0
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.03086250",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "only_output",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 0,
+        "output": 6789
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.06789000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "cached_subset",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 10000,
+        "output": 200,
+        "cachedInput": 8000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.01700000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "all_cached",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 4096,
+        "output": 10,
+        "cachedInput": 4096
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00522000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "cached_defaults_to_input_rate",
+      "prices": {
+        "inputPerMTok": "2.00",
+        "outputPerMTok": "8.00"
+      },
+      "usage": {
+        "input": 5000,
+        "output": 100,
+        "cachedInput": 2500
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.01080000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "mini_model_small",
+      "prices": {
+        "inputPerMTok": "0.15",
+        "outputPerMTok": "0.60",
+        "cachedInputPerMTok": "0.075"
+      },
+      "usage": {
+        "input": 750,
+        "output": 120
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00018450",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "mini_model_large",
+      "prices": {
+        "inputPerMTok": "0.15",
+        "outputPerMTok": "0.60",
+        "cachedInputPerMTok": "0.075"
+      },
+      "usage": {
+        "input": 950000,
+        "output": 16000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.15210000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "reasoning_same_rate",
+      "prices": {
+        "inputPerMTok": "1.10",
+        "outputPerMTok": "4.40",
+        "cachedInputPerMTok": "0.275",
+        "reasoningPerMTok": "4.40"
+      },
+      "usage": {
+        "input": 3000,
+        "output": 2000,
+        "reasoning": 1500
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.01210000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "reasoning_split_rate",
+      "prices": {
+        "inputPerMTok": "3.00",
+        "outputPerMTok": "12.00",
+        "reasoningPerMTok": "15.00"
+      },
+      "usage": {
+        "input": 3000,
+        "output": 2000,
+        "reasoning": 1500
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.03750000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "reasoning_all_output",
+      "prices": {
+        "inputPerMTok": "3.00",
+        "outputPerMTok": "12.00",
+        "reasoningPerMTok": "15.00"
+      },
+      "usage": {
+        "input": 100,
+        "output": 900,
+        "reasoning": 900
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.01380000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "reasoning_and_cached",
+      "prices": {
+        "inputPerMTok": "1.10",
+        "outputPerMTok": "4.40",
+        "cachedInputPerMTok": "0.275",
+        "reasoningPerMTok": "4.40"
+      },
+      "usage": {
+        "input": 20000,
+        "output": 4000,
+        "cachedInput": 15000,
+        "reasoning": 3000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.02722500",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "zero_price_local_model",
+      "prices": {
+        "inputPerMTok": "0",
+        "outputPerMTok": "0"
+      },
+      "usage": {
+        "input": 50000,
+        "output": 5000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00000000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "batch_discount_half",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25",
+        "batchDiscount": "0.5"
+      },
+      "usage": {
+        "input": 100000,
+        "output": 20000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.22500000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "batch_discount_with_cache",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25",
+        "batchDiscount": "0.5"
+      },
+      "usage": {
+        "input": 100000,
+        "output": 20000,
+        "cachedInput": 50000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.19375000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "odd_prices_rounding",
+      "prices": {
+        "inputPerMTok": "0.333333",
+        "outputPerMTok": "1.777777"
+      },
+      "usage": {
+        "input": 7,
+        "output": 3
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00000767",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "odd_prices_rounding_large",
+      "prices": {
+        "inputPerMTok": "0.333333",
+        "outputPerMTok": "1.777777"
+      },
+      "usage": {
+        "input": 1234567,
+        "output": 765432
+      },
+      "reported": true,
+      "expected": {
+        "amount": "1.77228933",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "one_token_each",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 1,
+        "output": 1
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00001250",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "half_up_boundary",
+      "prices": {
+        "inputPerMTok": "0.000005",
+        "outputPerMTok": "0"
+      },
+      "usage": {
+        "input": 1,
+        "output": 0
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00000000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "million_input",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 1000000,
+        "output": 0
+      },
+      "reported": true,
+      "expected": {
+        "amount": "2.50000000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "long_context",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 127000,
+        "output": 4000,
+        "cachedInput": 100000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.23250000",
+        "status": "FINALIZED",
+        "reason": null,
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "price_missing",
+      "prices": null,
+      "usage": {
+        "input": 1000,
+        "output": 1000
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00000000",
+        "status": "FINAL_ESTIMATED",
+        "reason": "PRICE_MISSING",
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "usage_not_reported",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 1500,
+        "output": 300
+      },
+      "reported": false,
+      "expected": {
+        "amount": "0.00675000",
+        "status": "FINAL_ESTIMATED",
+        "reason": "USAGE_ESTIMATED",
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "usage_not_reported_cached",
+      "prices": {
+        "inputPerMTok": "2.50",
+        "outputPerMTok": "10.00",
+        "cachedInputPerMTok": "1.25"
+      },
+      "usage": {
+        "input": 1500,
+        "output": 300,
+        "cachedInput": 1000
+      },
+      "reported": false,
+      "expected": {
+        "amount": "0.00550000",
+        "status": "FINAL_ESTIMATED",
+        "reason": "USAGE_ESTIMATED",
+        "currency": "USD"
+      }
+    },
+    {
+      "name": "price_missing_zero_usage",
+      "prices": null,
+      "usage": {
+        "input": 0,
+        "output": 0
+      },
+      "reported": true,
+      "expected": {
+        "amount": "0.00000000",
+        "status": "FINAL_ESTIMATED",
+        "reason": "PRICE_MISSING",
+        "currency": "USD"
+      }
+    }
+  ]
+}

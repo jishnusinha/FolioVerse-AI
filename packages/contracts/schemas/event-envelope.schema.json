@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://folioverse.dev/schemas/event-envelope.schema.json",
+  "title": "EventEnvelope",
+  "description": "Every streamed event (NDJSON work-unit lines, Redis Stream entries, SSE messages) uses this envelope.",
+  "type": "object",
+  "required": ["schemaVersion", "type", "seq", "ts", "data"],
+  "additionalProperties": false,
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "id": { "type": "string", "description": "Redis Stream id once relayed; used as SSE Last-Event-ID" },
+    "type": {
+      "enum": [
+        "run.started", "run.state", "node.started", "node.finished", "retrieval.completed", "token.delta",
+        "citation.validated", "usage.recorded", "cost.updated", "message.checkpoint", "run.finished", "run.failed",
+        "heartbeat", "ingestion.stage", "ingestion.finished", "notification"
+      ]
+    },
+    "runId": { "type": "string" },
+    "workspaceId": { "type": "string" },
+    "seq": { "type": "integer", "minimum": 0 },
+    "ts": { "type": "string", "format": "date-time" },
+    "traceId": { "type": "string" },
+    "data": { "type": "object" }
+  }
+}

@@ -1,0 +1,185 @@
+# FolioVerse local stack. `pnpm up` (full stack) or `pnpm up --infra` (data services only; run apps natively).
+# Every app service reads .env and overrides hostnames for the compose network.
+name: folioverse
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql://folioverse:folioverse@postgres:5432/folioverse?schema=app
+  REDIS_URL: redis://redis:6379
+  QDRANT_URL: http://qdrant:6333
+  STORAGE_ENDPOINT: http://storage:9000
+  SMTP_URL: smtp://mailpit:1025
+  FV_AI_API_URL: http://ai-api:8000
+  FV_AI_INGEST_URL: http://ai-ingest:8001
+  FV_OLLAMA_URL: ${FV_OLLAMA_URL:-}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: folioverse
+      POSTGRES_PASSWORD: folioverse
+      POSTGRES_DB: folioverse
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data, ./infrastructure/docker/postgres-init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U folioverse -d folioverse"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    ports: ["6379:6379"]
+    volumes: [redisdata:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    ports: ["6333:6333"]
+    volumes: [qdrantdata:/qdrant/storage]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+
+  # S3-compatible object storage for local development (SeaweedFS S3 gateway on :9000).
+  # The API creates the bucket on startup. Production uses GCS through the same S3 adapter.
+  storage:
+    image: chrislusf/seaweedfs:3.80
+    environment:
+      AK: ${STORAGE_ACCESS_KEY:-folioverse}
+      SK: ${STORAGE_SECRET_KEY:-folioverse-secret}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        printf '{"identities":[{"name":"folioverse","credentials":[{"accessKey":"%s","secretKey":"%s"}],"actions":["Admin","Read","List","Tagging","Write"]}]}' "$$AK" "$$SK" > /tmp/s3.json &&
+        exec weed server -dir=/data -s3 -s3.port=9000 -s3.config=/tmp/s3.json -volume.max=0 -master.volumeSizeLimitMB=256
+    ports: ["9000:9000"]
+    volumes: [storagedata:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z 127.0.0.1 9000"]
+      interval: 3s
+      timeout: 3s
+      retries: 60
+
+  mailpit:
+    image: axllent/mailpit:v1.20
+    ports: ["8025:8025", "1025:1025"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8025/livez"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  migrate:
+    profiles: [app]
+    build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
+    image: folioverse/api:local
+    env_file: [.env]
+    environment: *app-env
+    command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api-http:
+    profiles: [app]
+    image: folioverse/api:local
+    env_file: [.env]
+    environment:
+      <<: *app-env
+      FV_SERVICE_NAME: api-http
+    command: ["node", "dist/src/main.js"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+      storage: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+
+  api-worker:
+    profiles: [app]
+    image: folioverse/api:local
+    env_file: [.env]
+    environment:
+      <<: *app-env
+      FV_SERVICE_NAME: api-worker
+    command: ["node", "dist/src/worker.js"]
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+
+  ai-api:
+    profiles: [app]
+    build: { context: ., dockerfile: infrastructure/docker/ai.Dockerfile }
+    image: folioverse/ai:local
+    env_file: [.env]
+    environment:
+      <<: *app-env
+      ROLE: api
+    command: ["python", "-m", "folioverse_ai.serve", "--port", "8000"]
+    depends_on:
+      postgres: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz').status==200 else 1)"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+
+  ai-ingest:
+    profiles: [app]
+    image: folioverse/ai:local
+    env_file: [.env]
+    environment:
+      <<: *app-env
+      ROLE: ingest
+    command: ["python", "-m", "folioverse_ai.serve", "--port", "8001"]
+    depends_on:
+      ai-api: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/healthz').status==200 else 1)"]
+      interval: 5s
+      timeout: 4s
+      retries: 30
+
+  web:
+    profiles: [app]
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    image: folioverse/web:local
+    ports: ["8080:8080"]
+    depends_on:
+      api-http: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---- optional profiles ----
+  lgtm:
+    profiles: [observability]
+    image: grafana/otel-lgtm:0.8.1
+    ports: ["3001:3000", "4318:4318"]
+
+  ollama:
+    profiles: [local-llm]
+    image: ollama/ollama:0.3.14
+    ports: ["11434:11434"]
+    volumes: [ollamadata:/root/.ollama]
+
+volumes:
+  pgdata:
+  redisdata:
+  qdrantdata:
+  storagedata:
+  ollamadata:

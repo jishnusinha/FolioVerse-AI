@@ -1,0 +1,53 @@
+[project]
+name = "folioverse-ai"
+version = "0.1.0"
+description = "FolioVerse AI service: ingestion, hybrid retrieval, LangGraph workflows, recommendations"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn>=0.32",
+  "pydantic>=2.9",
+  "pydantic-settings>=2.6",
+  "pyjwt[crypto]>=2.9",
+  "httpx>=0.27",
+  "psycopg[binary]>=3.2",
+  "psycopg-pool>=3.2",
+  "langgraph>=0.2.40",
+  "langgraph-checkpoint-postgres>=2.0",
+  "langchain-core>=0.3",
+  "langchain-openai>=0.2",
+  "qdrant-client>=1.12",
+  "fastembed>=0.4",
+  "pdfplumber>=0.11",
+  "python-docx>=1.1",
+  "ebooklib>=0.18",
+  "lxml>=5.3",
+  "numpy>=1.26",
+  "structlog>=24.4",
+  "opentelemetry-sdk>=1.27",
+  "opentelemetry-exporter-otlp-proto-http>=1.27",
+  "opentelemetry-instrumentation-fastapi>=0.48b0",
+  "folioverse-ml",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "pytest-asyncio>=0.24", "ruff>=0.7", "jsonschema>=4.23", "reportlab>=4.2"]
+
+[tool.uv.sources]
+folioverse-ml = { workspace = true }
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["folioverse_ai"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.ruff]
+extend = "../../packages/shared-config/ruff.toml"
