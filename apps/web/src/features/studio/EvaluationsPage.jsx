@@ -7,6 +7,7 @@ import { EvaluationPanel } from '@/features/discover/EvaluationPanel.jsx';
 import { useProjects, useSources } from '@/features/knowledge/queries.js';
 import { formatMs, formatUsd } from '@/shared/format.js';
 import { Button, Callout, DemoBadge, Empty, Field, Input, Progress, Select, Skeleton, StatusBadge, toast } from '@/shared/ui/index.js';
+import { notebookRows, repoLink } from './notebooks.js';
 import { StudioFrame } from './parts.jsx';
 import { RAG_METRICS, pct, qualityScore, scatterPoints, studioApi, studioKeys, useCapabilities, useRagEvaluation, useRagEvaluations } from './queries.js';
 
@@ -95,6 +96,7 @@ export function EvaluationsPage() {
         </section>
         {current && <EvaluationDetail wid={wid} id={current} />}
         <EvaluationPanel headingId="studio-rec-eval" />
+        <ResearchNotebooks results={caps.data?.notebooks} />
       </div>
     </StudioFrame>
   );
@@ -194,6 +196,63 @@ function NewEvaluation({ wid, ws, caps, onCreated }) {
         {busy ? 'Queuing…' : `Run ${dataset?.items ?? ''} questions`}
       </Button>
     </form>
+  );
+}
+
+function RepoPath({ path, children }) {
+  const href = repoLink(path);
+  return href ? (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  ) : (
+    <span className="mono subtle">{path}</span>
+  );
+}
+
+function ResearchNotebooks({ results }) {
+  const rows = notebookRows(results);
+  return (
+    <section className="card pad c-12 stack" style={{ gap: 10 }} aria-labelledby="nb-h">
+      <div className="row between">
+        <h2 className="sect-h" id="nb-h" style={{ margin: 0 }}>
+          Research notebooks
+        </h2>
+        <DemoBadge />
+      </div>
+      <p className="subtle" style={{ fontSize: 12.5, margin: 0 }}>
+        Offline studies of retrieval, citations, cost, recommendations and graph traces on synthetic data, run in CI in smoke mode. Findings are from the last committed full run. Guide:{' '}
+        <RepoPath path="docs/notebooks.md">notebook guide</RepoPath>
+      </p>
+      <ol aria-label="Research notebooks" className="stack" style={{ gap: 4, margin: 0, padding: 0, listStyle: 'none' }}>
+        {rows.map((r) => (
+          <li key={r.id}>
+            <details>
+              <summary>
+                <span className="mono subtle">{r.id.slice(0, 2)}</span> <strong>{r.title}</strong> <span className="subtle">· {r.question}</span>
+              </summary>
+              <div className="stack" style={{ gap: 6, padding: '6px 0 6px 24px' }}>
+                {r.run?.findings.length ? (
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12.5 }}>
+                    {r.run.findings.map((f) => (
+                      <li key={f}>{f}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="subtle" style={{ margin: 0, fontSize: 12.5 }}>
+                    No committed results on this server.
+                  </p>
+                )}
+                <p className="subtle" style={{ margin: 0, fontSize: 12 }}>
+                  {r.run?.createdAt ? `Full run ${new Date(r.run.createdAt).toLocaleDateString()} · ` : ''}
+                  <RepoPath path={r.notebook}>notebook with outputs</RepoPath> · <RepoPath path={r.results}>metrics JSON</RepoPath>
+                </p>
+              </div>
+            </details>
+          </li>
+        ))}
+      </ol>
+    </section>
   );
 }
 

@@ -1,0 +1,94 @@
+{
+  "notebook": "10-narrative-dna",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T11:01:37+00:00",
+  "findings": [
+    "Entities: precision 0.79, recall 1.00, kind accuracy 0.72.",
+    "Facts: covered phrasings recall 1.00, uncovered phrasings 0.00: the rules only see the forms they encode; a live model fills the gap.",
+    "Continuity, age (digits): precision 1.00, recall 1.00.",
+    "Continuity, age (words): precision 1.00, recall 1.00.",
+    "Continuity, eye color: precision 1.00, recall 1.00.",
+    "Continuity, hair color: precision 1.00, recall 1.00.",
+    "Cross-reference sentences (another character's trait) are flagged 0% of the time."
+  ],
+  "stories": 200,
+  "extraction": [
+    {
+      "target": "entities",
+      "precision": 0.7888467785598268,
+      "recall": 1.0,
+      "f1": 0.8819612590799032,
+      "kind_accuracy": 0.7185998627316403
+    },
+    {
+      "target": "facts",
+      "precision": 1.0,
+      "recall": 0.7653846153846153,
+      "f1": 0.8671023965141612
+    }
+  ],
+  "factRecall": [
+    {
+      "phrasing": "covered by rules",
+      "facts": 1791,
+      "recall": 1.0
+    },
+    {
+      "phrasing": "not covered",
+      "facts": 549,
+      "recall": 0.0
+    }
+  ],
+  "continuity": [
+    {
+      "fact": "age (digits)",
+      "cases": 482,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "fact": "age (words)",
+      "cases": 590,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "fact": "eye color",
+      "cases": 2575,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "fact": "hair color",
+      "cases": 2546,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "fact": "cross-reference negatives",
+      "cases": 1513,
+      "false_positive_rate": 0.0
+    }
+  ],
+  "falseEntities": [
+    [
+      "Later",
+      134
+    ],
+    [
+      "Nobody",
+      133
+    ],
+    [
+      "Rain",
+      123
+    ]
+  ]
+}

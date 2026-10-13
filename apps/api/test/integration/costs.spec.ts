@@ -278,7 +278,8 @@ describe('rollups, anomalies and the admin overview', () => {
     const u = await registered(app, 'spiky');
     const today = utcDay(new Date());
     for (let i = 1; i <= 14; i++) await final(u.workspaceId, 'mock-grounded', i % 2 ? '1.0' : '1.2', new Date(today.getTime() - i * DAY_MS + 3600_000), { feature: 'grounded_qa', userId: u.userId });
-    await final(u.workspaceId, 'mock-grounded', '9', new Date(Math.min(Date.now(), today.getTime() + 60_000)), { feature: 'grounded_qa', userId: u.userId });
+    // Large enough to stay in the overview's top 8 workspaces in the shared test database.
+    await final(u.workspaceId, 'mock-grounded', '900', new Date(Math.min(Date.now(), today.getTime() + 60_000)), { feature: 'grounded_qa', userId: u.userId });
 
     const first = await a.c.post('/api/admin/costs/rollup', { days: 16 });
     expect(first.status).toBe(200);
@@ -288,7 +289,7 @@ describe('rollups, anomalies and the admin overview', () => {
     await app.get(CostRollupService).rollup(16);
     const twice = await rollups();
     expect(twice.map((r) => r.amount.toString())).toEqual(once.map((r) => r.amount.toString()));
-    expect(twice.at(-1)!.amount.toString()).toBe('9');
+    expect(twice.at(-1)!.amount.toString()).toBe('900');
 
     const anomalies = await prisma.costAnomaly.findMany({ where: { workspaceId: u.workspaceId } });
     expect(anomalies.map((x) => `${x.dimension}:${x.key}`).sort()).toEqual(['feature:grounded_qa', 'total:all']);

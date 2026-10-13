@@ -10,7 +10,7 @@ import { LedgerService } from '../ledger/ledger.service';
 import { ModelsService } from '../models/models.service';
 import { RunExecutorService } from '../runs/run-executor.service';
 import { LAB_FAULTS, RunsService, TERMINAL } from '../runs/runs.service';
-import { GoldenItem, listDatasets, loadDataset } from './datasets';
+import { GoldenItem, listDatasets, listNotebookResults, loadDataset } from './datasets';
 import { aggregate, EvalItemResult, EvalObservation, scoreItem } from './evaluation';
 
 const FAULT_INFO: Record<(typeof LAB_FAULTS)[number], { label: string; effect: string }> = {
@@ -65,7 +65,7 @@ export class StudioService {
     private readonly queues: QueuesService,
   ) {}
 
-  /** What the lab may do here: fault injection flag, usable chat models, golden datasets. */
+  /** What the lab may do here: fault injection flag, usable chat models, golden datasets, notebook findings. */
   async capabilities() {
     const models = (await this.models.list()).filter((m) => m.available && m.capabilities.includes('chat'));
     return {
@@ -74,6 +74,7 @@ export class StudioService {
       models: models.map((m) => ({ id: m.id, displayName: m.displayName, provider: m.provider, isDemo: m.isDemo, isDefault: m.isDefault })),
       judge: { liveModel: models.some((m) => !m.isDemo) },
       datasets: listDatasets(),
+      notebooks: listNotebookResults(),
     };
   }
 

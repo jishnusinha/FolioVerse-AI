@@ -1,0 +1,335 @@
+{
+  "notebook": "11-trace-analytics",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T11:02:00+00:00",
+  "findings": [
+    "Slowest graph: research_writing (p50 42 ms, 6 steps, 2.0 model calls).",
+    "Node with the largest time share: generate (37%); largest token share: draft.",
+    "provider_timeout: finished ANSWERED (attempts: ERROR,OK).",
+    "provider_429: failed with PROVIDER_RATE_LIMIT (retryable=True; attempts: ERROR).",
+    "retrieval_down: failed with RETRIEVAL_UNAVAILABLE (retryable=True; attempts: no model call).",
+    "malformed_output: finished PARTIAL (attempts: OK)."
+  ],
+  "runs": 85,
+  "reps": 5,
+  "graphs": [
+    {
+      "graph": "research_writing",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 6.0,
+      "latency_ms_p50": 42.364013671875,
+      "ttft_ms_p50": 31.352783203125,
+      "model_calls": 2.0,
+      "input_tokens": 368.0,
+      "output_tokens": 162.0
+    },
+    {
+      "graph": "grounded_qa",
+      "runs": 10,
+      "ok": 1.0,
+      "steps": 4.0,
+      "latency_ms_p50": 26.971923828125,
+      "ttft_ms_p50": 18.4725341796875,
+      "model_calls": 1.0,
+      "input_tokens": 323.5,
+      "output_tokens": 20.5
+    },
+    {
+      "graph": "multi_doc_compare",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 5.0,
+      "latency_ms_p50": 21.9970703125,
+      "ttft_ms_p50": 10.995361328125,
+      "model_calls": 1.0,
+      "input_tokens": 336.0,
+      "output_tokens": 61.0
+    },
+    {
+      "graph": "risk_contradiction",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 5.0,
+      "latency_ms_p50": 19.989013671875,
+      "ttft_ms_p50": 8.986083984375,
+      "model_calls": 1.0,
+      "input_tokens": 296.0,
+      "output_tokens": 36.0
+    },
+    {
+      "graph": "knowledge_map",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 5.0,
+      "latency_ms_p50": 19.634033203125,
+      "ttft_ms_p50": null,
+      "model_calls": 1.0,
+      "input_tokens": 720.0,
+      "output_tokens": 152.0
+    },
+    {
+      "graph": "insight",
+      "runs": 10,
+      "ok": 1.0,
+      "steps": 5.0,
+      "latency_ms_p50": 19.369873046875,
+      "ttft_ms_p50": 8.994140625,
+      "model_calls": 1.0,
+      "input_tokens": 299.5,
+      "output_tokens": 95.0
+    },
+    {
+      "graph": "passage_explain",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 4.0,
+      "latency_ms_p50": 10.9970703125,
+      "ttft_ms_p50": 5.997314453125,
+      "model_calls": 1.0,
+      "input_tokens": 210.0,
+      "output_tokens": 9.0
+    },
+    {
+      "graph": "writer_revision",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 2.0,
+      "latency_ms_p50": 8.99609375,
+      "ttft_ms_p50": null,
+      "model_calls": 1.0,
+      "input_tokens": 89.0,
+      "output_tokens": 63.0
+    },
+    {
+      "graph": "continuity_check",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 2.0,
+      "latency_ms_p50": 7.999755859375,
+      "ttft_ms_p50": null,
+      "model_calls": 1.0,
+      "input_tokens": 123.0,
+      "output_tokens": 74.0
+    },
+    {
+      "graph": "dna_extraction",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 2.0,
+      "latency_ms_p50": 7.802001953125,
+      "ttft_ms_p50": null,
+      "model_calls": 1.0,
+      "input_tokens": 286.0,
+      "output_tokens": 60.0
+    },
+    {
+      "graph": "answer_judge",
+      "runs": 5,
+      "ok": 1.0,
+      "steps": 1.0,
+      "latency_ms_p50": 6.0029296875,
+      "ttft_ms_p50": null,
+      "model_calls": 1.0,
+      "input_tokens": 116.0,
+      "output_tokens": 26.0
+    }
+  ],
+  "nodes": [
+    {
+      "node": "generate",
+      "graphs": 1,
+      "calls": 25,
+      "ms_mean": 13.878800000000002,
+      "ms_p95": 64.18799999999999,
+      "time_share": 0.37082122093023256,
+      "token_share": 0.2576549663928305,
+      "errors": 5
+    },
+    {
+      "node": "retrieve",
+      "graphs": 1,
+      "calls": 30,
+      "ms_mean": 8.247,
+      "ms_p95": 12.930499999999997,
+      "time_share": 0.26441732216142266,
+      "token_share": 0.0,
+      "errors": 5
+    },
+    {
+      "node": "validate_citations",
+      "graphs": 7,
+      "calls": 55,
+      "ms_mean": 2.010181818181818,
+      "ms_p95": 4.518,
+      "time_share": 0.11816005471956224,
+      "token_share": 0.0,
+      "errors": 0
+    },
+    {
+      "node": "draft",
+      "graphs": 5,
+      "calls": 30,
+      "ms_mean": 3.1293333333333333,
+      "ms_p95": 4.462000000000001,
+      "time_share": 0.10033344733242133,
+      "token_share": 0.5315533980582524,
+      "errors": 0
+    },
+    {
+      "node": "research",
+      "graphs": 1,
+      "calls": 10,
+      "ms_mean": 8.092,
+      "ms_p95": 9.308,
+      "time_share": 0.08648255813953488,
+      "token_share": 0.0,
+      "errors": 0
+    },
+    {
+      "node": "gather",
+      "graphs": 4,
+      "calls": 25,
+      "ms_mean": 0.48479999999999995,
+      "ms_p95": 0.698,
+      "time_share": 0.012953146374829,
+      "token_share": 0.0,
+      "errors": 0
+    },
+    {
+      "node": "assemble",
+      "graphs": 4,
+      "calls": 25,
+      "ms_mean": 0.3676,
+      "ms_p95": 2.1319999999999983,
+      "time_share": 0.00982173392612859,
+      "token_share": 0.0,
+      "errors": 0
+    },
+    {
+      "node": "finalize",
+      "graphs": 10,
+      "calls": 70,
+      "ms_mean": 0.11542857142857144,
+      "ms_p95": 0.17,
+      "time_share": 0.008635430916552667,
+      "token_share": 0.0,
+      "errors": 0
+    },
+    {
+      "node": "extract",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 1.508,
+      "ms_p95": 2.456,
+      "time_share": 0.00805831053351573,
+      "token_share": 0.06460044809559373,
+      "errors": 0
+    },
+    {
+      "node": "revise",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 0.8640000000000001,
+      "ms_p95": 1.7079999999999997,
+      "time_share": 0.004616963064295486,
+      "token_share": 0.028379387602688575,
+      "errors": 0
+    },
+    {
+      "node": "check",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 0.8160000000000001,
+      "ms_p95": 1.216,
+      "time_share": 0.00436046511627907,
+      "token_share": 0.03678117998506348,
+      "errors": 0
+    },
+    {
+      "node": "explain",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 0.6940000000000001,
+      "ms_p95": 0.96,
+      "time_share": 0.003708532831737346,
+      "token_share": 0.04088872292755788,
+      "errors": 0
+    },
+    {
+      "node": "judge",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 0.6719999999999999,
+      "ms_p95": 0.774,
+      "time_share": 0.0035909712722298217,
+      "token_share": 0.026512322628827484,
+      "errors": 0
+    },
+    {
+      "node": "plan",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 0.45999999999999996,
+      "ms_p95": 0.588,
+      "time_share": 0.0024581053351573185,
+      "token_share": 0.01362957430918596,
+      "errors": 0
+    },
+    {
+      "node": "gather_context",
+      "graphs": 1,
+      "calls": 5,
+      "ms_mean": 0.296,
+      "ms_p95": 0.358,
+      "time_share": 0.0015817373461012312,
+      "token_share": 0.0,
+      "errors": 0
+    }
+  ],
+  "failures": [
+    {
+      "inject": "provider_timeout",
+      "terminal": "run.finished",
+      "errorClass": null,
+      "retryable": null,
+      "outcome": "ANSWERED",
+      "attempts": 2,
+      "attempt_status": "ERROR,OK",
+      "errored_nodes": 0
+    },
+    {
+      "inject": "provider_429",
+      "terminal": "run.failed",
+      "errorClass": "PROVIDER_RATE_LIMIT",
+      "retryable": true,
+      "outcome": null,
+      "attempts": 1,
+      "attempt_status": "ERROR",
+      "errored_nodes": 1
+    },
+    {
+      "inject": "retrieval_down",
+      "terminal": "run.failed",
+      "errorClass": "RETRIEVAL_UNAVAILABLE",
+      "retryable": true,
+      "outcome": null,
+      "attempts": 0,
+      "attempt_status": "",
+      "errored_nodes": 1
+    },
+    {
+      "inject": "malformed_output",
+      "terminal": "run.finished",
+      "errorClass": null,
+      "retryable": null,
+      "outcome": "PARTIAL",
+      "attempts": 1,
+      "attempt_status": "OK",
+      "errored_nodes": 0
+    }
+  ]
+}

@@ -45,6 +45,9 @@ NUMBER_WORDS = {
     "eleven",
     "twelve",
 }
+# Fact keys that prose rarely names outright ("was 34 years old" never says "age").
+KEY_ALIASES = {"age": ["age", "years old", "aged"]}
+_POSSESSIVE = re.compile(r"\b([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)['\u2019]s\b")
 
 
 class WriterState(TypedDict, total=False):
@@ -182,26 +185,30 @@ def detect_conflicts(text: str, canon: list[dict]) -> list[dict]:
         first = name.split()[0] if name else ""
         for key, expected in (ent.get("facts") or {}).items():
             exp = str(expected).lower()
-            key_words = [w for w in re.findall(r"[a-z]+", key.lower()) if len(w) > 2]
+            key_words = KEY_ALIASES.get(key.lower().strip()) or [
+                w for w in re.findall(r"[a-z]+", key.lower()) if len(w) > 2
+            ]
+            numeric = exp in NUMBER_WORDS or exp.isdigit()
+            own = {n.lower() for n in names + [first] if n}
             for s in sents:
                 low = s.lower()
-                if not any(n and n.lower() in low for n in names + [first]):
+                if not any(n in low for n in own):
                     continue
                 if not any(k in low or k.rstrip("s") in low for k in key_words):
                     continue
-                if exp in low:
+                # "Mara stared at Jonas's grey eyes": the trait belongs to someone else.
+                owners = {m.lower() for m in _POSSESSIVE.findall(s)}
+                if owners and not owners & own:
                     continue
-                vocab = (
-                    COLORS
-                    if exp in COLORS
-                    else NUMBER_WORDS
-                    if exp in NUMBER_WORDS or exp.isdigit()
-                    else None
-                )
+                words = re.findall(r"[a-z0-9]+", low)
+                if exp in words:
+                    continue
                 found = None
-                if vocab:
-                    found = next((w for w in re.findall(r"[a-z]+", low) if w in vocab and w != exp), None)
-                if vocab and found:
+                if exp in COLORS:
+                    found = next((w for w in words if w in COLORS), None)
+                elif numeric:
+                    found = next((w for w in words if w in NUMBER_WORDS or w.isdigit()), None)
+                if found:
                     issues.append(
                         {
                             "entityId": ent.get("id"),

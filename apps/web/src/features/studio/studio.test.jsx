@@ -216,4 +216,15 @@ describe('Studio tools', () => {
     expect(screen.getByRole('img', { name: 'Cost versus quality for 1 evaluation runs' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Offline evaluation' })).toBeInTheDocument();
   });
+
+  it('lists the research notebooks with their committed findings', async () => {
+    installFakeFetch(createFakeApi());
+    renderApp('/app/studio/evaluations');
+    const list = await screen.findByRole('list', { name: 'Research notebooks' });
+    expect(list.querySelectorAll(':scope > li')).toHaveLength(11);
+    expect(await within(list).findByText(/the constant is not critical/)).toBeInTheDocument();
+    expect(within(list).getAllByText('No committed results on this server.')).toHaveLength(10);
+    expect(within(list).getByText('ml-notebooks/03_hybrid_retrieval_rrf.ipynb')).toBeInTheDocument();
+    expect(within(list).getByText('datasets/evaluation/results/nb-03-hybrid-retrieval-rrf.json')).toBeInTheDocument();
+  });
 });

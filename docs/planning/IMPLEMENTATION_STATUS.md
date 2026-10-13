@@ -492,7 +492,38 @@ shellcheck) clean for `ci.yml` and `release.yml`.
 Not done: any GCP deployment, release run or cloud backup (BLOCKED: no project, credentials or GitHub remote);
 Grafana dashboards rendered in a running LGTM container; local rebuild of the api and ai images.
 
-## Gates 11–13 — PLANNED
+## Gate 11 — Research Notebooks — DONE locally (Kaggle publishing BLOCKED: no account; CI workflow not run: no remote)
+
+Validation: `pnpm kaggle:smoke` 11/11 in 196 s (slowest notebook 28.8 s, budget 120 s each); full mode
+(`run-smoke.mjs --full`, fastembed models downloaded) 11/11 in 929 s; ruff check and format clean on
+`ml-notebooks` (`.py` sources); ai-service pytest 106/106 (`test_continuity_rules.py` 3 new), ruff clean;
+folioverse-ml 11/11; `contracts:check` OK; API `tsc` 0, eslint clean, unit 92/92, integration 226/226; web
+`vitest run` 310/310, `eslint src playwright` clean, `tsc` clean, `vite build` OK; actionlint clean for
+`kaggle-smoke.yml`.
+
+- `FV-G11-NB-001..011` Notebooks — DONE (D-103, D-104, D-107). `ml-notebooks/01..11_*.py` (jupytext percent) with
+  paired `.ipynb` holding the last full run's outputs; shared `fvnb.py` (hermetic setup, `arun`, `finding`, `save`)
+  and `requirements.txt`; data from `datasets/synthetic` and `datasets/evaluation` only; results in
+  `datasets/evaluation/results/nb-*.json` (committed, `isDemo: true`), smoke results git-ignored. Headline full-run
+  numbers (synthetic data): bge-small nDCG@10 0.288 vs hash 0.113; RRF 0.320 vs best single list 0.380; cross-encoder
+  rerank +0.193 nDCG@10; citation validator precision 0.977 / recall 0.838 at 0.45; `grounded_qa` 54% supported,
+  100% VALID citations, 25% of unanswerable questions abstained (hash embedder); served recommender nDCG@10 0.089 vs
+  popularity 0.032; continuity rules precision and recall 1.00 after the fix below.
+- `FV-G11-CI` `.github/workflows/kaggle-smoke.yml` — DONE as code; not run on GitHub (no remote). Manual dispatch and
+  path-filtered pull requests; ruff, smoke run, artifacts.
+- `FV-G11-LINK-012` Studio and docs — DONE (D-106). `GET /api/workspaces/:id/studio/capabilities` returns
+  `notebooks` from the committed results; AI Studio → Evaluations shows a *Research notebooks* card (question,
+  date, findings, repository links with `VITE_REPO_URL`); `docs/notebooks.md` lists the notebooks and key findings.
+- Defects found and fixed: `writer.detect_conflicts` ignored age facts and digit values, matched colours inside
+  other words and flagged other characters' traits (D-105); the costs rollup integration test assumed its workspace
+  was in the overview's top 8 in the shared test database and failed in full-suite runs (spike raised to 900 DEMO
+  USD); notebook outputs leaked the local install path through a tqdm warning and the displayed `save()` return
+  value (warning filtered, `save` returns nothing, committed outputs cleaned).
+
+Not done: publishing to Kaggle (BLOCKED: no account or API token); a GitHub Actions run of `kaggle-smoke.yml`
+(BLOCKED: no remote). Full-mode latency figures (cross-encoder 0.5–1 s per query) depend on machine load.
+
+## Gates 12–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.
@@ -501,4 +532,5 @@ Grafana dashboards rendered in a running LGTM container; local rebuild of the ap
   follow `infrastructure/runbooks/deploy.md`. GCP Billing export to BigQuery (`FV_GCP_BILLING_TABLE`) — BLOCKED;
   manual cloud cost entry is the fallback.
 - GitHub remote + Actions — BLOCKED.
-- Kaggle account — BLOCKED (notebooks run locally only).
+- Kaggle account — BLOCKED (notebooks run locally and in `kaggle-smoke.yml`; manual Kaggle steps in
+  `ml-notebooks/README.md`).

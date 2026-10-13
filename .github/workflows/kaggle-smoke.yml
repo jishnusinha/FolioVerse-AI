@@ -1,0 +1,56 @@
+name: Notebooks smoke (Kaggle mode)
+
+# Executes the eleven ml-notebooks with jupytext in KAGGLE_SMOKE mode (tiny samples, 120 s budget each).
+# Runs on demand and when the notebooks or the code they exercise change. Publishing to Kaggle itself needs
+# a Kaggle account and is not part of CI.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'ml-notebooks/**'
+      - 'apps/ai-service/folioverse_ai/**'
+      - 'packages/folioverse-ml/**'
+      - 'packages/contracts/fixtures/**'
+      - 'datasets/**'
+      - 'config/models/**'
+      - 'uv.lock'
+      - '.github/workflows/kaggle-smoke.yml'
+
+concurrency:
+  group: kaggle-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # Notebooks use the mock model and the hash embedder; no provider keys exist here.
+  FV_LIVE_PROVIDER_TESTS: "0"
+  OPENAI_API_KEY: ""
+
+jobs:
+  notebooks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with: { enable-cache: true }
+      - run: uv python install 3.12
+      - run: uv sync --all-packages --extra dev --extra notebooks --frozen
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - name: Ruff (notebooks)
+        run: uv run ruff check ml-notebooks && uv run ruff format --check ml-notebooks
+      - name: Execute notebooks (jupytext --execute, smoke mode)
+        run: node ml-notebooks/run-smoke.mjs --out notebook-runs
+        env:
+          FV_UV: uv
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: notebook-smoke
+          path: |
+            notebook-runs
+            datasets/evaluation/results/smoke
+          retention-days: 14

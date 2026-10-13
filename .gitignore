@@ -31,6 +31,8 @@ test-results/
 apps/web/playwright/.auth/
 ml-notebooks/.ipynb_checkpoints/
 datasets/evaluation/results/*.tmp
+datasets/evaluation/results/smoke/
+notebook-runs/
 infrastructure/terraform/**/.terraform/
 infrastructure/terraform/**/*.tfstate*
 infrastructure/terraform/**/terraform.tfvars

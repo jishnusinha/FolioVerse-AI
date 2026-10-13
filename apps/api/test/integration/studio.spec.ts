@@ -145,6 +145,9 @@ describe('ai studio (gate 8)', () => {
     expect(caps.body.faults.map((f: any) => f.id)).toEqual(['provider_timeout', 'provider_429', 'malformed_output', 'retrieval_down']);
     expect(caps.body.datasets).toEqual([expect.objectContaining({ id: 'qa-small', items: 12, answerable: 10, doc: 'atlas-brief.pdf' })]);
     expect(caps.body.judge).toEqual({ liveModel: false });
+    const notebooks = caps.body.notebooks as { name: string; smoke: boolean; findings: string[] }[];
+    expect(notebooks.map((n) => n.name)).toEqual(expect.arrayContaining(['03-hybrid-retrieval-rrf', '06-rag-evaluation']));
+    expect(notebooks.every((n) => !n.smoke && n.findings.length > 0)).toBe(true);
 
     const q = { graph: 'grounded_qa', input: { question: 'What is the base-case annual growth rate between 2026 and 2030?' }, scope: { sourceIds: [w.atlas.sourceId] } };
     expect((await w.c.post(`${w.base}/runs`, { ...q, fallbackModels: ['mock-concise'] })).body.code).toBe('LAB_ONLY');

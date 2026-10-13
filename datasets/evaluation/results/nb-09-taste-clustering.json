@@ -1,0 +1,137 @@
+{
+  "notebook": "09-taste-clustering",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T11:01:14+00:00",
+  "findings": [
+    "Best silhouette at k=5 (0.107); ARI with users' dominant genre 0.405.",
+    "All silhouettes are below 0.25 (range 0.029 across k): tastes form a continuum with mixed-genre users, not well-separated segments; the chosen k is a coarse split.",
+    "Bootstrap ARI 0.85 (min 0.56): stable segments.",
+    "Segment popularity hit@10 0.297 vs global popularity 0.190."
+  ],
+  "users": 300,
+  "kSweep": [
+    {
+      "k": 2,
+      "silhouette": 0.10651770517296921,
+      "inertia": 146.43589310503054,
+      "ari_vs_dominant_genre": 0.14619128181318383
+    },
+    {
+      "k": 3,
+      "silhouette": 0.10638101600788015,
+      "inertia": 135.43577304994102,
+      "ari_vs_dominant_genre": 0.2632727551611284
+    },
+    {
+      "k": 4,
+      "silhouette": 0.1062732224963345,
+      "inertia": 127.70026000531534,
+      "ari_vs_dominant_genre": 0.3447204755791666
+    },
+    {
+      "k": 5,
+      "silhouette": 0.1068052595640963,
+      "inertia": 121.42455751633652,
+      "ari_vs_dominant_genre": 0.4051540131677077
+    },
+    {
+      "k": 6,
+      "silhouette": 0.10491229836204423,
+      "inertia": 116.456523948631,
+      "ari_vs_dominant_genre": 0.4653127765554466
+    },
+    {
+      "k": 7,
+      "silhouette": 0.1058445061869539,
+      "inertia": 113.24188510644312,
+      "ari_vs_dominant_genre": 0.5163295554497447
+    },
+    {
+      "k": 8,
+      "silhouette": 0.08841473644798511,
+      "inertia": 111.13336887609918,
+      "ari_vs_dominant_genre": 0.42951491344783815
+    },
+    {
+      "k": 9,
+      "silhouette": 0.0939748148519804,
+      "inertia": 108.27095653705689,
+      "ari_vs_dominant_genre": 0.5869239562216291
+    },
+    {
+      "k": 10,
+      "silhouette": 0.07818594496279549,
+      "inertia": 106.55261324268919,
+      "ari_vs_dominant_genre": 0.4455336567899451
+    },
+    {
+      "k": 11,
+      "silhouette": 0.07978871796072191,
+      "inertia": 105.42667091984883,
+      "ari_vs_dominant_genre": 0.4572664230525723
+    },
+    {
+      "k": 12,
+      "silhouette": 0.07752106600260128,
+      "inertia": 103.77936659231301,
+      "ari_vs_dominant_genre": 0.44869676435399686
+    }
+  ],
+  "k": 5,
+  "clusters": [
+    {
+      "cluster": 0,
+      "users": 42,
+      "genres": "Thriller \u00d72.9, Sci-fi \u00d71.4",
+      "themes": "signals \u00d73.4, dystopia \u00d72.7, artificial minds \u00d72.6",
+      "mean_profile_size": 16.952380952380953
+    },
+    {
+      "cluster": 1,
+      "users": 53,
+      "genres": "Mystery \u00d72.9, Thriller \u00d70.9",
+      "themes": "heists \u00d72.7, detectives \u00d72.7, cities \u00d72.4",
+      "mean_profile_size": 17.07547169811321
+    },
+    {
+      "cluster": 2,
+      "users": 94,
+      "genres": "Historical \u00d71.8, Fantasy \u00d71.7",
+      "themes": "revolution \u00d71.9, journeys \u00d71.9, exploration \u00d71.9",
+      "mean_profile_size": 18.70212765957447
+    },
+    {
+      "cluster": 3,
+      "users": 46,
+      "genres": "Horror \u00d73.4, Literary \u00d70.9",
+      "themes": "haunted houses \u00d73.7, grief \u00d73.0, mythic creatures \u00d72.6",
+      "mean_profile_size": 18.26086956521739
+    },
+    {
+      "cluster": 4,
+      "users": 65,
+      "genres": "Romance \u00d72.1, Literary \u00d71.3",
+      "themes": "music \u00d72.6, second chances \u00d72.1, first love \u00d72.0",
+      "mean_profile_size": 19.06153846153846
+    }
+  ],
+  "stability": {
+    "bootstraps": 30,
+    "ari_mean": 0.853471097022288,
+    "ari_min": 0.5557206576377605,
+    "ari_max": 0.9598695978957668
+  },
+  "usefulness": [
+    {
+      "recommender": "global popularity",
+      "hit@10": 0.19
+    },
+    {
+      "recommender": "segment popularity",
+      "hit@10": 0.2966666666666667
+    }
+  ]
+}

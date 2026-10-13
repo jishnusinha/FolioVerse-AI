@@ -1,0 +1,191 @@
+{
+  "notebook": "08-recsys",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T11:00:53+00:00",
+  "findings": [
+    "Served hybrid+MMR nDCG@10 0.089 vs popularity 0.032, NMF 0.052.",
+    "MMR (\u03bb=0.7) changes nDCG by -0.014 and diversity by +0.060; coverage 0.90 -> 0.91.",
+    "Most important factor: theme (removing it changes nDCG by -0.014).",
+    "Popularity bias (0.5 = none): popularity 0.99, served 0.62."
+  ],
+  "k": 10,
+  "users": 300,
+  "modelTraining": {
+    "items": 530,
+    "users": 300,
+    "interactions": 5454,
+    "cfReconstructionErr": 57.1608
+  },
+  "variants": [
+    {
+      "name": "popularity",
+      "label": "Most popular (baseline)",
+      "precision": 0.0193,
+      "recall": 0.0427,
+      "ndcg": 0.0324,
+      "hitRate": 0.18,
+      "coverage": 0.0302,
+      "diversity": 0.888,
+      "novelty": 3.531,
+      "popularityPercentile": 0.9902
+    },
+    {
+      "name": "item_knn",
+      "label": "Item-kNN collaborative filtering",
+      "precision": 0.038,
+      "recall": 0.0889,
+      "ndcg": 0.0677,
+      "hitRate": 0.33,
+      "coverage": 0.8472,
+      "diversity": 0.8357,
+      "novelty": 4.46,
+      "popularityPercentile": 0.6836
+    },
+    {
+      "name": "nmf",
+      "label": "NMF collaborative filtering",
+      "precision": 0.034,
+      "recall": 0.0737,
+      "ndcg": 0.0522,
+      "hitRate": 0.2967,
+      "coverage": 0.7226,
+      "diversity": 0.8428,
+      "novelty": 4.367,
+      "popularityPercentile": 0.7297
+    },
+    {
+      "name": "content",
+      "label": "Content only (semantic + TF-IDF + themes)",
+      "precision": 0.061,
+      "recall": 0.146,
+      "ndcg": 0.1044,
+      "hitRate": 0.4867,
+      "coverage": 0.9415,
+      "diversity": 0.6758,
+      "novelty": 4.805,
+      "popularityPercentile": 0.5347
+    },
+    {
+      "name": "hybrid",
+      "label": "Hybrid, no diversification",
+      "precision": 0.0587,
+      "recall": 0.1395,
+      "ndcg": 0.1035,
+      "hitRate": 0.4467,
+      "coverage": 0.8981,
+      "diversity": 0.7015,
+      "novelty": 4.611,
+      "popularityPercentile": 0.618
+    },
+    {
+      "name": "hybrid_mmr",
+      "label": "Hybrid + MMR (served)",
+      "precision": 0.0497,
+      "recall": 0.1158,
+      "ndcg": 0.0894,
+      "hitRate": 0.4,
+      "coverage": 0.9132,
+      "diversity": 0.7611,
+      "novelty": 4.627,
+      "popularityPercentile": 0.6151
+    }
+  ],
+  "factorAblation": [
+    {
+      "variant": "all factors",
+      "ndcg": 0.1034666204453688,
+      "hitRate": 0.44666666666666666,
+      "diversity": 0.7015410870313644
+    },
+    {
+      "variant": "without semantic",
+      "ndcg": 0.09770957171994761,
+      "hitRate": 0.4533333333333333,
+      "diversity": 0.7456184160709382,
+      "delta_ndcg": -0.005757048725421196
+    },
+    {
+      "variant": "without tfidf",
+      "ndcg": 0.10207307580684144,
+      "hitRate": 0.46,
+      "diversity": 0.7101023344198862,
+      "delta_ndcg": -0.0013935446385273664
+    },
+    {
+      "variant": "without theme",
+      "ndcg": 0.0893538053841419,
+      "hitRate": 0.41333333333333333,
+      "diversity": 0.72120672305425,
+      "delta_ndcg": -0.014112815061226913
+    },
+    {
+      "variant": "without preference",
+      "ndcg": 0.10595414518797543,
+      "hitRate": 0.4766666666666667,
+      "diversity": 0.6760388815402985,
+      "delta_ndcg": 0.00248752474260662
+    },
+    {
+      "variant": "without prior",
+      "ndcg": 0.10082397834712949,
+      "hitRate": 0.43,
+      "diversity": 0.6991007341941198,
+      "delta_ndcg": -0.00264264209823932
+    }
+  ],
+  "mmrSweep": [
+    {
+      "lambda": 1.0,
+      "ndcg": 0.1034666204453688,
+      "hitRate": 0.44666666666666666,
+      "diversity": 0.7015410870313644
+    },
+    {
+      "lambda": 0.9,
+      "ndcg": 0.09286224500374357,
+      "hitRate": 0.43,
+      "diversity": 0.7252087380488713
+    },
+    {
+      "lambda": 0.7,
+      "ndcg": 0.08940965888395025,
+      "hitRate": 0.4,
+      "diversity": 0.7611309220393498
+    },
+    {
+      "lambda": 0.5,
+      "ndcg": 0.08502220539991455,
+      "hitRate": 0.4,
+      "diversity": 0.823542565703392
+    },
+    {
+      "lambda": 0.3,
+      "ndcg": 0.059923638293384325,
+      "hitRate": 0.26666666666666666,
+      "diversity": 0.9077532327175141
+    }
+  ],
+  "coldStart": [
+    {
+      "profile": "small (<=14)",
+      "users": 105,
+      "hybrid_ndcg": 0.08992669870744675,
+      "hybrid_hitRate": 0.3523809523809524
+    },
+    {
+      "profile": "medium",
+      "users": 108,
+      "hybrid_ndcg": 0.094527546359261,
+      "hybrid_hitRate": 0.39814814814814814
+    },
+    {
+      "profile": "large (>22)",
+      "users": 87,
+      "hybrid_ndcg": 0.08243240567934458,
+      "hybrid_hitRate": 0.45977011494252873
+    }
+  ]
+}

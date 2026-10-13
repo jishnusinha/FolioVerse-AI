@@ -1,0 +1,231 @@
+{
+  "notebook": "05-citation-validation",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T10:58:56+00:00",
+  "findings": [
+    "Golden fixtures: 6/6 pass.",
+    "At the production threshold 0.45: precision 0.977, recall 0.838, F1 0.902.",
+    "Best F1 0.966 at threshold 0.25; that optimum depends on this synthetic mix of paraphrases and negatives, so it is a sensitivity check, not a recommendation to move the contract threshold.",
+    "Paraphrase keeping 80% of content words: 99% VALID (mean score 0.81).",
+    "Paraphrase keeping 60% of content words: 86% VALID (mean score 0.63).",
+    "Paraphrase keeping 40% of content words: 50% VALID (mean score 0.45).",
+    "Swapped markers between same-genre passages are marked VALID 5% of the time: passages with shared wording fool a lexical check, which is why the UI shows the supporting quote for review."
+  ],
+  "threshold": 0.45,
+  "fixtures": [
+    {
+      "case": "single_valid",
+      "pass": true
+    },
+    {
+      "case": "unknown_marker",
+      "pass": true
+    },
+    {
+      "case": "weak_support",
+      "pass": true
+    },
+    {
+      "case": "multiple_markers_one_sentence",
+      "pass": true
+    },
+    {
+      "case": "repeated_marker_takes_best",
+      "pass": true
+    },
+    {
+      "case": "no_markers",
+      "pass": true
+    }
+  ],
+  "examples": 2800,
+  "perCase": [
+    {
+      "case": "correct",
+      "n": 400,
+      "VALID": 1.0,
+      "WEAK": 0.0,
+      "UNRESOLVED": 0.0,
+      "mean_score": 1.0
+    },
+    {
+      "case": "paraphrase-0.8",
+      "n": 400,
+      "VALID": 0.9925,
+      "WEAK": 0.0075,
+      "UNRESOLVED": 0.0,
+      "mean_score": 0.80649775
+    },
+    {
+      "case": "paraphrase-0.6",
+      "n": 400,
+      "VALID": 0.855,
+      "WEAK": 0.145,
+      "UNRESOLVED": 0.0,
+      "mean_score": 0.629378
+    },
+    {
+      "case": "paraphrase-0.4",
+      "n": 400,
+      "VALID": 0.5025,
+      "WEAK": 0.4975,
+      "UNRESOLVED": 0.0,
+      "mean_score": 0.45246200000000003
+    },
+    {
+      "case": "swapped",
+      "n": 400,
+      "VALID": 0.0475,
+      "WEAK": 0.9525,
+      "UNRESOLVED": 0.0,
+      "mean_score": 0.09600175
+    },
+    {
+      "case": "fabricated",
+      "n": 400,
+      "VALID": 0.03,
+      "WEAK": 0.97,
+      "UNRESOLVED": 0.0,
+      "mean_score": 0.05746125
+    },
+    {
+      "case": "unknown",
+      "n": 400,
+      "VALID": 0.0,
+      "WEAK": 0.0,
+      "UNRESOLVED": 1.0,
+      "mean_score": 0.0
+    }
+  ],
+  "atProduction": {
+    "threshold": 0.45,
+    "precision": 0.9773887673231219,
+    "recall": 0.8375,
+    "f1": 0.9020531807472232
+  },
+  "bestF1": {
+    "threshold": 0.25,
+    "precision": 0.9587692307692308,
+    "recall": 0.97375,
+    "f1": 0.9662015503875968
+  },
+  "curve": [
+    {
+      "threshold": 0.05,
+      "precision": 0.8331595411887383,
+      "recall": 0.99875,
+      "f1": 0.908470722001137
+    },
+    {
+      "threshold": 0.1,
+      "precision": 0.8613807982740022,
+      "recall": 0.998125,
+      "f1": 0.9247249565720903
+    },
+    {
+      "threshold": 0.15,
+      "precision": 0.9356172474896634,
+      "recall": 0.99,
+      "f1": 0.962040692377771
+    },
+    {
+      "threshold": 0.2,
+      "precision": 0.9454763331336129,
+      "recall": 0.98625,
+      "f1": 0.9654328540838175
+    },
+    {
+      "threshold": 0.25,
+      "precision": 0.9587692307692308,
+      "recall": 0.97375,
+      "f1": 0.9662015503875968
+    },
+    {
+      "threshold": 0.3,
+      "precision": 0.9636942675159236,
+      "recall": 0.945625,
+      "f1": 0.9545741324921136
+    },
+    {
+      "threshold": 0.35,
+      "precision": 0.9638157894736842,
+      "recall": 0.915625,
+      "f1": 0.9391025641025641
+    },
+    {
+      "threshold": 0.4,
+      "precision": 0.9692832764505119,
+      "recall": 0.8875,
+      "f1": 0.9265905383360521
+    },
+    {
+      "threshold": 0.45,
+      "precision": 0.9773887673231219,
+      "recall": 0.8375,
+      "f1": 0.9020531807472232
+    },
+    {
+      "threshold": 0.5,
+      "precision": 0.9790104947526237,
+      "recall": 0.81625,
+      "f1": 0.8902522154055897
+    },
+    {
+      "threshold": 0.55,
+      "precision": 0.9860197368421053,
+      "recall": 0.749375,
+      "f1": 0.8515625
+    },
+    {
+      "threshold": 0.6,
+      "precision": 0.9901960784313726,
+      "recall": 0.694375,
+      "f1": 0.816311535635562
+    },
+    {
+      "threshold": 0.65,
+      "precision": 0.995987963891675,
+      "recall": 0.620625,
+      "f1": 0.7647285329226031
+    },
+    {
+      "threshold": 0.7,
+      "precision": 0.9966996699669967,
+      "recall": 0.56625,
+      "f1": 0.7222000797130331
+    },
+    {
+      "threshold": 0.75,
+      "precision": 0.9975845410628019,
+      "recall": 0.51625,
+      "f1": 0.6803953871499177
+    },
+    {
+      "threshold": 0.8,
+      "precision": 0.9971139971139971,
+      "recall": 0.431875,
+      "f1": 0.6027038813781073
+    },
+    {
+      "threshold": 0.85,
+      "precision": 0.9967479674796748,
+      "recall": 0.383125,
+      "f1": 0.5534988713318284
+    },
+    {
+      "threshold": 0.9,
+      "precision": 0.9980353634577603,
+      "recall": 0.3175,
+      "f1": 0.48174490279753435
+    },
+    {
+      "threshold": 0.95,
+      "precision": 0.9977876106194691,
+      "recall": 0.281875,
+      "f1": 0.43957115009746583
+    }
+  ]
+}

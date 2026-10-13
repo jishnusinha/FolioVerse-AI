@@ -1,0 +1,170 @@
+{
+  "notebook": "01-parsing-chunking",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T10:46:52+00:00",
+  "findings": [
+    "Lowest offset accuracy: atlas-brief.pdf at 100.0% of elements.",
+    "Evidence intact at the served child size (300 tokens): 100%.",
+    "EPUB chunks crossing a chapter boundary: 0% (must be 0).",
+    "Largest child: 343 tokens (cap 300 plus overlap)."
+  ],
+  "parsing": [
+    {
+      "file": "atlas-brief.pdf",
+      "pages": 3,
+      "elements": 12,
+      "kinds": "paragraph 9, heading 3",
+      "offset_exact": 1.0,
+      "with_heading": 0.75,
+      "with_bbox": 1.0,
+      "with_cfi": 0.0,
+      "failed_pages": 0,
+      "parse_ms": 274.0297999989707
+    },
+    {
+      "file": "small-lanterns.epub",
+      "pages": 4,
+      "elements": 21,
+      "kinds": "paragraph 17, heading 4",
+      "offset_exact": 1.0,
+      "with_heading": 1.0,
+      "with_bbox": 0.0,
+      "with_cfi": 1.0,
+      "failed_pages": 0,
+      "parse_ms": 46.32999998284504
+    },
+    {
+      "file": "catalog-notes.docx",
+      "pages": 19,
+      "elements": 490,
+      "kinds": "heading 249, paragraph 240, table 1",
+      "offset_exact": 1.0,
+      "with_heading": 0.9979591836734694,
+      "with_bbox": 0.0,
+      "with_cfi": 0.0,
+      "failed_pages": 0,
+      "parse_ms": 1751.57809999655
+    },
+    {
+      "file": "catalog-notes.md",
+      "pages": 19,
+      "elements": 489,
+      "kinds": "heading 249, paragraph 240",
+      "offset_exact": 1.0,
+      "with_heading": 0.9979550102249489,
+      "with_bbox": 0.0,
+      "with_cfi": 0.0,
+      "failed_pages": 0,
+      "parse_ms": 9.91779999458231
+    },
+    {
+      "file": "catalog-notes.txt",
+      "pages": 17,
+      "elements": 240,
+      "kinds": "paragraph 240",
+      "offset_exact": 1.0,
+      "with_heading": 0.0,
+      "with_bbox": 0.0,
+      "with_cfi": 0.0,
+      "failed_pages": 0,
+      "parse_ms": 4.584899987094104
+    }
+  ],
+  "chunking": [
+    {
+      "file": "atlas-brief.pdf",
+      "parents": 1,
+      "children": 1,
+      "child_p50": 222.0,
+      "child_p95": 222.0,
+      "child_max": 222,
+      "overlap": 0.0,
+      "locator_page": 1.0,
+      "cross_page": 1.0,
+      "page_breaks_enforced": false
+    },
+    {
+      "file": "small-lanterns.epub",
+      "parents": 4,
+      "children": 4,
+      "child_p50": 146.0,
+      "child_p95": 177.89999999999998,
+      "child_max": 183,
+      "overlap": 0.0,
+      "locator_page": 1.0,
+      "cross_page": 0.0,
+      "page_breaks_enforced": true
+    },
+    {
+      "file": "catalog-notes.docx",
+      "parents": 9,
+      "children": 42,
+      "child_p50": 298.5,
+      "child_p95": 339.0,
+      "child_max": 343,
+      "overlap": 0.1616213446393991,
+      "locator_page": 1.0,
+      "cross_page": 0.42857142857142855,
+      "page_breaks_enforced": false
+    },
+    {
+      "file": "catalog-notes.md",
+      "parents": 9,
+      "children": 42,
+      "child_p50": 298.5,
+      "child_p95": 339.0,
+      "child_max": 343,
+      "overlap": 0.16881502052872716,
+      "locator_page": 1.0,
+      "cross_page": 0.42857142857142855,
+      "page_breaks_enforced": false
+    },
+    {
+      "file": "catalog-notes.txt",
+      "parents": 8,
+      "children": 39,
+      "child_p50": 304.0,
+      "child_p95": 324.4,
+      "child_max": 331,
+      "overlap": 0.17668819957955645,
+      "locator_page": 1.0,
+      "cross_page": 0.41025641025641024,
+      "page_breaks_enforced": false
+    }
+  ],
+  "evidenceIntegrity": 1.0,
+  "childSizeSweep": [
+    {
+      "child_tokens": 80,
+      "md_children": 172,
+      "md_mean_tokens": 61.58139534883721,
+      "pdf_children": 4,
+      "evidence_intact": 1.0
+    },
+    {
+      "child_tokens": 150,
+      "md_children": 83,
+      "md_mean_tokens": 124.90361445783132,
+      "pdf_children": 2,
+      "evidence_intact": 1.0
+    },
+    {
+      "child_tokens": 300,
+      "md_children": 42,
+      "md_mean_tokens": 265.1190476190476,
+      "pdf_children": 1,
+      "evidence_intact": 1.0
+    },
+    {
+      "child_tokens": 450,
+      "md_children": 26,
+      "md_mean_tokens": 418.2692307692308,
+      "pdf_children": 1,
+      "evidence_intact": 1.0
+    }
+  ],
+  "tokenizer": "approximate (folioverse_ai.text.count_tokens)"
+}

@@ -140,6 +140,14 @@ export function createFakeStudio({ db, uuid, iso, ok, problem, ai: fakeAi, opts 
         models: fakeAi.models.map(({ id, displayName, provider, isDemo, isDefault }) => ({ id, displayName, provider, isDemo, isDefault })),
         judge: { liveModel: false },
         datasets: [{ id: 'qa-small', label: 'Market outlook Q&A (DEMO, 4 questions)', doc: DOC, items: QUESTIONS.length, answerable: 3 }],
+        notebooks: [
+          {
+            name: '03-hybrid-retrieval-rrf',
+            createdAt: '2026-10-12T10:00:00+00:00',
+            smoke: false,
+            findings: ['RRF k=60 scores 0.320; the whole k range moves nDCG by 0.041, so the constant is not critical.'],
+          },
+        ],
       });
     }
     if (r === 'compare' && method === 'GET') {

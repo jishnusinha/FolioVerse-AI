@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 export interface GoldenItem {
@@ -47,6 +47,36 @@ export function loadDataset(id: string): GoldenDataset | null {
   const ds = { id, label: def.label, doc: items[0]?.doc ?? '', items };
   cache.set(id, ds);
   return ds;
+}
+
+export interface NotebookResult {
+  name: string;
+  createdAt: string | null;
+  smoke: boolean;
+  findings: string[];
+}
+
+let notebookCache: NotebookResult[] | null = null;
+
+/** Findings of the committed ml-notebooks full runs (`datasets/evaluation/results/nb-*.json`). */
+export function listNotebookResults(): NotebookResult[] {
+  if (notebookCache) return notebookCache;
+  const dir = evaluationDir();
+  const results = dir ? join(dir, 'results') : null;
+  if (!results || !existsSync(results)) return [];
+  notebookCache = readdirSync(results)
+    .filter((f) => /^nb-[\w-]+\.json$/.test(f))
+    .sort()
+    .flatMap((f) => {
+      try {
+        const j = JSON.parse(readFileSync(join(results, f), 'utf8'));
+        const findings = Array.isArray(j.findings) ? j.findings.slice(0, 8).map(String) : [];
+        return [{ name: String(j.notebook ?? f.slice(3, -5)), createdAt: j.createdAt ?? null, smoke: !!j.smoke, findings }];
+      } catch {
+        return [];
+      }
+    });
+  return notebookCache;
 }
 
 export function listDatasets() {

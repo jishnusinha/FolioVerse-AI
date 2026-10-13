@@ -1,0 +1,11 @@
+# Shared requirements of the FolioVerse ML notebooks (Kaggle or any Python environment).
+# The notebooks also import the two local packages; install them from the repository checkout first:
+#   pip install ./packages/folioverse-ml ./apps/ai-service
+# In the repository itself, `python -m uv sync --all-packages --extra dev --extra notebooks` installs everything.
+jupytext>=1.16
+nbconvert>=7.16
+ipykernel>=6.29
+matplotlib>=3.9
+numpy>=1.26
+scikit-learn>=1.5
+pyyaml>=6.0

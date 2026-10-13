@@ -545,6 +545,62 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
   `restore.mjs` refuses to overwrite an existing database or collection without `--replace`. `pnpm backup:drill`
   restores into scratch copies and compares every table's row count and the vector point count.
 
+## D-103 Notebooks are jupytext pairs over the real code, executed by nbconvert
+- Decision: each notebook's source of truth is a jupytext percent-format `.py` file (reviewable, linted by ruff
+  with an E402 exemption); the paired `.ipynb` holds the outputs of the last full run. Notebooks import the
+  production packages and share `ml-notebooks/fvnb.py`, which sets up the test suite's hermetic environment
+  (in-memory Qdrant, memory repository and checkpointer, hash embedder, DEMO mock model, an ephemeral ES256 key for
+  scope tokens). Async calls run on a persistent background loop (`fvnb.arun`) instead of top-level `await`, so the
+  same file runs as a script, under nbclient and in Jupyter. `ml-notebooks/run-smoke.mjs` (`pnpm kaggle:smoke`)
+  executes every notebook with `jupytext --execute` (which needs nbconvert, not only nbclient) in smoke mode with a
+  120 s budget each; `--full` rewrites the paired notebooks and the committed results.
+- Findings are computed from the data and recorded with `fvnb.finding`, so the printed conclusions, the saved JSON
+  and Studio cannot disagree with the numbers.
+
+## D-104 What is committed and what CI runs
+- Decision: full runs write `datasets/evaluation/results/nb-<name>.json` and the `.ipynb` outputs, both committed as
+  the reference; smoke runs write to `results/smoke/` (git-ignored). `kaggle-smoke.yml` runs smoke mode on manual
+  dispatch and on pull requests that touch the notebooks or the code they exercise (the plan names a manual workflow;
+  the path trigger was added because a smoke run is about three minutes and calls no paid provider). It uploads the
+  executed notebooks and smoke metrics as artifacts.
+- Ruff checks the `.py` sources only (`extend-exclude = ["ml-notebooks/*.ipynb"]`): jupytext writes the blank lines
+  that separate cells in the `.py` into the generated cells, so formatting the `.ipynb` would be undone by the next
+  full run.
+- Full mode tries the served fastembed models (notebooks 02–04), which are downloaded from Hugging Face on first use
+  (free, no account); each result records which embedder it used. CI never does this.
+- Kaggle: the packages declare Python 3.12, while Kaggle images may be older; `fvnb.py` avoids 3.12-only syntax, and
+  the README documents `--ignore-requires-python` as an untested path. Publishing is BLOCKED (no Kaggle account).
+
+## D-105 Continuity rules fixed after notebook 10
+- Context: notebook 10's first run measured `writer.detect_conflicts` against templated stories with known canon:
+  age facts were never checked (prose says "34 years old", never "age"), digit values were never matched (the token
+  regex was letters only), canon values matched inside other words (`"red" in "stared"` hid a hair-colour conflict),
+  and a sentence about another character's trait ("Mara stared at Jonas's grey eyes") was flagged as a contradiction
+  of Mara's canon.
+- Decision: fact keys can have phrase aliases (`age` → "age", "years old", "aged"); numeric facts accept digit
+  tokens; values are compared as whole tokens; a sentence whose possessive owner is a different name is skipped.
+  `tests/test_continuity_rules.py` covers each case. Because the fixes were made against the same generator, the
+  notebook labels its post-fix continuity scores an upper bound. Compound number words ("thirty-four") remain
+  unsupported.
+
+## D-106 Studio links to notebook findings, not to a notebook viewer
+- Decision: `GET /api/workspaces/:workspaceId/studio/capabilities` returns `notebooks` (name, date, findings) read from the committed
+  `nb-*.json` in the evaluation directory the API image already ships. The Evaluations page lists all eleven
+  notebooks with those findings and links to the notebook and its metrics in the repository when `VITE_REPO_URL` is
+  set (otherwise it shows the repository paths). `docs/notebooks.md` is the docs page; Gate 12's documentation site
+  publishes it. Rendering `.ipynb` inside the app was not built: the findings carry the conclusions, and the
+  notebooks stay readable in any repository host.
+
+## D-107 Evaluation labels are synthetic constructions
+- Decision: where the synthetic datasets carry no labels, notebooks construct them and say how: label queries
+  "{genre} stories about {theme}" with the catalog's theme weights as graded gains (02–04); simulated paraphrases
+  that keep a share of content words (05); catalog questions split from description sentences (06); templated
+  stories with known characters, places and facts (10); and the user's dominant genre as a stand-in for the
+  generator's unpublished taste clusters (09). Results describe relative behaviour of FolioVerse components on
+  this data, not real-world quality, and every saved result carries `isDemo: true`.
+- Weighted score fusion in notebook 03 breaks ties by rank in the heavier-weighted list, so α=0 and α=1 reproduce
+  the sparse and dense lists exactly (sparse scores tie often on short documents).
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

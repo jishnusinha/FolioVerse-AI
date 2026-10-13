@@ -1,0 +1,103 @@
+{
+  "notebook": "03-hybrid-retrieval-rrf",
+  "smoke": false,
+  "isDemo": true,
+  "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
+  "python": "3.12.9",
+  "createdAt": "2026-10-13T10:51:16+00:00",
+  "findings": [
+    "RRF nDCG@10 0.320 vs best single list 0.380 (fastembed embedder).",
+    "RRF k=60 scores 0.320; the whole k range moves nDCG by 0.041, so the constant is not critical.",
+    "Best weighted fusion: weighted a=0.7 at 0.392 vs RRF k=60 0.320. Weighted fusion's best alpha depends on each embedder's score scale; RRF uses ranks only, so it needs no per-embedder tuning."
+  ],
+  "embedder": "fastembed",
+  "documents": 400,
+  "queries": 100,
+  "k": 10,
+  "fusionModes": [
+    {
+      "fusion": "dense",
+      "ndcg@10": 0.37950246515687347,
+      "recall@10": 0.30967867044376335,
+      "mrr": 0.6150660352719176,
+      "latency_ms_p50": 177.95499999999998
+    },
+    {
+      "fusion": "sparse",
+      "ndcg@10": 0.2306436780084184,
+      "recall@10": 0.20013881143796006,
+      "mrr": 0.39476972188504694,
+      "latency_ms_p50": 148.01999999999998
+    },
+    {
+      "fusion": "rrf",
+      "ndcg@10": 0.3198579264892506,
+      "recall@10": 0.261093368104204,
+      "mrr": 0.5657681237352057,
+      "latency_ms_p50": 328.125
+    }
+  ],
+  "qaSmall": [
+    {
+      "fusion": "dense",
+      "qa_recall@5": 1.0,
+      "abstain_accuracy": 0.5
+    },
+    {
+      "fusion": "sparse",
+      "qa_recall@5": 1.0,
+      "abstain_accuracy": 0.5
+    },
+    {
+      "fusion": "rrf",
+      "qa_recall@5": 1.0,
+      "abstain_accuracy": 0.5
+    }
+  ],
+  "fusionSweep": [
+    {
+      "method": "rrf k=1",
+      "ndcg@10": 0.3583237850550926
+    },
+    {
+      "method": "rrf k=10",
+      "ndcg@10": 0.34323880907644333
+    },
+    {
+      "method": "rrf k=30",
+      "ndcg@10": 0.3193979857856704
+    },
+    {
+      "method": "rrf k=60",
+      "ndcg@10": 0.3198579264892506
+    },
+    {
+      "method": "rrf k=120",
+      "ndcg@10": 0.3174835475611976
+    },
+    {
+      "method": "rrf k=500",
+      "ndcg@10": 0.3171092577801513
+    },
+    {
+      "method": "weighted a=0.0",
+      "ndcg@10": 0.2306436780084184
+    },
+    {
+      "method": "weighted a=0.3",
+      "ndcg@10": 0.3272686523497868
+    },
+    {
+      "method": "weighted a=0.5",
+      "ndcg@10": 0.36520502104885294
+    },
+    {
+      "method": "weighted a=0.7",
+      "ndcg@10": 0.39204144079214337
+    },
+    {
+      "method": "weighted a=1.0",
+      "ndcg@10": 0.37950246515687347
+    }
+  ]
+}
