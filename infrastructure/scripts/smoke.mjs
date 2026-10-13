@@ -4,7 +4,8 @@
  * register -> upload -> ingest (READY) -> grounded_qa run -> SSE stream -> receipt -> insight artifacts
  * -> notes and search -> writer (save, suggestion accept, DNA extract, continuity, export)
  * -> library (EPUB shelf, progress, annotation, spoiler-guarded explain, reader excerpt)
- * -> discovery (taste, recommendations, save to Library, Lab re-rank, rec_explain, offline evaluation) -> costs.
+ * -> discovery (taste, recommendations, save to Library, Lab re-rank, rec_explain, offline evaluation)
+ * -> AI Studio (fork from a checkpoint, X-Ray, compare, Model Battle, failure injection, RAG evaluation) -> costs.
  * Also checks abstention (no model call) and cross-workspace 404.
  * Uses the deterministic mock model unless a live provider is configured. Prints no secrets.
  *
@@ -277,6 +278,73 @@ async function discoverySmoke(c, wid, step) {
   if (ev.status !== 'SUCCEEDED' || !(served?.ndcg > pop?.ndcg)) throw new Error(`evaluation failed: ${ev.error ?? ev.status}`);
 }
 
+async function poll(get, done, tries = 120, ms = 1000) {
+  let v = await get();
+  for (let i = 0; i < tries && !done(v); i++) {
+    await new Promise((r) => setTimeout(r, ms));
+    v = await get();
+  }
+  return v;
+}
+
+/**
+ * Gate 8: checkpoints and a fork, RAG X-Ray ranks, compare, a blind Model Battle with vote and reveal, failure
+ * injection (when FV_LAB_FAULTS is on) and a RAG evaluation of the golden set over the synthetic Atlas brief.
+ */
+async function studioSmoke(c, wid, step, { knowledgeId, sourceId, runId }) {
+  const ws = `/api/workspaces/${wid}`;
+  const caps = await c.get(`${ws}/studio/capabilities`);
+  const models = caps.models.map((m) => m.id);
+  step(`studio: models=${models.join(',')} labFaults=${caps.labFaults} datasets=${caps.datasets.map((d) => `${d.id}(${d.items})`).join(',')}`);
+  if (!models.includes('mock-concise')) throw new Error('mock-concise is not in the registry; restart the worker so it seeds');
+
+  const cps = (await c.get(`${ws}/runs/${runId}/checkpoints`)).checkpoints;
+  const before = cps.find((x) => x.next?.includes('generate'));
+  if (!before) throw new Error(`no checkpoint before generate (${cps.length} checkpoints)`);
+  const fork = await c.post(`${ws}/runs/${runId}/fork`, { checkpointId: before.checkpointId, modelPreference: 'mock-concise' });
+  const forkEvents = await c.sse(`${ws}/runs/${fork.runId}/events`);
+  const forkFin = forkEvents.find((e) => e.type === 'run.finished');
+  step(`fork from step ${before.step} (${cps.length} checkpoints): ${forkFin?.data.outcome} "${(forkFin?.data.answer ?? '').slice(0, 80)}" thread=${fork.threadId}`);
+  if (!forkFin || fork.threadId) throw new Error('fork did not finish as a detached run');
+
+  const trace = await c.get(`${ws}/runs/${runId}/trace`);
+  const cands = trace.retrieval[0]?.candidates ?? [];
+  step(`x-ray: ${cands.length} candidates; notes=${JSON.stringify(cands.reduce((a, x) => ({ ...a, [x.note]: (a[x.note] ?? 0) + 1 }), {}))}`);
+  if (!cands.length || cands.some((x) => x.finalRank == null || !x.note)) throw new Error('retrieval candidates lack X-Ray ranks');
+
+  await new Promise((r) => setTimeout(r, 2500));
+  const cmp = await c.get(`${ws}/studio/compare?runs=${runId},${fork.runId}`);
+  step(`compare: ${cmp.runs.map((s) => `${s.model.used?.model ?? '?'} ${s.cost.total} ${s.cost.tier}`).join(' | ')}`);
+
+  const battle = await c.post(`${ws}/studio/battles`, { runId, models: models.filter((m) => m.startsWith('mock-')).slice(0, 2) });
+  const finished = await poll(() => c.get(`${ws}/studio/battles/${battle.id}`), (b) => b.finished);
+  if (!finished.finished || finished.contestants.some((x) => x.model)) throw new Error('battle did not finish blind');
+  await new Promise((r) => setTimeout(r, 2500));
+  const voted = await c.post(`${ws}/studio/battles/${battle.id}/vote`, { winner: 'A' });
+  step(`battle: ${voted.contestants.map((x) => `${x.label}=${x.model.displayName} ${x.cost.total}`).join(' · ')}; winner=${voted.winner}; context=${voted.context.length} frozen`);
+
+  if (caps.labFaults) {
+    const f = await c.post(`${ws}/runs`, { graph: 'grounded_qa', input: { question: 'What annual growth does the base case project?' }, scope: { sourceIds: [sourceId] }, lab: true, detached: true, options: { inject: 'retrieval_down' } });
+    const fe = await c.sse(`${ws}/runs/${f.runId}/events`);
+    const failed = fe.find((e) => e.type === 'run.failed');
+    step(`failure injection retrieval_down: ${failed?.data.errorClass ?? fe.at(-1)?.type}`);
+    if (!failed) throw new Error('injected fault did not fail the run');
+  } else step('failure injection: skipped (FV_LAB_FAULTS is off on this server)');
+
+  const ds = caps.datasets.find((d) => d.id === 'qa-small');
+  if (!ds) throw new Error('golden dataset qa-small missing');
+  const bytes = new Uint8Array(readFileSync(new URL('../../datasets/synthetic/docs/atlas-brief.pdf', import.meta.url)));
+  const atlas = await uploadBytes(c, wid, knowledgeId, 'atlas-brief.pdf', bytes);
+  await waitReady(c, wid, atlas.sourceId);
+  const ev = await c.post(`${ws}/studio/evaluations`, { dataset: 'qa-small', scope: { sourceIds: [atlas.sourceId] }, judge: true });
+  const done = await poll(() => c.get(`${ws}/studio/evaluations/${ev.id}`), (e) => ['SUCCEEDED', 'FAILED'].includes(e.status), 240);
+  const m = done.metrics ?? {};
+  step(
+    `rag eval ${done.status} (${done.progress.done}/${done.progress.total}): faithfulness=${m.faithfulness} recall=${m.retrievalRecall} accuracy=${m.answerAccuracy} abstention=${m.abstentionAccuracy} relevance=${m.answerRelevance} cost/answer=${m.costPerAnswer} (DEMO)`,
+  );
+  if (done.status !== 'SUCCEEDED' || m.retrievalRecall == null) throw new Error(`rag evaluation failed: ${done.error ?? done.status}`);
+}
+
 async function main() {
   const step = (m) => console.log(`• ${m}`);
   const c = new Client(base);
@@ -346,6 +414,7 @@ async function main() {
   const writer = await writerSmoke(c, wid, done.sourceId, step);
   await librarySmoke(c, wid, step, writer);
   await discoverySmoke(c, wid, step);
+  await studioSmoke(c, wid, step, { knowledgeId: knowledge.id, sourceId: done.sourceId, runId });
 
   const costs = await c.get(`/api/workspaces/${wid}/costs/summary`);
   step(`costs summary: ${JSON.stringify(costs).slice(0, 200)}`);

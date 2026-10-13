@@ -163,6 +163,17 @@ describe('ai studio (gate 8)', () => {
     const cp = await w.c.get(`${w.base}/runs/${lab.runId}/checkpoints/cp-1`);
     expect(cp.body).toMatchObject({ checkpointId: 'cp-1', next: ['retrieve'] });
     expect((await w.c.get(`${w.base}/runs/${lab.runId}/checkpoints/missing`)).status).toBe(404);
+
+    const fork = await w.c.post(`${w.base}/runs/${lab.runId}/fork`, { checkpointId: 'cp-1', modelPreference: 'mock-concise' });
+    expect(fork.status).toBe(201);
+    expect(fork.body.threadId).toBeNull();
+    expect(await prisma.aiRun.findUniqueOrThrow({ where: { id: fork.body.runId } })).toMatchObject({
+      lab: true,
+      threadId: null,
+      parentRunId: lab.runId,
+      forkedFromCheckpoint: 'cp-1',
+    });
+    expect(await prisma.thread.count({ where: { workspaceId: w.workspaceId } })).toBe(0);
   });
 
   it('compares runs side by side', async () => {

@@ -122,6 +122,7 @@ export class RunsController {
       scope: { sourceVersionIds: scope.sourceVersionIds ?? [] },
       modelPreference: dto.modelPreference ?? (parent.modelPlan as any)?.primary?.modelConfigId,
       lab: true,
+      detached: true,
       options: { ...((parent.options as any) ?? {}), ...(dto.options ?? {}) },
       parentRunId: parent.id,
       forkedFromCheckpoint: dto.checkpointId,

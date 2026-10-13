@@ -22,6 +22,10 @@ import { ArtifactPage } from '@/features/insights/ArtifactPage.jsx';
 import { SearchPage } from '@/features/insights/SearchPage.jsx';
 import { HomePage } from '@/features/home/HomePage.jsx';
 import { StudioPage } from '@/features/studio/StudioPage.jsx';
+import { ComparePage } from '@/features/studio/ComparePage.jsx';
+import { PlaygroundPage } from '@/features/studio/PlaygroundPage.jsx';
+import { BattlePage, BattlesPage } from '@/features/studio/BattlesPage.jsx';
+import { EvaluationsPage } from '@/features/studio/EvaluationsPage.jsx';
 import { CostsPage } from '@/features/costs/CostsPage.jsx';
 import { WriterHomePage } from '@/features/writer/WriterHomePage.jsx';
 import { ManuscriptPage } from '@/features/writer/ManuscriptPage.jsx';
@@ -50,6 +54,11 @@ const PAGES = {
   search: SearchPage,
   studio: StudioPage,
   'studio-run': StudioPage,
+  'studio-compare': ComparePage,
+  'studio-playground': PlaygroundPage,
+  'studio-battles': BattlesPage,
+  'studio-battle': BattlePage,
+  'studio-evaluations': EvaluationsPage,
   costs: CostsPage,
   writer: WriterHomePage,
   manuscript: ManuscriptPage,

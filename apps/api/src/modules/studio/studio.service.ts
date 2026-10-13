@@ -395,7 +395,7 @@ export class StudioService {
       outcome: run.outcome,
       answer,
       citations: citationsOf(run),
-      packed: ((ev?.packed as any[]) ?? []).map((p) => ({ sourceVersionId: p.sourceVersionId, page: p.page ?? null })),
+      packed: ((ev?.packed as any[]) ?? []).map((p) => ({ sourceVersionId: p.sourceVersionId, page: p.page ?? null, pageFrom: p.pageFrom ?? null, pageTo: p.pageTo ?? null })),
       targetVersionId: scope.targetVersionId,
       cost,
       latencyMs: run.startedAt && run.finishedAt ? run.finishedAt.getTime() - run.startedAt.getTime() : null,

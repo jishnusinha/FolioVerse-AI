@@ -32,6 +32,8 @@ async def test_xray_candidates_carry_ranks_and_packer_decisions(repo):
     assert sum(c["packed"] for c in cands) == len(ev["packed"])
     assert all(c["note"] == "below-top-k" for c in cands[2:])
     assert ev["params"]["mode"] == "query" and ev["params"]["chunkLevel"] == "auto"
+    for p in ev["packed"]:
+        assert p["pageFrom"] <= p["page"] <= p["pageTo"]
 
 
 async def test_child_chunk_level_never_packs_parents(repo):

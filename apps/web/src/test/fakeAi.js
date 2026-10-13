@@ -51,6 +51,7 @@ const FACTS = [
     quote: 'The survey covered 412 organisations across three regions in the spring of 2026.',
     bbox: [72, 115, 472, 127],
     answer: 'The survey covered 412 organisations across three regions [S1].',
+    short: '412 organisations in three regions [S1].',
   },
   {
     match: /risk|pricing|bundle/i,
@@ -58,6 +59,7 @@ const FACTS = [
     quote: 'Bundled office suites are the main pricing risk for standalone research tools.',
     bbox: [72, 115, 462, 127],
     answer: 'The main pricing risk is bundled office suites [S1].',
+    short: 'Bundled office suites [S1].',
   },
   {
     match: /./,
@@ -65,6 +67,7 @@ const FACTS = [
     quote: 'annual rate of 14.2% between 2026 and 2030.',
     bbox: [72, 147, 292, 159],
     answer: 'In the base scenario the market grows at a compound annual rate of 14.2% between 2026 and 2030 [S1].',
+    short: '14.2% a year from 2026 to 2030 [S1].',
   },
 ];
 const ABSTAIN = /antarctica|weather|unanswerable/i;
@@ -83,8 +86,77 @@ const MODEL = {
   available: true,
   price: { inputPerMTok: '0.40', outputPerMTok: '1.60', cachedInputPerMTok: null, isDemo: true, sourceUrl: null },
 };
+/** Second DEMO chat model for Studio comparisons; answers with the main clause only. */
+const CONCISE = {
+  ...MODEL,
+  id: 'mock-concise',
+  model: 'folioverse-mock-concise',
+  displayName: 'Mock concise model',
+  maxOutputTokens: 300,
+  isDefault: false,
+  price: { inputPerMTok: '0.20', outputPerMTok: '0.60', cachedInputPerMTok: null, isDemo: true, sourceUrl: null },
+};
+const MODELS = [MODEL, CONCISE];
+const modelOf = (id) => MODELS.find((m) => m.id === id) ?? MODEL;
 const usd = (n) => n.toFixed(8);
-const costOf = (input, output) => (input * Number(MODEL.price.inputPerMTok) + output * Number(MODEL.price.outputPerMTok)) / 1e6;
+const costOf = (input, output, m = MODEL) => (input * Number(m.price.inputPerMTok) + output * Number(m.price.outputPerMTok)) / 1e6;
+
+/** Recorded retrieval for RAG X-Ray: eight candidates, three packed, one moved by the reranker each way. */
+function fakeRetrieval(uuid, run, question, svid, page, chunkId) {
+  const o = run.options ?? {};
+  const pages = [page, (page % 3) + 1, ((page + 1) % 3) + 1];
+  const notes = ['packed-parent', 'packed-parent', 'packed-child', 'parent-already-packed', 'over-budget', 'over-budget', 'below-top-k', 'below-top-k'];
+  const ranks = [
+    [2, 1, 1],
+    [3, 2, 3],
+    [1, 4, 2],
+    [5, 3, 4],
+    [4, 6, 5],
+    [7, 5, 6],
+    [6, null, 7],
+    [null, 7, 8],
+  ];
+  const candidates = ranks.map(([dense, sparse, fused], i) => ({
+    chunkId: i === 0 ? chunkId : `${run.id.slice(0, 8)}-c${i}`,
+    sourceVersionId: svid,
+    title: 'Atlas brief',
+    page: pages[i % 3],
+    denseRank: dense,
+    sparseRank: sparse,
+    fusedRank: fused,
+    finalRank: i + 1,
+    denseScore: dense ? Number((0.9 - dense * 0.05).toFixed(4)) : 0,
+    sparseScore: sparse ? Number((12 - sparse).toFixed(4)) : 0,
+    fused: Number((1 / (60 + fused)).toFixed(6)),
+    rerank: o.rerank === false ? null : Number((0.95 - i * 0.07).toFixed(4)),
+    lexical: 0.5,
+    packed: notes[i].startsWith('packed'),
+    note: notes[i],
+  }));
+  const packed = candidates
+    .filter((c) => c.packed)
+    .map((c, i) => ({ marker: `S${i + 1}`, chunkId: c.chunkId, parentId: null, sourceVersionId: svid, title: c.title, page: c.page, level: c.note === 'packed-child' ? 'CHILD' : 'PARENT', score: c.rerank ?? c.fused, tokens: [420, 380, 160][i] }));
+  return {
+    id: uuid(),
+    runId: run.id,
+    query: question,
+    params: { topK: o.topK ?? 8, fusion: o.fusion ?? 'rrf', rrfK: 60, rerank: o.rerank !== false, budget: o.contextBudget ?? 3500, embedder: 'hash-demo', pool: 40, chunkLevel: o.chunkLevel ?? 'auto' },
+    candidates,
+    packed,
+    latencyMs: 42,
+    createdAt: run.createdAt,
+  };
+}
+
+/** Redacted state after each node, as LangGraph checkpoints summarize it. */
+const STATE_AFTER = {
+  retrieve: { packed: '<3 items>', abstain: false, topScore: 0.82 },
+  abstain: { packed: '<0 items>', abstain: true, answer: '<84 chars>' },
+  generate: { answer: '<96 chars>' },
+  validate_citations: { citations: '<1 items>' },
+  assemble: { artifact: '<object>' },
+  finalize: { outcome: 'ANSWERED' },
+};
 const STREAM_BASE = 1_760_000_000_000;
 const TERMINAL = new Set(['SUCCEEDED', 'PARTIAL', 'FAILED', 'CANCELLED', 'INTERRUPTED', 'BUDGET_REJECTED']);
 
@@ -142,6 +214,12 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     };
     push('run.state', { status: 'RUNNING' });
     push('node.started', { node: 'retrieve', step: 1 });
+    if (run.options?.inject === 'retrieval_down') {
+      push('node.finished', { node: 'retrieve', step: 1, status: 'FAILED', durationMs: 5 });
+      const error = { errorClass: 'RETRIEVAL_UNAVAILABLE', message: 'The vector store is unavailable (injected fault)', retryable: true };
+      push('run.failed', error);
+      return { events: ev, status: 'FAILED', outcome: null, answer: '', citations: [], calls: 0, error };
+    }
     if (INTERRUPT.test(question)) {
       // What the reaper publishes after the worker holding the run stops heartbeating.
       push('run.state', { status: 'INTERRUPTED' });
@@ -159,9 +237,12 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       return { events: ev, outcome: 'ABSTAINED', answer, citations: [], calls: 0 };
     }
     const fact = FACTS.find((f) => f.match.test(question));
+    const model = modelOf(run.modelPlan.primary.modelConfigId);
+    const answer = model.id === CONCISE.id ? fact.short : fact.answer;
     const pageText = ATLAS_PAGES[fact.page - 1].text;
     const start = pageText.indexOf(fact.quote);
     const chunkId = uuid();
+    const retrieval = fakeRetrieval(uuid, run, question, svid, fact.page, chunkId);
     push('retrieval.completed', {
       candidates: 8,
       packed: 3,
@@ -173,7 +254,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     push('node.finished', { node: 'retrieve', step: 1, status: 'SUCCEEDED', durationMs: 42 });
     push('node.started', { node: 'generate', step: 2 });
     push('run.state', { status: 'STREAMING' });
-    for (const piece of fact.answer.match(/.{1,18}(\s|$)|.+/g)) push('token.delta', { text: piece });
+    for (const piece of answer.match(/.{1,18}(\s|$)|.+/g)) push('token.delta', { text: piece });
     push('node.finished', { node: 'generate', step: 2, status: 'SUCCEEDED', durationMs: 610 });
     push('node.started', { node: 'validate_citations', step: 3 });
     const citation = {
@@ -196,9 +277,9 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     push('citation.validated', citation);
     push('node.finished', { node: 'validate_citations', step: 3, status: 'SUCCEEDED', durationMs: 4 });
     push('usage.recorded', {
-      provider: MODEL.provider,
-      model: MODEL.model,
-      modelConfigId: MODEL.id,
+      provider: model.provider,
+      model: model.model,
+      modelConfigId: model.id,
       attempt: 1,
       status: 'SUCCEEDED',
       reported: true,
@@ -207,8 +288,8 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     });
     push('node.started', { node: 'finalize', step: 4 });
     push('node.finished', { node: 'finalize', step: 4, status: 'SUCCEEDED', durationMs: 1 });
-    push('run.finished', { status: 'SUCCEEDED', outcome: 'ANSWERED', answer: fact.answer });
-    return { events: ev, outcome: 'ANSWERED', answer: fact.answer, citations: [{ ...citation, sourceVersionId: svid, chunkId }], calls: 1 };
+    push('run.finished', { status: 'SUCCEEDED', outcome: 'ANSWERED', answer });
+    return { events: ev, outcome: 'ANSWERED', answer, citations: [{ ...citation, sourceVersionId: svid, chunkId }], calls: 1, model, retrieval };
   }
 
   /** Insight action events: retrieval, streamed markdown (if any), validated citations, usage and an artifact in `run.finished`. */
@@ -264,7 +345,8 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     run.outcome = s.outcome;
     run.startedAt = new Date(startedAt + 40).toISOString();
     run.finishedAt = new Date(startedAt + 40 * s.events.length).toISOString();
-    run.result = { answer: s.answer };
+    run.result = run.messageId ? { answer: s.answer } : { answer: s.answer, citations: s.citations };
+    if (s.error) run.error = s.error;
     if (s.artifactId) knowledge.recordFromRun(run, s.artifactId, s.scripted);
     const msg = ai.messages.find((m) => m.id === run.messageId);
     if (msg) {
@@ -284,17 +366,32 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
         id: uuid(),
         workspaceId: run.workspaceId,
         runId: run.id,
-        modelConfigId: MODEL.id,
+        modelConfigId: (s.model ?? MODEL).id,
         entryType: 'FINAL',
         tier: 'FINALIZED',
         costClass: 'MODEL',
-        amount: usd(costOf(1200, 80)),
+        amount: usd(costOf(1200, 80, s.model)),
         currency: 'USD',
         feature: run.graph,
         isDemo: true,
         createdAt: run.finishedAt,
       });
     }
+  }
+
+  /** Checkpoints after each recorded node, with redacted state like the AI service returns. */
+  function checkpoints(run) {
+    const s = ai.script.get(run.id);
+    if (!s || !TERMINAL.has(run.status)) return [];
+    const nodes = s.events.filter((e) => e.type === 'node.finished').map((e) => e.data.node);
+    const question = run.input?.question ?? '';
+    let state = { question: `<${question.length} chars>` };
+    const out = [{ checkpointId: `${run.id}-cp-0`, parentCheckpointId: null, step: 0, source: 'loop', createdAt: run.startedAt, next: nodes.slice(0, 1), state }];
+    nodes.forEach((n, i) => {
+      state = { ...state, ...STATE_AFTER[n] };
+      out.push({ checkpointId: `${run.id}-cp-${i + 1}`, parentCheckpointId: `${run.id}-cp-${i}`, step: i + 1, source: 'loop', createdAt: run.finishedAt, next: nodes.slice(i + 1, i + 2), state });
+    });
+    return out;
   }
 
   const readyScope = (wid, ids) =>
@@ -306,6 +403,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
   const EMPTY_SCOPE = 'No ready sources in scope. Wait for ingestion to finish or pick other sources.';
 
   function newRun(wid, body, svids, extra, createdAt) {
+    const model = modelOf(body.modelPreference);
     const run = {
       id: uuid(),
       workspaceId: wid,
@@ -316,13 +414,20 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       status: 'QUEUED',
       outcome: null,
       isDemo: true,
-      lab: false,
+      lab: Boolean(body.lab),
       input: body.input,
       scope: { sourceVersionIds: svids },
-      modelPlan: { primary: { modelConfigId: MODEL.id, provider: MODEL.provider, model: MODEL.model }, fallbacks: [], maxOutputTokens: MODEL.maxOutputTokens, isDemo: true },
+      options: body.options ?? {},
+      modelPlan: {
+        primary: { modelConfigId: model.id, provider: model.provider, model: model.model },
+        fallbacks: (body.fallbackModels ?? []).map((id) => ({ modelConfigId: id, provider: modelOf(id).provider, model: modelOf(id).model })),
+        maxOutputTokens: model.maxOutputTokens,
+        isDemo: true,
+      },
       error: null,
       result: null,
-      parentRunId: null,
+      parentRunId: body.parentRunId ?? null,
+      forkedFromCheckpoint: body.forkedFromCheckpoint ?? null,
       createdAt,
       startedAt: null,
       finishedAt: null,
@@ -355,6 +460,18 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     if (body.graph && body.graph !== 'grounded_qa') return createInsightRun(wid, body, createdAt);
     const question = (body.input?.question ?? '').trim();
     if (!question) return problem(400, 'A question is required', 'VALIDATION');
+    if ((body.detached || body.fallbackModels?.length || body.options?.inject) && !body.lab) return problem(400, 'Only lab runs can use these options', 'LAB_ONLY');
+    if (body.options?.inject && opts.labFaults === false) return problem(400, 'Failure injection is disabled on this server', 'LAB_FAULTS_DISABLED');
+    if (body.detached) {
+      const sids = body.scope?.sourceIds;
+      const svids = readyScope(wid, sids?.length ? db.sources.filter((s) => sids.includes(s.id)).map((s) => s.currentVersionId) : (body.scope?.sourceVersionIds ?? []));
+      if (!svids.length) return problem(400, EMPTY_SCOPE, 'EMPTY_SCOPE');
+      const run = newRun(wid, body, svids, {}, createdAt);
+      const estimate = costOf(Math.ceil(question.length / 4) + 3500, MODEL.maxOutputTokens);
+      ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: run.modelPlan.primary.modelConfigId, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'MODEL', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
+      ai.script.set(run.id, scriptFor(run, question, svids[0]));
+      return ok({ runId: run.id, threadId: null, userMessageId: null, messageId: null, status: 'QUEUED', estimate: usd(estimate), model: run.modelPlan.primary }, 201);
+    }
     let thread = body.threadId ? ai.threads.find((t) => t.id === body.threadId && t.workspaceId === wid) : null;
     if (body.threadId && !thread) return problem(404, 'Thread not found');
     const svids = readyScope(wid, body.scope?.sourceVersionIds ?? thread?.scope ?? []);
@@ -401,7 +518,8 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     const estimate = entries.find((e) => e.entryType === 'ESTIMATE');
     const done = TERMINAL.has(run.status);
     const tier = finals.length || (done && !s?.calls) ? 'FINALIZED' : estimate ? 'PREFLIGHT_ESTIMATE' : 'FINALIZED';
-    const calls = done && s?.calls ? [{ id: uuid(), provider: MODEL.provider, model: MODEL.model, status: 'SUCCEEDED', attempt: 1 }] : [];
+    const m = s?.model ?? MODEL;
+    const calls = done && s?.calls ? [{ id: uuid(), modelConfigId: m.id, provider: m.provider, model: m.model, status: 'SUCCEEDED', attempt: 1 }] : [];
     const cites = done ? (s?.citations ?? []) : [];
     return {
       run: { ...run, durationMs: run.startedAt && run.finishedAt ? new Date(run.finishedAt).getTime() - new Date(run.startedAt).getTime() : null },
@@ -409,7 +527,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       modelCalls: calls,
       tokens: calls.length ? { input: 1200, output: 80, cachedInput: 0, reasoning: 0 } : { input: 0, output: 0, cachedInput: 0, reasoning: 0 },
       cost: { total: usd(finals.reduce((a, e) => a + Number(e.amount), 0)), estimate: estimate?.amount ?? null, tier, currency: 'USD', isDemo: true, entries },
-      retrieval: [],
+      retrieval: done && s?.retrieval ? [{ id: s.retrieval.id, query: s.retrieval.query, params: s.retrieval.params, candidates: s.retrieval.candidates.length, packed: s.retrieval.packed.length, latencyMs: 42 }] : [],
       citations: { total: cites.length, byState: cites.reduce((a, c) => ({ ...a, [c.state]: (a[c.state] ?? 0) + 1 }), {}) },
       nodes: ai.nodes.filter((n) => n.runId === run.id).map(({ node, step, status, durationMs }) => ({ node, step, status, durationMs })),
       traceUrl: `/app/studio/runs/${run.id}`,
@@ -582,7 +700,28 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       if (rest[2] === 'receipt' && method === 'GET') return ok(receipt(run));
       if (rest[2] === 'trace' && method === 'GET') {
         const events = TERMINAL.has(run.status) && s ? s.events.filter((e) => e.type !== 'token.delta').map(({ seq, type, data, ts }) => ({ seq, type, data, ts })) : [];
-        return ok({ run, events, nodes: ai.nodes.filter((n) => n.runId === run.id), retrieval: [], modelCalls: receipt(run).modelCalls });
+        const retrieval = TERMINAL.has(run.status) && s?.retrieval ? [s.retrieval] : [];
+        return ok({ run, events, nodes: ai.nodes.filter((n) => n.runId === run.id), retrieval, modelCalls: receipt(run).modelCalls });
+      }
+      if (rest[2] === 'checkpoints' && method === 'GET') {
+        const list = checkpoints(run);
+        if (!rest[3]) return ok({ runId: run.id, checkpoints: list });
+        return list.find((c) => c.checkpointId === rest[3]) ? ok(list.find((c) => c.checkpointId === rest[3])) : problem(404, 'Not found');
+      }
+      if (rest[2] === 'fork' && method === 'POST') {
+        const denied = need('EDITOR');
+        if (denied) return denied;
+        return createRun(wid, {
+          graph: run.graph,
+          input: { ...run.input, ...(body?.inputOverride ?? {}) },
+          scope: { sourceVersionIds: run.scope.sourceVersionIds },
+          modelPreference: body?.modelPreference ?? run.modelPlan.primary.modelConfigId,
+          lab: true,
+          detached: true,
+          options: { ...run.options, ...(body?.options ?? {}) },
+          parentRunId: run.id,
+          forkedFromCheckpoint: body?.checkpointId ?? null,
+        });
       }
       if (rest[2] === 'cancel' && method === 'POST') return need('EDITOR') ?? ok({ status: run.status }, 202);
       if (rest[2] === 'events' && method === 'GET') {
@@ -594,12 +733,12 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
         const count = (ai.served.get(run.id) ?? 0) + 1;
         ai.served.set(run.id, count);
         const out = count === 1 && ai.streamCut > 0 ? after.slice(0, ai.streamCut) : after;
-        if (out.some((e) => e.type === 'run.finished' || (e.type === 'run.state' && TERMINAL.has(e.data.status)))) complete(run);
+        if (out.some((e) => e.type === 'run.finished' || e.type === 'run.failed' || (e.type === 'run.state' && TERMINAL.has(e.data.status)))) complete(run);
         return sse(out);
       }
     }
     return undefined;
   }
 
-  return { ai, handle, seed, seedInsight, knowledge, model: MODEL };
+  return { ai, handle, seed, seedInsight, knowledge, model: MODEL, models: MODELS, createRun, complete, receipt };
 }

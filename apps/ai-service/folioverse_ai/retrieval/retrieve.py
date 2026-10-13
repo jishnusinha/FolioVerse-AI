@@ -156,6 +156,7 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
                 continue
         c.note = "packed-parent" if level == "PARENT" else "packed-child"
         used += t
+        span = parent if level == "PARENT" else child
         packed.append(
             {
                 "marker": f"S{len(packed) + 1}",
@@ -164,6 +165,8 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
                 "sourceVersionId": c.source_version_id,
                 "title": c.title,
                 "page": child.get("page_start"),
+                "pageFrom": span.get("page_start"),
+                "pageTo": span.get("page_end") or span.get("page_start"),
                 "level": level,
                 "text": text,
                 "childText": child["text"],
@@ -221,6 +224,7 @@ async def frozen_retrieval(query: str, scope: Scope, options: dict, started: flo
         )
         c.note = "packed-parent" if use_parent else "packed-child"
         candidates.append(c)
+        span = parent if use_parent else child
         packed.append(
             {
                 "marker": f"S{len(packed) + 1}",
@@ -229,6 +233,8 @@ async def frozen_retrieval(query: str, scope: Scope, options: dict, started: flo
                 "sourceVersionId": child["source_version_id"],
                 "title": None,
                 "page": child.get("page_start"),
+                "pageFrom": span.get("page_start"),
+                "pageTo": span.get("page_end") or span.get("page_start"),
                 "level": "PARENT" if use_parent else "CHILD",
                 "text": text,
                 "childText": child["text"],

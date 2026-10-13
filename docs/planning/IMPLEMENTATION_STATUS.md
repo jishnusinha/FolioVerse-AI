@@ -351,7 +351,55 @@ Not done: live-model explanations (BLOCKED, no `OPENAI_API_KEY`; mock is labelle
 importers (optional [EXT], not built); real-world recommendation quality (only synthetic DEMO data exists); app
 Docker images with the catalog baked in were not built (disk constraint; Dockerfiles and compose validated only).
 
-## Gates 8–13 — PLANNED
+## Gate 8 — AI Developer Studio — DONE (DEMO models only; live judge and real-model battles BLOCKED: no key)
+
+Validation: Python `pnpm test:py` ai-service incl. `tests/test_studio.py` 5/5 (X-Ray ranks and packer notes, packed
+page span, child-only chunk level, frozen context reuses recorded passages and drops out-of-scope chunks, concise mock,
+judge graph JSON verdict), ruff clean; API `tsc` 0, unit 71/71 (`test/unit/evaluation.spec.ts`: recall over page
+spans, abstention, cost incl. judge, aggregation), integration 205/205 (`studio.spec.ts`: lab-only rules for
+`detached` / `fallbackModels` / `options.inject`, checkpoint get, fork without a thread, compare with settled costs,
+blind battle on a frozen context with one vote, RAG evaluation job; authz matrix rows for the checkpoint route and 9
+studio routes); `contracts:check` OK; web `vitest run` 289/289 (`studio.test.jsx` 13), `eslint src playwright` clean,
+`tsc` clean, `vite build` OK; Playwright `gate8-preview.spec.js` 1/1 (screenshots
+`apps/web/test-results/gate8/{xray,time-machine,compare,playground,battle-blind,battle-revealed,evaluations}.png`,
+not baselines); `node infrastructure/scripts/smoke.mjs` OK against `pnpm dev`: fork from the checkpoint before
+`generate` with `mock-concise` → `ANSWERED`, `thread=null`; X-Ray `packed-parent`; compare 0.000135 vs 0.000051 USD
+(both FINALIZED); battle on 1 frozen passage, vote revealed both models and cost per answer; `retrieval_down`
+injection → `RETRIEVAL_UNAVAILABLE`; RAG evaluation `qa-small` 12/12 with faithfulness 1, retrieval recall 1, answer
+accuracy 0.9, abstention 0.917, relevance 3.73 (DEMO judge), cost per answer 0.000269 USD (DEMO prices).
+
+- `FV-G08-TM-001` Time machine — DONE. Checkpoint list per run, state diff per checkpoint
+  (`GET runs/:runId/checkpoints/:checkpointId`), "Fork from here…" on any checkpoint.
+- `FORK-002` Fork / replay — DONE. Replay steps through recorded events only (no model call, labelled free). Fork
+  creates a new detached LAB run with its own receipt and ledger entries, optional question override and model, and
+  links back via `parentRunId` / `forkedFromCheckpoint` (D-079).
+- `CMP-003` Compare — DONE. `GET studio/compare?runIds=` (2–4 runs, same workspace) returns answer, outcome, model,
+  tokens, latency, cost tier and retrieval summary; Studio → Compare shows them side by side, "Compare with parent"
+  from a fork.
+- `XRAY-004` RAG X-Ray — DONE. Every candidate carries dense / sparse / fused / final rank and a packer note
+  (`packed-parent`, `packed-child`, `parent-already-packed`, `over-budget`, `missing-text`, `below-top-k`); packed
+  passages carry marker, level, tokens and page span; context-budget bar (D-085).
+- `PLAY-005` Playground — DONE. Detached LAB runs with Top-K, fusion, chunk level (`auto|child`), context budget
+  (500–12000), rerank, model and up to 2 fallback models (`fallbackModels`, lab only) (D-079).
+- `BATTLE-006` Model Battle — DONE (DEMO contestants). Retrieval frozen from a finished run, re-checked against the
+  signed scope (D-081); answers shown blind as A/B, one vote per battle reveals model, cost per answer, tokens and
+  duration (D-083). Real-model battles BLOCKED (no `OPENAI_API_KEY`).
+- `FAIL-007` Failure injection — DONE. `options.inject` = `provider_timeout | provider_429 | malformed_output |
+  retrieval_down`, accepted only on lab runs and only when `FV_LAB_FAULTS=true`; the Playground disables it otherwise.
+- `TUTOR-008` Agent Tutor — DONE. Explains the run's graph, tier (T0/T1/T2), each executed node, cost tier and DEMO
+  status, and suggests a next experiment; rule-based text, no model call.
+- `EVAL-009` Evaluation dashboard — DONE. `app.evaluation_runs` (migration `0006_studio`, D-084); golden set
+  `datasets/evaluation/qa-small.jsonl` (12 questions, 2 unanswerable); each question is a billed LAB run, scored for
+  faithfulness (valid citations), retrieval recall (evidence page inside a packed span), answer accuracy (evidence
+  string), abstention accuracy and optional judge relevance (`answer_judge` graph, D-082); runs inline on the
+  maintenance queue (D-080). The recommender evaluation panel stays on the same page.
+- `CQ-010` Cost-vs-Quality scatter — DONE. Recharts scatter of cost per answer vs quality (mean of the four scored
+  metrics) per evaluation run.
+
+Not done: live judge model and real-model battles / evaluations (BLOCKED, no `OPENAI_API_KEY`; the mock judge is a
+word-overlap heuristic labelled DEMO, and mock prices are DEMO); evaluation datasets beyond `qa-small`.
+
+## Gates 9–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.

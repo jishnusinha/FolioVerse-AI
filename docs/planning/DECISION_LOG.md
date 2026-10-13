@@ -378,6 +378,55 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Decision: Studio gets a Runs / Evaluations switch via `?view=evaluations` (no new route), reusing the Lab's
   evaluation panel so there is one implementation.
 
+## D-078 Second DEMO model `mock-concise`
+- Context: Compare, Model Battle and the cost-vs-quality chart need two models that differ, and no live key exists.
+- Decision: the registry seed adds `mock-concise` (deterministic, shorter answers, its own DEMO prices) next to
+  `mock-grounded`. Both are `is_demo`; no real model id or price is invented.
+
+## D-079 Detached lab runs
+- Decision: Playground runs, forks, battle contestants and evaluation questions are `lab: true, detached: true`:
+  no thread or messages are created, the answer and citations live on the run, and each run still gets its own
+  receipt and ledger entries. `detached`, `fallbackModels` and `options.inject` are rejected with `LAB_ONLY` on
+  normal runs.
+
+## D-080 RAG evaluations run inline on the maintenance queue
+- Decision: one `rag-eval` job on the existing maintenance queue executes the questions sequentially (no fan-out
+  queue). The golden set is small, so this keeps ordering and cost accounting simple; `FV_EVAL_DIR` points at
+  `datasets/evaluation` (baked into the API image).
+
+## D-081 Frozen context is re-checked against the scope
+- Decision: a battle passes recorded `chunkId`s and levels as `options.frozenContext`; the AI service reloads those
+  chunks and drops any whose source version is not in the signed scope token, so a frozen list can never widen
+  retrieval.
+
+## D-082 Judge verdict as JSON in the answer
+- Decision: the `answer_judge` graph returns `{"score": 1-5, "reason": ...}` as the run's answer and is stored as the
+  item's relevance. It is a normal billed run (judge cost is added to cost per answer); unparseable verdicts score as
+  missing, not zero.
+
+## D-083 Blind battle API
+- Decision: models are shuffled into A/B labels when the battle is created; responses hide run id, model, cost,
+  tokens and duration until the single vote (a label or `TIE`, only after every answer has finished) is recorded.
+  A second vote is `409 ALREADY_VOTED`.
+
+## D-084 `model_battles` and `evaluation_runs` live in the `app` schema
+- Decision: both tables are workspace-scoped app data (filtered by `workspaceId`), unlike the shared `rec` catalog;
+  `evaluation_runs` reuses the `rec.EvalStatus` enum.
+
+## D-085 Packer notes and page spans
+- Context: retrieval recall scored only the child's start page, so a packed parent section covering the evidence
+  page counted as a miss (live smoke: recall 0.4 vs accuracy 0.9).
+- Decision: each packed passage records `pageFrom` / `pageTo` of the text actually packed (the parent when the parent
+  is packed); recall counts a hit when the gold page falls in that span (smoke after the fix: recall 1).
+
+## D-086 Studio sub-routes supersede D-077
+- Decision: Compare, Playground, Model Battle and Evaluations get their own routes under `/app/studio/*`;
+  `/app/studio?view=evaluations` redirects to `/app/studio/evaluations`.
+
+## D-087 Tests settle usage explicitly
+- Decision: integration tests and the smoke wait for (or call) ledger processing before reading costs, because FINAL
+  cost entries are written by the ledger queue after the run completes.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

@@ -6,7 +6,7 @@ export interface EvalObservation {
   outcome: string | null;
   answer: string;
   citations: { state: string }[];
-  packed: { sourceVersionId: string; page: number | null }[];
+  packed: { sourceVersionId: string; page: number | null; pageFrom?: number | null; pageTo?: number | null }[];
   targetVersionId: string;
   cost: number;
   latencyMs: number | null;
@@ -32,6 +32,10 @@ export interface EvalItemResult {
 }
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
+
+/** A packed passage covers a page if the page lies in its span (a parent section can cross pages). */
+const covers = (p: EvalObservation['packed'][number], page: number | undefined) =>
+  page != null && (p.page === page || (p.pageFrom != null && p.pageTo != null && p.pageFrom <= page && page <= p.pageTo));
 const ratio = (n: number, d: number) => (d ? Math.round((n / d) * 10_000) / 10_000 : null);
 
 /** Scores one golden item against its recorded run. Only completed runs are scored. */
@@ -48,7 +52,7 @@ export function scoreItem(item: GoldenItem, o: EvalObservation): EvalItemResult 
     outcome: o.outcome,
     abstained,
     abstainCorrect: done ? abstained === !item.answerable : null,
-    retrievalHit: done && item.answerable ? o.packed.some((p) => p.sourceVersionId === o.targetVersionId && p.page === item.page) : null,
+    retrievalHit: done && item.answerable ? o.packed.some((p) => p.sourceVersionId === o.targetVersionId && covers(p, item.page)) : null,
     evidenceFound: done && item.answerable ? !abstained && !!item.evidence && norm(o.answer).includes(norm(item.evidence)) : null,
     citations: { total: o.citations.length, valid: count('VALID'), weak: count('WEAK'), unresolved: count('UNRESOLVED') },
     relevance: o.relevance ?? null,

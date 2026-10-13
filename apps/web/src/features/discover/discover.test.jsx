@@ -156,8 +156,8 @@ describe('Recommendation Lab', () => {
   it('keeps evaluation runs for editors and shows the same reports in Studio', async () => {
     installFakeFetch(createFakeApi());
     renderApp('/app/studio?view=evaluations');
-    await screen.findByRole('heading', { level: 1, name: 'AI Developer Studio' });
-    expect(screen.getByRole('link', { name: 'Evaluations' })).toHaveAttribute('aria-current', 'page');
+    await screen.findByRole('heading', { level: 1, name: 'Evaluations' });
+    expect(screen.getByRole('navigation', { name: 'Studio sections' }).querySelector('[aria-current="page"]')).toHaveTextContent('Evaluations');
     expect(await screen.findByRole('region', { name: 'Offline evaluation' })).toBeInTheDocument();
   });
 });
