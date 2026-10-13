@@ -1,7 +1,8 @@
 import { Global, Injectable, Module, OnModuleDestroy } from '@nestjs/common';
-import { Queue } from 'bullmq';
+import { type JobsOptions, Queue } from 'bullmq';
 import Redis from 'ioredis';
 import { env } from '../config/env';
+import { withTraceContext } from './observability';
 
 export const QUEUES = {
   ingestion: 'ingestion',
@@ -16,6 +17,13 @@ export function bullConnection() {
   return new Redis(env().REDIS_URL, { maxRetriesPerRequest: null });
 }
 
+/** Queue that stamps the enqueuing trace context into each job payload (no-op when tracing is off). */
+class TracedQueue extends Queue {
+  override add(name: string, data: any, opts?: JobsOptions) {
+    return super.add(name, withTraceContext(data), opts);
+  }
+}
+
 @Injectable()
 export class QueuesService implements OnModuleDestroy {
   private readonly connection = bullConnection();
@@ -24,7 +32,7 @@ export class QueuesService implements OnModuleDestroy {
   queue(name: QueueName): Queue {
     let q = this.queues.get(name);
     if (!q) {
-      q = new Queue(name, {
+      q = new TracedQueue(name, {
         connection: this.connection,
         defaultJobOptions: { removeOnComplete: 1000, removeOnFail: 5000 },
       });

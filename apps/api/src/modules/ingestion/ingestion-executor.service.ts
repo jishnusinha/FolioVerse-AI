@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { IngestionState } from '@prisma/client';
+import { annotate, FV_ATTR, fvMetrics, secondsSince } from '../../infra/observability';
 import { PrismaService } from '../../infra/prisma.service';
 import { StorageService } from '../../infra/storage.service';
 import { AiClientService, AiServiceError } from '../ai-client/ai-client.service';
@@ -33,7 +34,9 @@ export class IngestionExecutorService {
     if (!source || source.deletedAt) return;
     const obj = await this.prisma.storedObject.findUniqueOrThrow({ where: { id: version.storedObjectId } });
 
-    await this.prisma.ingestionJob.update({ where: { id: jobId }, data: { state: 'PARSING', attempts: attempt, startedAt: new Date(), error: null } });
+    annotate({ [FV_ATTR.workspaceId]: job.workspaceId, 'fv.source_version_id': version.id });
+    const startedAt = new Date();
+    await this.prisma.ingestionJob.update({ where: { id: jobId }, data: { state: 'PARSING', attempts: attempt, startedAt, error: null } });
     await this.sources.setState(job.workspaceId, source.id, version.id, 'PARSING', undefined, 0.2);
 
     const body = {
@@ -72,6 +75,9 @@ export class IngestionExecutorService {
       final = { state: 'FAILED', error: msg };
     }
     final ??= { state: 'FAILED', error: 'Ingestion ended without a result' };
+    const outcome = { state: final.state, mime: version.mimeType };
+    fvMetrics().ingestionJobs.add(1, outcome);
+    fvMetrics().ingestionDuration.record(secondsSince(startedAt), outcome);
 
     await this.prisma.ingestionJob.update({
       where: { id: jobId },

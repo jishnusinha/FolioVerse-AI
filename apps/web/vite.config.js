@@ -15,6 +15,8 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': { target: API, changeOrigin: false },
+      // Browser spans (VITE_OTEL_ENABLED=true) go to the local collector's OTLP/HTTP port.
+      '/otlp': { target: process.env.VITE_OTLP_PROXY || 'http://localhost:4318', rewrite: (p) => p.replace(/^\/otlp/, '') },
     },
   },
   build: {

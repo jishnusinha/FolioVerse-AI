@@ -11,6 +11,15 @@ x-app-env: &app-env
   FV_AI_API_URL: http://ai-api:8000
   FV_AI_INGEST_URL: http://ai-ingest:8001
   FV_OLLAMA_URL: ${FV_OLLAMA_URL:-}
+  # Set by `pnpm up -- --observability`; empty keeps tracing off even if .env has a native-dev endpoint.
+  OTEL_EXPORTER_OTLP_ENDPOINT: ${FV_COMPOSE_OTEL_ENDPOINT:-}
+
+# App containers run as non-root on a read-only root filesystem with no capabilities.
+x-hardened: &hardened
+  read_only: true
+  tmpfs: ["/tmp:size=512m"]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
 
 services:
   postgres:
@@ -79,24 +88,28 @@ services:
 
   migrate:
     profiles: [app]
+    <<: *hardened
     build: { context: ., dockerfile: infrastructure/docker/api.Dockerfile }
     image: folioverse/api:local
     env_file: [.env]
     environment:
       <<: *app-env
       FV_DEMO_CATALOG: ${FV_DEMO_CATALOG:-true}
-    command: ["sh", "-c", "npx prisma migrate deploy && node dist/prisma/seed.js"]
+    command: ["sh", "-c", "node_modules/.bin/prisma migrate deploy && node dist/prisma/seed.js"]
+    healthcheck: { disable: true }
     depends_on:
       postgres: { condition: service_healthy }
     restart: "no"
 
   api-http:
     profiles: [app]
+    <<: *hardened
     image: folioverse/api:local
     env_file: [.env]
     environment:
       <<: *app-env
       FV_SERVICE_NAME: api-http
+      OTEL_SERVICE_NAME: folioverse-api
     command: ["node", "dist/src/main.js"]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -110,11 +123,14 @@ services:
 
   api-worker:
     profiles: [app]
+    <<: *hardened
     image: folioverse/api:local
     env_file: [.env]
     environment:
       <<: *app-env
       FV_SERVICE_NAME: api-worker
+      OTEL_SERVICE_NAME: folioverse-api-worker
+      FV_WORKER_HEALTH_PORT: "3001"
     command: ["node", "dist/src/worker.js"]
     depends_on:
       migrate: { condition: service_completed_successfully }
@@ -122,13 +138,15 @@ services:
 
   ai-api:
     profiles: [app]
+    <<: *hardened
     build: { context: ., dockerfile: infrastructure/docker/ai.Dockerfile }
     image: folioverse/ai:local
     env_file: [.env]
     environment:
       <<: *app-env
       ROLE: api
-    command: ["python", "-m", "folioverse_ai.serve", "--port", "8000"]
+      PORT: "8000"
+    command: ["python", "-m", "folioverse_ai.serve"]
     depends_on:
       postgres: { condition: service_healthy }
       qdrant: { condition: service_healthy }
@@ -140,12 +158,14 @@ services:
 
   ai-ingest:
     profiles: [app]
+    <<: *hardened
     image: folioverse/ai:local
     env_file: [.env]
     environment:
       <<: *app-env
       ROLE: ingest
-    command: ["python", "-m", "folioverse_ai.serve", "--port", "8001"]
+      PORT: "8001"
+    command: ["python", "-m", "folioverse_ai.serve"]
     depends_on:
       ai-api: { condition: service_started }
     healthcheck:
@@ -156,7 +176,11 @@ services:
 
   web:
     profiles: [app]
-    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile }
+    <<: *hardened
+    build:
+      context: .
+      dockerfile: infrastructure/docker/web.Dockerfile
+      args: { VITE_OTEL_ENABLED: "${FV_WEB_OTEL:-false}" }
     image: folioverse/web:local
     ports: ["8080:8080"]
     depends_on:
@@ -168,10 +192,35 @@ services:
       retries: 20
 
   # ---- optional profiles ----
+  # Services export OTLP to the collector (scrubs credentials and query strings), which forwards
+  # to Grafana LGTM. Native `pnpm dev` uses OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318.
+  otel-collector:
+    profiles: [observability]
+    image: otel/opentelemetry-collector-contrib:0.111.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    environment:
+      FV_OTLP_UPSTREAM: http://lgtm:4318
+    volumes: [./infrastructure/otel/collector.yaml:/etc/otelcol/config.yaml:ro]
+    ports: ["127.0.0.1:4317:4317", "127.0.0.1:4318:4318"]
+    depends_on: [lgtm]
+
   lgtm:
     profiles: [observability]
     image: grafana/otel-lgtm:0.8.1
-    ports: ["3001:3000", "4318:4318"]
+    ports: ["127.0.0.1:3001:3000"]
+    volumes:
+      - ./infrastructure/grafana/provisioning/datasources/folioverse.yaml:/otel-lgtm/grafana/conf/provisioning/datasources/folioverse.yaml:ro
+      - ./infrastructure/grafana/provisioning/dashboards/folioverse.yaml:/otel-lgtm/grafana/conf/provisioning/dashboards/folioverse.yaml:ro
+      - ./infrastructure/grafana/provisioning/alerting:/otel-lgtm/grafana/conf/provisioning/alerting:ro
+      - ./infrastructure/grafana/dashboards:/var/lib/folioverse/dashboards:ro
+
+  # One-shot scan of dependencies, IaC and Dockerfiles: `docker compose --profile security run --rm trivy`.
+  # Image scans run in CI after the images are built.
+  trivy:
+    profiles: [security]
+    image: aquasec/trivy:0.56.2
+    command: ["fs", "--scanners", "vuln,misconfig,secret", "--severity", "HIGH,CRITICAL", "--skip-dirs", "node_modules,.venv", "--exit-code", "1", "/repo"]
+    volumes: [./:/repo:ro, trivycache:/root/.cache/trivy]
 
   ollama:
     profiles: [local-llm]
@@ -185,3 +234,4 @@ volumes:
   qdrantdata:
   storagedata:
   ollamadata:
+  trivycache:

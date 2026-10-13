@@ -1,4 +1,5 @@
 /** Same-origin JSON client. Auth is cookie-based; mutating requests carry the double-submit CSRF header. */
+import { traceSse } from '../shared/telemetry.js';
 
 export class ApiError extends Error {
   /** @param {number} status @param {any} problem */
@@ -125,10 +126,24 @@ export function parseSse(buf) {
  * @param {{ lastEventId?: string, signal?: AbortSignal, onEvent: (ev: { id?: string, event?: string, data: string }) => void }} opts
  * @returns {Promise<number>}
  */
-export async function readEventStream(path, opts) {
+export function readEventStream(path, opts) {
+  return traceSse(path, ({ headers, tick }) =>
+    readTracedStream(path, {
+      ...opts,
+      headers,
+      onEvent: (ev) => {
+        tick();
+        opts.onEvent(ev);
+      },
+    }),
+  );
+}
+
+/** @param {string} path @param {{ lastEventId?: string, signal?: AbortSignal, headers: Record<string,string>, onEvent: (ev: { id?: string, event?: string, data: string }) => void }} opts */
+async function readTracedStream(path, opts) {
   const open = () =>
     fetch(`/api${path}`, {
-      headers: { accept: 'text/event-stream', ...(opts.lastEventId ? { 'last-event-id': opts.lastEventId } : {}) },
+      headers: { accept: 'text/event-stream', ...opts.headers, ...(opts.lastEventId ? { 'last-event-id': opts.lastEventId } : {}) },
       credentials: 'same-origin',
       signal: opts.signal,
     });

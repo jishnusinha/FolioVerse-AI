@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 import { newId } from '../../common/ids';
+import { fvMetrics } from '../../infra/observability';
 import { PrismaService } from '../../infra/prisma.service';
 import { BudgetService } from './budget.service';
 import { priceUsage } from './pricing';
@@ -94,6 +95,9 @@ export class LedgerService {
       }
       throw e;
     }
+    const labels = { tier, cost_class: ev.costClass, is_demo: String(ev.isDemo) };
+    fvMetrics().ledgerEntries.add(1, labels);
+    fvMetrics().ledgerChargedUsd.add(amount.toNumber(), labels);
     // Budgets cap AI API spend; local compute is an estimate reported separately.
     if (ev.costClass === 'AI_API') await this.budgets.addSpend(ev.workspaceId, amount, { runId: ev.runId, userId: ev.userId ?? run?.userId });
     await this.prisma.usageEvent.update({ where: { id: ev.id }, data: { processedAt: new Date() } });

@@ -1,8 +1,11 @@
 {
 	admin off
 	auto_https off
+	persist_config off
 }
 
+# FV_API_UPSTREAM: compose uses api-http:3000; Cloud Run (lean env) sets the api-http service URL.
+# FV_OTLP_UPSTREAM: optional collector for browser spans (builds with VITE_OTEL_ENABLED=true).
 :8080 {
 	encode zstd gzip
 
@@ -15,13 +18,23 @@
 		-Server
 	}
 
-	respond /healthz 200
+	handle /healthz {
+		respond 200
+	}
 
 	handle /api/* {
 		# SSE endpoints must not be buffered.
-		reverse_proxy api-http:3000 {
+		reverse_proxy {$FV_API_UPSTREAM:api-http:3000} {
+			header_up Host {upstream_hostport}
 			flush_interval -1
 		}
+	}
+
+	handle_path /otlp/* {
+		request_body {
+			max_size 1MB
+		}
+		reverse_proxy {$FV_OTLP_UPSTREAM:otel-collector:4318}
 	}
 
 	handle {

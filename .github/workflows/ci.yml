@@ -26,6 +26,7 @@ jobs:
       ai: ${{ steps.f.outputs.ai }}
       contracts: ${{ steps.f.outputs.contracts }}
       docker: ${{ steps.f.outputs.docker }}
+      infra: ${{ steps.f.outputs.infra }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -37,7 +38,8 @@ jobs:
             api: [*shared, 'apps/api/**', 'config/models/**']
             ai: ['apps/ai-service/**', 'packages/folioverse-ml/**', 'packages/contracts/**', 'uv.lock', 'pyproject.toml']
             contracts: ['packages/contracts/**', 'apps/api/src/**']
-            docker: ['infrastructure/docker/**', 'docker-compose.yml']
+            docker: ['infrastructure/docker/**', 'docker-compose.yml', 'pnpm-lock.yaml', 'uv.lock', '.github/workflows/ci.yml']
+            infra: ['infrastructure/**', '.github/workflows/**', 'docker-compose.yml', 'apps/api/src/infra/observability.ts', 'apps/api/src/worker.module.ts']
 
   node:
     needs: changes
@@ -118,15 +120,114 @@ jobs:
       - name: Pytest (mock provider, hash embedder, in-memory Qdrant)
         run: uv run --directory apps/ai-service pytest -q
 
+  # Images are built and scanned on every push to main and whenever their inputs change; nothing
+  # is pushed from CI (release.yml publishes).
   docker:
     needs: changes
-    if: needs.changes.outputs.docker == 'true'
+    if: needs.changes.outputs.docker == 'true' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: [web, api, ai]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/${{ matrix.image }}.Dockerfile
+          tags: folioverse/${{ matrix.image }}:ci
+          load: true
+          cache-from: type=gha,scope=${{ matrix.image }}
+          cache-to: type=gha,scope=${{ matrix.image }},mode=max
+      - name: Runs as a non-root user
+        run: |
+          user=$(docker image inspect -f '{{.Config.User}}' folioverse/${{ matrix.image }}:ci)
+          echo "image user: ${user:-<unset>}"
+          case "$user" in ""|root|0|0:*|root:*) echo "::error::${{ matrix.image }} image runs as root"; exit 1;; esac
+      - name: Hardened runtime smoke (read-only, no capabilities)
+        if: matrix.image == 'web'
+        run: |
+          docker run -d --name web --read-only --tmpfs /tmp --cap-drop ALL --security-opt no-new-privileges \
+            -e FV_API_UPSTREAM=127.0.0.1:9 -p 8080:8080 folioverse/web:ci
+          for _ in $(seq 1 30); do curl -sf http://localhost:8080/healthz && exit 0; sleep 1; done
+          docker logs web; exit 1
+      - name: SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: folioverse/${{ matrix.image }}:ci
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.spdx.json
+          retention-days: 30
+      - name: Vulnerabilities (HIGH and CRITICAL, report)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: folioverse/${{ matrix.image }}:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          format: table
+          exit-code: "0"
+      - name: Vulnerabilities (CRITICAL with a fix, gate)
+        uses: aquasecurity/trivy-action@0.28.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: "true"
+        with:
+          image-ref: folioverse/${{ matrix.image }}:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+  infra:
+    needs: changes
+    if: needs.changes.outputs.infra == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: cp .env.example .env && docker compose --profile app config --quiet
-      - uses: docker/setup-buildx-action@v3
-      - name: Build images (no push)
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - name: Compose files
         run: |
-          docker buildx build -f infrastructure/docker/api.Dockerfile -t folioverse/api:ci --cache-from type=gha --cache-to type=gha,mode=max .
-          docker buildx build -f infrastructure/docker/web.Dockerfile -t folioverse/web:ci --cache-from type=gha .
+          cp .env.example .env
+          docker compose --profile app --profile observability --profile security config --quiet
+      - name: Infra scripts (deployed smoke, Grafana dashboards, alert runbook links)
+        run: |
+          node --test "infrastructure/tests/*.test.mjs"
+          node infrastructure/grafana/generate.mjs --check
+      - name: OpenTelemetry collector config
+        run: docker run --rm -e FV_OTLP_UPSTREAM=http://localhost:4318 -v "$PWD/infrastructure/otel:/cfg:ro" otel/opentelemetry-collector-contrib:0.111.0 validate --config=/cfg/collector.yaml
+      - name: Caddyfile
+        run: docker run --rm -v "$PWD/infrastructure/docker/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - uses: hashicorp/setup-terraform@v3
+        with: { terraform_version: 1.9.8, terraform_wrapper: false }
+      - name: Terraform fmt and validate (no backend, no credentials)
+        run: |
+          terraform fmt -check -recursive infrastructure/terraform
+          for env in lean standard; do
+            terraform -chdir=infrastructure/terraform/envs/$env init -backend=false -input=false
+            terraform -chdir=infrastructure/terraform/envs/$env validate
+          done
+      - uses: terraform-linters/setup-tflint@v4
+        with: { tflint_version: v0.53.0 }
+      - name: tflint
+        working-directory: infrastructure/terraform
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tflint --init --config "$PWD/.tflint.hcl"
+          tflint --recursive --config "$PWD/.tflint.hcl"
+      - name: Misconfiguration scan (Terraform, Dockerfiles)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: infrastructure
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+      - name: actionlint
+        run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.3 -color

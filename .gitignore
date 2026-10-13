@@ -24,6 +24,7 @@ __pycache__/
 
 # local data
 .data/
+backups/
 apps/api/uploads/
 playwright-report/
 test-results/
@@ -32,4 +33,7 @@ ml-notebooks/.ipynb_checkpoints/
 datasets/evaluation/results/*.tmp
 infrastructure/terraform/**/.terraform/
 infrastructure/terraform/**/*.tfstate*
+infrastructure/terraform/**/terraform.tfvars
+infrastructure/terraform/**/*.auto.tfvars
+infrastructure/terraform/**/crash*.log
 .astro/

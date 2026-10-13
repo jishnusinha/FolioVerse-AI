@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { annotate, FV_ATTR, fvMetrics } from '../../infra/observability';
 import { PrismaService } from '../../infra/prisma.service';
 import { RedisService, RUN_STREAM, WS_STREAM } from '../../infra/redis.service';
 import { RunsService, TERMINAL } from '../runs/runs.service';
@@ -8,7 +9,10 @@ import { RunsService, TERMINAL } from '../runs/runs.service';
 const STREAM_ID = /^\d+-\d+$/;
 const FINAL_TYPES = new Set(['run.finished', 'run.failed']);
 
-function openSse(res: Response) {
+function openSse(res: Response, stream: 'run' | 'workspace') {
+  const open = fvMetrics().sseConnections;
+  open.add(1, { stream });
+  res.once('close', () => open.add(-1, { stream }));
   res.status(200);
   res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
   res.setHeader('Cache-Control', 'no-cache, no-transform');
@@ -19,6 +23,7 @@ function openSse(res: Response) {
 }
 
 function writeEvent(res: Response, id: string, env: any) {
+  fvMetrics().sseEvents.add(1, { type: String(env.type) });
   res.write(`id: ${id}\nevent: ${env.type}\ndata: ${JSON.stringify({ ...env, id })}\n\n`);
 }
 
@@ -41,7 +46,8 @@ export class SseController {
     const requested = (req.headers['last-event-id'] as string) || (req.query.lastEventId as string) || '0-0';
     let cursor = STREAM_ID.test(requested) ? requested : '0-0';
     const stream = RUN_STREAM(runId);
-    openSse(res);
+    annotate({ [FV_ATTR.workspaceId]: workspaceId, [FV_ATTR.runId]: runId, [FV_ATTR.graph]: run.graph });
+    openSse(res, 'run');
 
     const exists = await this.redis.client.exists(stream);
     if (!exists && TERMINAL.has(run.status)) {
@@ -111,7 +117,8 @@ export class SseController {
       const last = await this.redis.client.xrevrange(stream, '+', '-', 'COUNT', 1);
       cursor = last.length ? last[0][0] : '0-0';
     }
-    openSse(res);
+    annotate({ [FV_ATTR.workspaceId]: workspaceId });
+    openSse(res, 'workspace');
     const client = this.redis.blockingClient();
     let closed = false;
     req.on('close', () => {

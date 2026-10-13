@@ -2,6 +2,7 @@ import { Injectable, Logger, Module, OnModuleDestroy, OnModuleInit } from '@nest
 import { Job, Worker } from 'bullmq';
 import { DomainModule } from './domain.module';
 import { CostRollupService } from './modules/costs/rollup.service';
+import { inJobSpan, observeGauge } from './infra/observability';
 import { bullConnection, QUEUES, QueuesService } from './infra/queues.service';
 import { DiscoveryService } from './modules/discovery/discovery.service';
 import { IngestionExecutorService } from './modules/ingestion/ingestion-executor.service';
@@ -36,7 +37,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     await this.models.ensureSeeded();
     const make = (name: string, concurrency: number, fn: (job: Job) => Promise<unknown>) => {
-      const w = new Worker(name, fn, { connection: bullConnection(), concurrency });
+      const w = new Worker(name, (job) => inJobSpan(name, job, () => fn(job)), { connection: bullConnection(), concurrency });
       w.on('failed', (job, err) => this.log.warn(`${name} job ${job?.id} failed: ${err.message}`));
       this.workers.push(w);
     };
@@ -70,6 +71,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     await this.queues.queue(QUEUES.maintenance).add('cost-rollup', {}, { repeat: { every: 600_000 }, jobId: 'cost-rollup' });
     await this.queues.queue(QUEUES.maintenance).add('purge', {}, { repeat: { pattern: '17 3 * * *' }, jobId: 'purge' });
     await this.queues.queue(QUEUES.ledger).add('sweep', {}, { repeat: { every: 30_000 }, jobId: 'sweep' });
+    observeGauge('fv.queue.depth', 'Waiting, active and delayed jobs per queue', () => this.queues.depth(), 'queue');
     this.log.log('workers started: ingestion, ai-runs, ledger, maintenance');
   }
 

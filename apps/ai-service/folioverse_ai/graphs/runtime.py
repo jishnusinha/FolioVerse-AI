@@ -12,6 +12,7 @@ from ..events import Emitter
 from ..ids import uuid7
 from ..providers import PROVIDERS, ChatResult, ProviderError
 from ..repo import get_repo
+from ..telemetry import ATTR_GRAPH, ATTR_NODE, ATTR_RUN, ATTR_WORKSPACE, span
 
 # Run contexts hold non-serializable collaborators; LangGraph state stays JSON-serializable.
 RUN_CONTEXTS: dict[str, "RunContext"] = {}
@@ -74,8 +75,16 @@ def node(name: str):
             step = ctx.step
             await ctx.emit("node.started", {"node": name, "step": step})
             started = time.perf_counter()
+            attrs = {
+                ATTR_RUN: ctx.run_id,
+                ATTR_WORKSPACE: ctx.workspace_id,
+                ATTR_GRAPH: ctx.graph,
+                ATTR_NODE: name,
+                "fv.step": step,
+            }
             try:
-                result = await fn(state, config)
+                with span(f"node {name}", attrs):
+                    result = await fn(state, config)
             except Exception:
                 await ctx.emit(
                     "node.finished",

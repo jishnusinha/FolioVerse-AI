@@ -3,6 +3,7 @@ import { Decimal } from 'decimal.js';
 import { env } from '../../config/env';
 import { AuthUser } from '../../common/auth.decorators';
 import { isUuid, newId } from '../../common/ids';
+import { annotate, FV_ATTR, fvMetrics } from '../../infra/observability';
 import { PrismaService } from '../../infra/prisma.service';
 import { QUEUES, QueuesService } from '../../infra/queues.service';
 import { CANCEL_KEY, RedisService } from '../../infra/redis.service';
@@ -251,8 +252,11 @@ export class RunsService {
     });
 
     const reservation = await this.budgets.reserve(workspaceId, runId, estimate.amount, { userId: user.id, projectId });
+    annotate({ [FV_ATTR.workspaceId]: workspaceId, [FV_ATTR.runId]: runId, [FV_ATTR.graph]: spec.graph });
     if (!reservation.ok) {
       const budget = { scope: reservation.scope, policyId: reservation.policyId, limit: reservation.limit, remaining: reservation.remaining };
+      fvMetrics().budgetRejections.add(1, { scope: String(reservation.scope ?? 'WORKSPACE'), graph: spec.graph });
+      fvMetrics().runs.add(1, { graph: spec.graph, status: 'BUDGET_REJECTED' });
       await this.prisma.aiRun.update({
         where: { id: runId },
         data: {

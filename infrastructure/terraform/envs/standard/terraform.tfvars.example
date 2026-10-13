@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Never put secret values here.
+project_id        = "your-project-id"
+region            = "us-central1"
+zone              = "us-central1-a"
+domain            = "folioverse.example.com"
+github_repository = "your-org/folioverse"
+
+images = {
+  web = "us-central1-docker.pkg.dev/your-project-id/folioverse/web:BOOTSTRAP_TAG"
+  api = "us-central1-docker.pkg.dev/your-project-id/folioverse/api:BOOTSTRAP_TAG"
+  ai  = "us-central1-docker.pkg.dev/your-project-id/folioverse/ai:BOOTSTRAP_TAG"
+}
+
+# enable_cloud_sql     = true
+# enable_memorystore   = true
+# enable_load_balancer = true
+# billing_account      = "XXXXXX-XXXXXX-XXXXXX"
+# monthly_budget_usd   = 150
+# alert_email          = "oncall@example.com"

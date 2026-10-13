@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars (git-ignored) and fill in. Never put secret values here; secrets are
+# added to Secret Manager with gcloud (infrastructure/runbooks/rotate-secrets.md).
+project_id        = "your-project-id"
+region            = "us-central1"
+zone              = "us-central1-a"
+app_origin        = "https://fv-web-PROJECT_NUMBER.us-central1.run.app"
+github_repository = "your-org/folioverse"
+
+images = {
+  web = "us-central1-docker.pkg.dev/your-project-id/folioverse/web:BOOTSTRAP_TAG"
+  api = "us-central1-docker.pkg.dev/your-project-id/folioverse/api:BOOTSTRAP_TAG"
+  ai  = "us-central1-docker.pkg.dev/your-project-id/folioverse/ai:BOOTSTRAP_TAG"
+}
+
+# billing_account    = "XXXXXX-XXXXXX-XXXXXX"
+# monthly_budget_usd = 30
+# alert_email        = "oncall@example.com"
+# enable_openai      = false
+# openai_model       = ""   # exact model id you are entitled to use

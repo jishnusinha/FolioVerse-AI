@@ -15,7 +15,7 @@ deviations and choices go in `docs/planning/DECISION_LOG.md`.
 | `packages/design-tokens` | `tokens.json` → CSS variables, Tailwind `@theme`, JS |
 | `packages/folioverse-ml` | Recommendation models and offline evaluation (Python) |
 | `config/models/registry.seed.yaml` | Model registry seed (no hard-coded real model ids or prices) |
-| `infrastructure/` | Docker files, scripts (`up`, `dev`, `smoke`, `gen-keys`, `check-env`) |
+| `infrastructure/` | Docker files, scripts (`up`, `dev`, `smoke`, `gen-keys`, `check-env`, `backup`), OTel collector, Grafana, Terraform, runbooks |
 
 ## Commands
 
@@ -27,6 +27,10 @@ pnpm up                 # everything in Docker (http://localhost:8080)
 pnpm test               # JS/TS unit tests + pytest (mock model, no network)
 pnpm typecheck && pnpm lint
 node infrastructure/scripts/smoke.mjs   # backend vertical slice against a running stack
+pnpm smoke:deployed -- --base <url>     # read-only checks of any deployment
+pnpm up -- --infra --observability      # adds the OTel collector + Grafana LGTM (http://localhost:3001)
+pnpm backup:drill                       # back up, restore side by side, compare counts, clean up
+pnpm test:infra                         # infra script tests + Grafana/runbook consistency
 ```
 
 ## Rules

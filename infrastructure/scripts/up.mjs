@@ -3,6 +3,7 @@
  * pnpm up            -> full Docker stack (build images, migrate, seed, wait for health).
  * pnpm up -- --infra -> data services only (Postgres, Redis, Qdrant, S3 storage, Mailpit), then migrate + seed
  *                       natively; start the apps with `pnpm dev`.
+ * --observability    -> also start the OTel collector and Grafana LGTM (http://localhost:3001).
  */
 import { ensureEnvFile } from './gen-keys.mjs';
 import { loadEnv, run } from './lib.mjs';
@@ -16,7 +17,9 @@ if (filled.length) console.log(`up: generated ${filled.join(', ')} in .env (valu
 await run('node', ['infrastructure/scripts/check-env.mjs']);
 
 const profiles = [...(infraOnly ? [] : ['--profile', 'app']), ...(observability ? ['--profile', 'observability'] : [])];
-const infra = ['postgres', 'redis', 'qdrant', 'storage', 'mailpit'];
+const infra = ['postgres', 'redis', 'qdrant', 'storage', 'mailpit', ...(observability ? ['otel-collector', 'lgtm'] : [])];
+// App containers export telemetry only when the collector is part of this stack.
+if (observability) process.env.FV_COMPOSE_OTEL_ENDPOINT ??= 'http://otel-collector:4318';
 console.log(infraOnly ? 'up: starting data services…' : 'up: building and starting the full stack…');
 await run('docker', ['compose', ...profiles, 'up', '-d', ...(infraOnly ? infra : ['--build'])]);
 
@@ -36,5 +39,9 @@ FolioVerse is up${infraOnly ? ' (data services only — run `pnpm dev` for the a
   API docs       http://localhost:${infraOnly ? '3000' : '8080'}/api/docs
   Mailpit        http://localhost:8025
   S3 storage     http://localhost:9000 (SeaweedFS)
-  Qdrant         http://localhost:6333/dashboard${observability ? '\n  Grafana        http://localhost:3001' : ''}
+  Qdrant         http://localhost:6333/dashboard${
+    observability
+      ? `\n  Grafana        http://localhost:3001 (FolioVerse folder)\n  OTLP collector http://localhost:4318${infraOnly ? ' (set OTEL_EXPORTER_OTLP_ENDPOINT to this for pnpm dev)' : ''}`
+      : ''
+  }
 `);

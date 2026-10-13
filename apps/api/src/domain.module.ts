@@ -1,6 +1,7 @@
 import { Global, Module } from '@nestjs/common';
 import { AuditModule } from './common/audit.service';
 import { CryptoModule } from './common/crypto.service';
+import { TelemetryLifecycle } from './infra/telemetry.lifecycle';
 import { PrismaModule } from './infra/prisma.service';
 import { QueuesModule } from './infra/queues.service';
 import { RedisModule } from './infra/redis.service';
@@ -24,6 +25,7 @@ import { StudioService } from './modules/studio/studio.service';
 import { WriterService } from './modules/writer/writer.service';
 
 const services = [
+  TelemetryLifecycle,
   CostRollupService,
   StudioService,
   DiscoveryService,

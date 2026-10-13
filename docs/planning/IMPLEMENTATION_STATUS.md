@@ -443,12 +443,62 @@ needed `prisma migrate deploy` for `0007_costs` (additive).
 Not done: real OpenAI Costs API reconciliation and GCP billing import (BLOCKED, not configured); real model prices
 (none entered: prices come from an admin with a source URL; the seeded mock prices are DEMO).
 
-## Gates 10–13 — PLANNED
+## Gate 10 — DevOps & Observability — DONE locally (GCP release and deploy BLOCKED: no project, WIF or remote)
+
+Validation: API `tsc` 0, eslint clean, unit 92/92 (`observability.spec.ts`: no-op without an SDK, traceparent in the
+job payload, consumer span in the same trace with `fv.*` attributes, ERROR status on failure, maintenance jobs not
+traced), integration 226/226; web `vitest run` 309/309 (`telemetry.test.js` 3), `eslint src playwright` clean, `tsc`
+clean, `vite build` OK (no OTel code in the default bundle; with `VITE_OTEL_ENABLED=true` a separate 97 kB chunk);
+ai-service pytest 103/103 (`test_telemetry.py`: header traceparent continues into run and node spans), ruff clean;
+folioverse-ml 11/11; `contracts:check` OK; `pnpm test:infra` (deployed smoke against healthy and degraded stand-ins,
+Grafana `--check` incl. runbook anchors); `docker compose --profile app --profile observability --profile security
+config` OK; `otelcol validate` and `caddy validate` OK; `terraform fmt -check`, `validate` (lean, standard) and
+`tflint --recursive` clean; Trivy `config` HIGH/CRITICAL clean (two justified ignores, D-098); actionlint (with
+shellcheck) clean for `ci.yml` and `release.yml`.
+
+- `FV-G10-OTEL-001` OpenTelemetry — DONE (D-095). Nest: HTTP and Express auto-instrumentation (probes excluded), BullMQ
+  propagation through the job payload, run/ingestion/SSE attributes. Python: FastAPI (per-chunk ASGI spans off), run
+  and ingest spans, one span per LangGraph node. Web: fetch and SSE spans, opt-in (D-097). Evidence: `pnpm dev` with
+  the collector in debug mode plus `smoke.mjs`: 1277 spans in 140 traces; all 12 run traces join
+  folioverse-api → api-worker → ai-api → node spans; 3 ingestion traces reach ai-ingest; 0 spans carrying query
+  strings or credential headers; all 10 `fv.*` metrics exported.
+- `FV-G10-LGTM-002` Observability profile — DONE (D-096). `otel-collector` (scrubbing processors, CORS for the dev
+  origins) and `grafana/otel-lgtm` bound to 127.0.0.1; four generated dashboards (runs, ingestion, ledger, SSE) and
+  five alert rules linked to runbook sections. `pnpm up -- --observability` wires the app containers to the
+  collector. Not run locally: the LGTM container (disk space), so the dashboards were checked by the generator only.
+- `FV-G10-IMG-003` Image hardening — DONE (D-098). Non-root users, read-only root filesystem, dropped capabilities,
+  healthchecks for every service (worker `/live`), package managers removed. Verified locally: the web image as uid
+  65532 on a read-only filesystem with `cap_drop: ALL` serves `/healthz` and Docker reports it healthy. The api and ai
+  images were not rebuilt locally (disk space); CI builds all three, checks the user, writes SBOMs and gates on
+  CRITICAL vulnerabilities.
+- `FV-G10-REL-004` Release workflow — DONE as code, BLOCKED for execution (no GitHub remote, GCP project or WIF)
+  (D-100). `.github/workflows/release.yml`: preflight (warns and stops without `GCP_*` variables), build + scan +
+  SBOM + push with the publisher identity, `production` environment approval, migrate job, rollout by digest, deployed
+  smoke, automatic traffic rollback.
+- `FV-G10-TF-005` Terraform — DONE as code, never applied (BLOCKED: no GCP project) (D-099). Modules `network`,
+  `platform` (Artifact Registry, runtime accounts, Secret Manager containers, buckets, five Cloud Run services and
+  the migrate job, Cloud Monitoring uptime check, alert policies and optional budget), `data_vm`, `managed_data`,
+  `load_balancer`, `github_wif`; envs `lean` and `standard`. CI runs fmt, validate, tflint and Trivy config; no
+  credentials are used and nothing is applied.
+- `FV-G10-RUN-006` Runbooks and deployed smoke — DONE (D-101). `infrastructure/runbooks/`: deploy (bootstrap,
+  release, expand/contract migrations, health checks, rollback), rotate-secrets (per-secret effects, model prices,
+  suspected key abuse), restore-backup, purge-job (maintenance jobs, queue backlog). `pnpm smoke:deployed --base
+  <url>` is read-only; tested against local stand-ins, not against a deployment (none exists).
+- `FV-G10-BKP-007` Backups — DONE locally (D-102). `pnpm backup`, `pnpm restore`, `pnpm backup:drill`; VM backup
+  timer in Terraform. Drill against the dev database: 76 tables, 13,791 rows and 54 vector points restored with no
+  mismatches in 18 s; a manifest-less restore (bucket download layout) and the `--replace` refusal were also checked.
+  The cloud backup path is BLOCKED with the rest of GCP.
+
+Not done: any GCP deployment, release run or cloud backup (BLOCKED: no project, credentials or GitHub remote);
+Grafana dashboards rendered in a running LGTM container; local rebuild of the api and ai images.
+
+## Gates 11–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.
 - OpenAI admin key for the Costs API — BLOCKED (`OPENAI_ADMIN_KEY`); CSV reconciliation is the fallback.
-- GCP project / WIF / Artifact Registry — BLOCKED. GCP Billing export to BigQuery (`FV_GCP_BILLING_TABLE`) — BLOCKED;
+- GCP project / WIF / Artifact Registry — BLOCKED. Terraform (`infrastructure/terraform`) and `release.yml` are ready;
+  follow `infrastructure/runbooks/deploy.md`. GCP Billing export to BigQuery (`FV_GCP_BILLING_TABLE`) — BLOCKED;
   manual cloud cost entry is the fallback.
 - GitHub remote + Actions — BLOCKED.
 - Kaggle account — BLOCKED (notebooks run locally only).

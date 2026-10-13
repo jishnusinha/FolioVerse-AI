@@ -1,0 +1,19 @@
+# Fixed-uid datasources for the FolioVerse dashboards and alert rules. Inside the grafana/otel-lgtm
+# container Prometheus listens on :9090 and Tempo on :3200; the image's own datasources stay as they are.
+apiVersion: 1
+datasources:
+  - name: FolioVerse Prometheus
+    uid: fv-prometheus
+    type: prometheus
+    access: proxy
+    url: http://localhost:9090
+    jsonData:
+      timeInterval: 15s
+  - name: FolioVerse Tempo
+    uid: fv-tempo
+    type: tempo
+    access: proxy
+    url: http://localhost:3200
+    jsonData:
+      tracesToMetrics:
+        datasourceUid: fv-prometheus

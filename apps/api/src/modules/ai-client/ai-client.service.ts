@@ -1,6 +1,7 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { env } from '../../config/env';
 import { CryptoService } from '../../common/crypto.service';
+import { traceHeaders } from '../../infra/observability';
 
 export class AiServiceError extends Error {
   constructor(
@@ -47,6 +48,7 @@ export class AiClientService {
           'content-type': 'application/json',
           accept: 'application/x-ndjson',
           authorization: `Bearer ${token}`,
+          ...traceHeaders(),
           ...(opts.traceparent ? { traceparent: opts.traceparent } : {}),
         },
         body: JSON.stringify(body),
@@ -90,7 +92,7 @@ export class AiClientService {
     const token = await this.crypto.signInternal('api-http', 120);
     const res = await fetch(url, {
       method: init.method ?? (init.body ? 'POST' : 'GET'),
-      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${token}`, ...traceHeaders() },
       body: init.body ? JSON.stringify(init.body) : undefined,
       signal: AbortSignal.timeout(60_000),
     });

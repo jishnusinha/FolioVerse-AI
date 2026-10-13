@@ -16,6 +16,7 @@ from .providers import available_providers
 from .repo import get_repo
 from .retrieval.retrieve import retrieve
 from .retrieval.store import get_store
+from .telemetry import ATTR_GRAPH, ATTR_RUN, ATTR_WORKSPACE, span
 
 NDJSON = "application/x-ndjson"
 
@@ -142,9 +143,13 @@ async def recommendations_evaluate(req: EvaluateRequest):
 @run_router.post("/runs/units")
 async def run_units(unit: RunUnit):
     emitter = Emitter(unit.runId, unit.workspaceId)
-    return StreamingResponse(
-        ndjson_stream(emitter, lambda: run_unit(unit.model_dump(), emitter)), media_type=NDJSON
-    )
+
+    async def work():
+        attrs = {ATTR_RUN: unit.runId, ATTR_WORKSPACE: unit.workspaceId, ATTR_GRAPH: unit.graph}
+        with span(f"run {unit.graph}", attrs):
+            await run_unit(unit.model_dump(), emitter)
+
+    return StreamingResponse(ndjson_stream(emitter, work), media_type=NDJSON)
 
 
 @run_router.get("/providers")
@@ -169,7 +174,9 @@ async def ingest_units(unit: IngestUnit):
     emitter = Emitter(None, unit.workspaceId)
 
     async def work():
-        await run_ingestion(unit.model_dump(), emitter)
+        attrs = {ATTR_WORKSPACE: unit.workspaceId, "fv.source_version_id": unit.sourceVersionId}
+        with span("ingest", attrs):
+            await run_ingestion(unit.model_dump(), emitter)
 
     return StreamingResponse(ndjson_stream(emitter, work), media_type=NDJSON)
 

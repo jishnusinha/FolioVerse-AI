@@ -3,6 +3,7 @@ import type { RunStatus } from '@prisma/client';
 import { CryptoService } from '../../common/crypto.service';
 import { newId } from '../../common/ids';
 import { rootLogger } from '../../common/logger';
+import { annotate, FV_ATTR, fvMetrics, secondsSince } from '../../infra/observability';
 import { PrismaService } from '../../infra/prisma.service';
 import { QUEUES, QueuesService } from '../../infra/queues.service';
 import { CANCEL_KEY, RedisService } from '../../infra/redis.service';
@@ -88,6 +89,7 @@ export class RunExecutorService {
       data: { status: 'RUNNING', startedAt: new Date(), heartbeatAt: new Date() },
     });
     if (claimed.count !== 1) return;
+    annotate({ [FV_ATTR.workspaceId]: run.workspaceId, [FV_ATTR.graph]: run.graph });
     await emit('run.state', { status: 'RUNNING' });
 
     const scope = (run.scope as any) ?? {};
@@ -227,6 +229,11 @@ export class RunExecutorService {
   ) {
     const current = await this.prisma.aiRun.findUnique({ where: { id: run.id } });
     if (!current || TERMINAL.has(current.status)) return;
+    const recordOutcome = (status: RunStatus) => {
+      const attrs = { graph: run.graph, status };
+      fvMetrics().runs.add(1, attrs);
+      fvMetrics().runDuration.record(secondsSince(current.startedAt), attrs);
+    };
 
     if (finished) {
       const answer: string = finished.answer ?? text;
@@ -274,11 +281,13 @@ export class RunExecutorService {
             })
           : null;
       if (WRITER_GRAPHS.has(run.graph) && (status === 'SUCCEEDED' || status === 'PARTIAL')) await this.writer.recordFromRun(run.id, finished.artifact ?? null);
+      recordOutcome(status);
       await emit('run.finished', { status, outcome, answer, artifact: finished.artifact ?? null, artifactId });
     } else if (failed) {
       const status: RunStatus = failed.errorClass === 'CANCELLED' ? 'CANCELLED' : 'FAILED';
       if (run.messageId) await this.prisma.message.update({ where: { id: run.messageId }, data: { status: 'FAILED', content: text } });
       await this.prisma.aiRun.update({ where: { id: run.id }, data: { status, finishedAt: new Date(), error: failed as any, lastSeq: seq + 1 } });
+      recordOutcome(status);
       await emit('run.failed', failed);
     }
     await this.queues.queue(QUEUES.ledger).add('settle', { runId: run.id }, { jobId: `settle-${run.id}`, delay: 1500 });
@@ -296,6 +305,7 @@ export class RunExecutorService {
         data: { status: 'INTERRUPTED', finishedAt: new Date(), error: { errorClass: 'INTERNAL', message: 'Worker stopped heartbeating', retryable: true } },
       });
       if (!n.count) continue;
+      fvMetrics().runs.add(1, { graph: r.graph, status: 'INTERRUPTED' });
       if (r.messageId) await this.prisma.message.update({ where: { id: r.messageId }, data: { status: 'FAILED' } }).catch(() => undefined);
       await this.events.publishRun(r.id, this.events.envelope('run.state', { status: 'INTERRUPTED', reason: 'heartbeat timeout' }, { runId: r.id, seq: r.lastSeq + 1 }));
       await this.budgets.releaseRun(r.id);

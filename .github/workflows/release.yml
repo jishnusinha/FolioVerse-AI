@@ -1,0 +1,182 @@
+name: Release
+
+# Builds, scans and publishes the web/api/ai images, then (after approval of the `production`
+# environment) migrates and rolls out the Cloud Run services, smoke-tests the deployment and
+# shifts traffic back if the smoke fails. Keyless: GitHub OIDC -> Workload Identity Federation,
+# with separate publisher and deployer identities (infrastructure/terraform/modules/github_wif).
+# Without the GCP repository variables the workflow stops after a warning; nothing is built.
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FV_LIVE_PROVIDER_TESTS: "0"
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+      tag: ${{ steps.check.outputs.tag }}
+    steps:
+      - id: check
+        env:
+          GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ vars.GCP_REGION }}
+          GCP_REGISTRY: ${{ vars.GCP_REGISTRY }}
+          GCP_WIF_PROVIDER: ${{ vars.GCP_WIF_PROVIDER }}
+          GCP_PUBLISHER_SA: ${{ vars.GCP_PUBLISHER_SA }}
+          GCP_DEPLOYER_SA: ${{ vars.GCP_DEPLOYER_SA }}
+          FV_PUBLIC_URL: ${{ vars.FV_PUBLIC_URL }}
+        run: |
+          missing=()
+          for v in GCP_PROJECT_ID GCP_REGION GCP_REGISTRY GCP_WIF_PROVIDER GCP_PUBLISHER_SA GCP_DEPLOYER_SA FV_PUBLIC_URL; do
+            [ -n "${!v}" ] || missing+=("$v")
+          done
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then tag="$GITHUB_REF_NAME"; else tag="sha-${GITHUB_SHA::12}"; fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::warning title=Release not configured::Missing repository variables: ${missing[*]}. Nothing was built or deployed. See infrastructure/runbooks/deploy.md."
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  publish:
+    needs: preflight
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: true
+      matrix:
+        image: [web, api, ai]
+    env:
+      IMAGE: ${{ vars.GCP_REGISTRY }}/${{ matrix.image }}:${{ needs.preflight.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: infrastructure/docker/${{ matrix.image }}.Dockerfile
+          tags: ${{ env.IMAGE }}
+          load: true
+          build-args: |
+            VITE_OTEL_ENABLED=${{ vars.FV_WEB_OTEL || 'false' }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ needs.preflight.outputs.tag }}
+          cache-from: type=gha,scope=${{ matrix.image }}
+      - name: Runs as a non-root user
+        run: |
+          user=$(docker image inspect -f '{{.Config.User}}' "$IMAGE")
+          case "$user" in ""|root|0|0:*|root:*) echo "::error::${{ matrix.image }} image runs as root"; exit 1;; esac
+      - name: Vulnerability gate (CRITICAL with a fix)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.IMAGE }}
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: SBOM (SPDX)
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.IMAGE }}
+          format: spdx-json
+          output-file: sbom-${{ matrix.image }}.spdx.json
+          upload-artifact: false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sbom-${{ matrix.image }}
+          path: sbom-${{ matrix.image }}.spdx.json
+          retention-days: 90
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_PUBLISHER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Push
+        run: |
+          gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+          docker push "$IMAGE"
+
+  deploy:
+    needs: [preflight, publish]
+    if: needs.preflight.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.FV_PUBLIC_URL }}
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      REGION: ${{ vars.GCP_REGION }}
+      REGISTRY: ${{ vars.GCP_REGISTRY }}
+      TAG: ${{ needs.preflight.outputs.tag }}
+      PREFIX: ${{ vars.FV_SERVICE_PREFIX || 'fv' }}
+      # Consumers before producers, so a new caller never reaches an old callee.
+      ORDER: ai-api ai-ingest api-worker api-http web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOYER_SA }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Resolve image digests
+        run: |
+          for img in web api ai; do
+            digest=$(gcloud artifacts docker images describe "$REGISTRY/$img:$TAG" --format='value(image_summary.digest)')
+            echo "IMG_${img^^}=$REGISTRY/$img@$digest" >> "$GITHUB_ENV"
+          done
+      - name: Record serving revisions
+        id: previous
+        run: |
+          : > previous-revisions.txt
+          for svc in $ORDER; do
+            rev=$(gcloud run services describe "$PREFIX-$svc" --region "$REGION" --format='value(status.traffic[0].revisionName)')
+            echo "$svc $rev" >> previous-revisions.txt
+          done
+          { echo "### Revisions before $TAG"; echo; sed 's/^/- /' previous-revisions.txt; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Migrate (expand-only migrations; see runbooks/deploy.md)
+        run: |
+          gcloud run jobs update "$PREFIX-migrate" --region "$REGION" --image "$IMG_API"
+          gcloud run jobs execute "$PREFIX-migrate" --region "$REGION" --wait
+      - name: Roll out
+        run: |
+          for svc in $ORDER; do
+            case "$svc" in ai-*) img="$IMG_AI";; api-*) img="$IMG_API";; web) img="$IMG_WEB";; esac
+            gcloud run services update "$PREFIX-$svc" --region "$REGION" --image "$img" --quiet
+            gcloud run services update-traffic "$PREFIX-$svc" --region "$REGION" --to-latest --quiet
+          done
+      - name: Deployed smoke (read-only)
+        run: node infrastructure/scripts/smoke-deployed.mjs --base "${{ vars.FV_PUBLIC_URL }}"
+      - name: Shift traffic back
+        if: failure() && steps.previous.outcome == 'success'
+        run: |
+          for svc in $(echo "$ORDER" | tr ' ' '\n' | tac); do
+            rev=$(awk -v s="$svc" '$1 == s { print $2 }' previous-revisions.txt)
+            [ -n "$rev" ] && gcloud run services update-traffic "$PREFIX-$svc" --region "$REGION" --to-revisions "$rev=100" --quiet
+          done
+          echo "::error::Release $TAG failed; traffic is back on the previous revisions. The database keeps the new (expand-only) schema."
+          { echo; echo "**Rolled back** to the revisions above."; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Summary
+        if: success()
+        run: echo "Released **$TAG** ($IMG_API, $IMG_AI, $IMG_WEB)" >> "$GITHUB_STEP_SUMMARY"

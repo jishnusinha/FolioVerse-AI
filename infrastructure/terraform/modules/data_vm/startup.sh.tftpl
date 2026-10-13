@@ -1,0 +1,70 @@
+#!/bin/bash
+# FolioVerse data VM (Container-Optimized OS). Runs on every boot: mounts the data disk, starts the
+# data containers and installs the nightly backup timer. Secrets are read from Secret Manager with
+# the VM's service account and kept in a root-only tmpfs file, never in metadata or logs.
+set -euo pipefail
+
+MNT=/mnt/disks/data
+DEV=/dev/disk/by-id/google-data
+mkdir -p "$MNT"
+if ! blkid "$DEV" >/dev/null 2>&1; then
+  mkfs.ext4 -m 0 -E lazy_itable_init=0,lazy_journal_init=0,discard "$DEV"
+fi
+mountpoint -q "$MNT" || mount -o discard,defaults "$DEV" "$MNT"
+mkdir -p "$MNT/postgres" "$MNT/redis" "$MNT/qdrant" "$MNT/backups"
+
+md() { curl -sf -H 'Metadata-Flavor: Google' "http://metadata.google.internal/computeMetadata/v1/$1"; }
+token() { md instance/service-accounts/default/token | sed -E 's/.*"access_token":"([^"]+)".*/\1/'; }
+secret() {
+  curl -sf -H "Authorization: Bearer $(token)" \
+    "https://secretmanager.googleapis.com/v1/projects/${project_id}/secrets/$1/versions/latest:access" \
+    | sed -E 's/.*"data":"([^"]+)".*/\1/' | base64 -d
+}
+
+install -d -m 700 /run/fv
+docker network inspect fv >/dev/null 2>&1 || docker network create fv
+
+%{ if run_postgres ~}
+umask 077
+printf 'POSTGRES_USER=folioverse\nPOSTGRES_DB=folioverse\nPOSTGRES_PASSWORD=%s\n' "$(secret ${postgres_password_secret})" > /run/fv/postgres.env
+umask 022
+docker rm -f fv-postgres >/dev/null 2>&1 || true
+docker run -d --name fv-postgres --restart=always --network fv -p 5432:5432 \
+  --env-file /run/fv/postgres.env -v "$MNT/postgres:/var/lib/postgresql/data" \
+  --shm-size=256m postgres:16-alpine
+%{ endif ~}
+%{ if run_redis ~}
+docker rm -f fv-redis >/dev/null 2>&1 || true
+docker run -d --name fv-redis --restart=always --network fv -p 6379:6379 \
+  -v "$MNT/redis:/data" redis:7-alpine redis-server --appendonly yes --maxmemory-policy noeviction
+%{ endif ~}
+docker rm -f fv-qdrant >/dev/null 2>&1 || true
+docker run -d --name fv-qdrant --restart=always --network fv -p 6333:6333 \
+  -v "$MNT/qdrant:/qdrant/storage" qdrant/qdrant:v1.12.4
+
+# Nightly backup to gs://${backup_bucket} (infrastructure/runbooks/restore-backup.md).
+mkdir -p /var/lib/fv
+cat > /var/lib/fv/backup.sh <<'BACKUP'
+${backup_script}
+BACKUP
+cat > /etc/systemd/system/fv-backup.service <<'UNIT'
+[Unit]
+Description=FolioVerse backup (Postgres dump + Qdrant snapshot to GCS)
+[Service]
+Type=oneshot
+Environment=FV_BACKUP_BUCKET=${backup_bucket}
+Environment=FV_QDRANT_COLLECTION=${qdrant_collection}
+Environment=FV_BACKUP_POSTGRES=${run_postgres}
+ExecStart=/bin/bash /var/lib/fv/backup.sh
+UNIT
+cat > /etc/systemd/system/fv-backup.timer <<'UNIT'
+[Unit]
+Description=Nightly FolioVerse backup
+[Timer]
+OnCalendar=*-*-* 02:30:00 UTC
+Persistent=true
+[Install]
+WantedBy=timers.target
+UNIT
+systemctl daemon-reload
+systemctl enable --now fv-backup.timer
