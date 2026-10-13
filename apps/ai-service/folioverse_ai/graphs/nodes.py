@@ -2,6 +2,7 @@
 
 from ..anchors import build_anchor
 from ..citations import MARKER, validate
+from ..metering import meter_local
 from ..repo import get_repo
 from ..retrieval.retrieve import candidates_json, packed_json, retrieve
 from ..text import count_tokens
@@ -14,6 +15,14 @@ async def do_retrieve(ctx: RunContext, query: str, page_max: int | None = None) 
         r = await retrieve(query, ctx.scope, options)
     except ConnectionError as e:
         raise RetrievalUnavailable(str(e)) from e
+    await meter_local(
+        ctx.workspace_id,
+        r.compute_seconds,
+        r.params.get("embedder", "embedder"),
+        "retrieval",
+        ctx.run_id,
+        ctx.user_id,
+    )
     packed = r.packed
     await get_repo().insert_retrieval_event(
         {

@@ -46,6 +46,8 @@ class Retrieval:
     context_tokens: int
     latency_ms: float
     params: dict = field(default_factory=dict)
+    # Wall time of local embedding and reranking, metered as LOCAL_COMPUTE.
+    compute_seconds: float = 0.0
 
     def context(self) -> dict[str, dict]:
         return {p["marker"]: p for p in self.packed}
@@ -85,8 +87,10 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
     top_k = int(options.get("topK", s.top_k))
     pool = max(top_k * 4, 20)
 
+    t0 = time.perf_counter()
     qd = await asyncio.to_thread(embedder.embed_query, query)
     qs = await asyncio.to_thread(embedder.sparse_query, query)
+    compute = time.perf_counter() - t0
     dense_hits = (
         await asyncio.to_thread(store.search_dense, qd, flt, pool) if fusion in ("rrf", "dense") else []
     )
@@ -109,11 +113,13 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
 
     reranker = get_reranker() if options.get("rerank", s.rerank) else None
     if reranker and ranked:
+        t0 = time.perf_counter()
         scores = await asyncio.to_thread(
             reranker.score,
             query,
             [child_rows[c.chunk_id]["text"] for c in ranked if c.chunk_id in child_rows],
         )
+        compute += time.perf_counter() - t0
         for c, sc in zip([c for c in ranked if c.chunk_id in child_rows], scores, strict=False):
             c.rerank = sc
         ranked.sort(key=lambda c: c.rerank if c.rerank is not None else -1e9, reverse=True)
@@ -188,7 +194,17 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
     }
     if page_max is not None:
         params["pageMax"] = page_max
-    return Retrieval(query, ranked, packed, abstain, round(top_dense, 4), used, round(latency, 2), params)
+    return Retrieval(
+        query,
+        ranked,
+        packed,
+        abstain,
+        round(top_dense, 4),
+        used,
+        round(latency, 2),
+        params,
+        round(compute, 6),
+    )
 
 
 async def frozen_retrieval(query: str, scope: Scope, options: dict, started: float) -> Retrieval:

@@ -116,6 +116,20 @@ export class RunsService {
     return { amount: priced.amount, priced: !!price, isDemo: !!price?.isDemo, prices };
   }
 
+  /** Project a run is charged to: explicit scope, then the thread's project, then the single document's project. */
+  private async projectOf(workspaceId: string, spec: RunSpec, svids: string[], threadId: string | null) {
+    const explicit = spec.scope?.projectId;
+    if (explicit && isUuid(explicit)) {
+      const p = await this.prisma.project.findFirst({ where: { id: explicit, workspaceId }, select: { id: true } });
+      if (p) return p.id;
+    }
+    if (threadId) {
+      const t = await this.prisma.thread.findFirst({ where: { id: threadId, workspaceId }, select: { projectId: true } });
+      if (t?.projectId) return t.projectId;
+    }
+    return (await this.singleSourceOf(svids))?.projectId ?? null;
+  }
+
   /** The source behind the resolved versions when they all belong to one document, so its threads can be listed per document. */
   private async singleSourceOf(svids: string[]) {
     if (!svids.length) return null;
@@ -213,6 +227,7 @@ export class RunsService {
 
     const inputText = [spec.input.question, spec.input.text].filter(Boolean).join('\n');
     const estimate = await this.preflightEstimate(plan.primary.modelConfigId, inputText, plan.maxOutputTokens);
+    const projectId = await this.projectOf(workspaceId, spec, svids, threadId);
 
     await this.prisma.aiRun.create({
       data: {
@@ -225,7 +240,7 @@ export class RunsService {
         tier,
         status: 'QUEUED',
         input: spec.input as any,
-        scope: { ...spec.scope, sourceVersionIds: svids } as any,
+        scope: { ...spec.scope, sourceVersionIds: svids, ...(projectId ? { projectId } : {}) } as any,
         modelPlan: plan as any,
         options: (spec.options ?? {}) as any,
         isDemo: plan.isDemo,
@@ -235,17 +250,18 @@ export class RunsService {
       },
     });
 
-    const reservation = await this.budgets.reserve(workspaceId, runId, estimate.amount);
+    const reservation = await this.budgets.reserve(workspaceId, runId, estimate.amount, { userId: user.id, projectId });
     if (!reservation.ok) {
+      const budget = { scope: reservation.scope, policyId: reservation.policyId, limit: reservation.limit, remaining: reservation.remaining };
       await this.prisma.aiRun.update({
         where: { id: runId },
         data: {
           status: 'BUDGET_REJECTED',
           finishedAt: new Date(),
-          error: { code: 'BUDGET', message: 'Budget limit reached before any model call', estimate: estimate.amount.toFixed(8), remaining: reservation.remaining, limit: reservation.limit },
+          error: { code: 'BUDGET', message: 'Budget limit reached before any model call', estimate: estimate.amount.toFixed(8), ...budget },
         },
       });
-      return { runId, threadId, userMessageId, messageId: null, status: 'BUDGET_REJECTED', estimate: estimate.amount.toFixed(8), remaining: reservation.remaining };
+      return { runId, threadId, userMessageId, messageId: null, status: 'BUDGET_REJECTED', estimate: estimate.amount.toFixed(8), remaining: reservation.remaining, budget };
     }
 
     await this.prisma.costEntry.create({
@@ -342,7 +358,7 @@ export class RunsService {
       modelPlan: run.modelPlan,
       modelCalls: calls,
       tokens,
-      cost: { total: totals.total, estimate: totals.estimate, tier, currency: 'USD', isDemo: totals.isDemo, entries: totals.entries },
+      cost: { total: totals.total, estimate: totals.estimate, tier, currency: 'USD', isDemo: totals.isDemo, localCompute: totals.localCompute, entries: totals.entries },
       retrieval: retrieval.map((r) => ({ id: r.id, query: r.query, params: r.params, candidates: (r.candidates as any[])?.length ?? 0, packed: (r.packed as any[])?.length ?? 0, latencyMs: r.latencyMs })),
       citations: { total: citations.length, byState: citationSummary },
       nodes: nodes.map((n) => ({ node: n.node, step: n.step, status: n.status, durationMs: n.durationMs })),

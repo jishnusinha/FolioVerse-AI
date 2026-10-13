@@ -84,7 +84,8 @@ const MODEL = {
   isDemo: true,
   isDefault: true,
   available: true,
-  price: { inputPerMTok: '0.40', outputPerMTok: '1.60', cachedInputPerMTok: null, isDemo: true, sourceUrl: null },
+  capabilities: ['chat'],
+  price: { unit: 'MTOK', inputPerMTok: '0.40', outputPerMTok: '1.60', cachedInputPerMTok: null, effectiveFrom: '2026-01-01T00:00:00.000Z', isDemo: true, sourceUrl: 'demo://folioverse/mock-grounded' },
 };
 /** Second DEMO chat model for Studio comparisons; answers with the main clause only. */
 const CONCISE = {
@@ -94,7 +95,7 @@ const CONCISE = {
   displayName: 'Mock concise model',
   maxOutputTokens: 300,
   isDefault: false,
-  price: { inputPerMTok: '0.20', outputPerMTok: '0.60', cachedInputPerMTok: null, isDemo: true, sourceUrl: null },
+  price: { unit: 'MTOK', inputPerMTok: '0.20', outputPerMTok: '0.60', cachedInputPerMTok: null, effectiveFrom: '2026-01-01T00:00:00.000Z', isDemo: true, sourceUrl: 'demo://folioverse/mock-concise' },
 };
 const MODELS = [MODEL, CONCISE];
 const modelOf = (id) => MODELS.find((m) => m.id === id) ?? MODEL;
@@ -369,7 +370,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
         modelConfigId: (s.model ?? MODEL).id,
         entryType: 'FINAL',
         tier: 'FINALIZED',
-        costClass: 'MODEL',
+        costClass: 'AI_API',
         amount: usd(costOf(1200, 80, s.model)),
         currency: 'USD',
         feature: run.graph,
@@ -449,9 +450,9 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     const remaining = Number(budgetStatus(wid).remaining);
     if (ai.budget.hard && estimate > remaining) {
       Object.assign(run, { status: 'BUDGET_REJECTED', finishedAt: createdAt, error: { code: 'BUDGET', message: 'Budget limit reached before any model call', estimate: usd(estimate), remaining: usd(remaining) } });
-      return ok({ runId: run.id, threadId: null, messageId: null, status: 'BUDGET_REJECTED', estimate: usd(estimate), remaining: usd(remaining) }, 201);
+      return ok({ runId: run.id, threadId: null, messageId: null, status: 'BUDGET_REJECTED', estimate: usd(estimate), remaining: usd(remaining), budget: { scope: 'WORKSPACE', policyId: null, limit: ai.budget.limit, remaining: usd(remaining) } }, 201);
     }
-    ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: MODEL.id, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'MODEL', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
+    ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: MODEL.id, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'AI_API', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
     ai.script.set(run.id, insightScript(run, action, svids));
     return ok({ runId: run.id, threadId: null, messageId: null, status: 'QUEUED', estimate: usd(estimate), model: run.modelPlan.primary }, 201);
   }
@@ -468,7 +469,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
       if (!svids.length) return problem(400, EMPTY_SCOPE, 'EMPTY_SCOPE');
       const run = newRun(wid, body, svids, {}, createdAt);
       const estimate = costOf(Math.ceil(question.length / 4) + 3500, MODEL.maxOutputTokens);
-      ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: run.modelPlan.primary.modelConfigId, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'MODEL', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
+      ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: run.modelPlan.primary.modelConfigId, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'AI_API', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
       ai.script.set(run.id, scriptFor(run, question, svids[0]));
       return ok({ runId: run.id, threadId: null, userMessageId: null, messageId: null, status: 'QUEUED', estimate: usd(estimate), model: run.modelPlan.primary }, 201);
     }
@@ -493,9 +494,9 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     const remaining = Number(budgetStatus(wid).remaining);
     if (ai.budget.hard && estimate > remaining) {
       Object.assign(run, { status: 'BUDGET_REJECTED', finishedAt: createdAt, error: { code: 'BUDGET', message: 'Budget limit reached before any model call', estimate: usd(estimate), remaining: usd(remaining) } });
-      return ok({ runId: run.id, threadId: thread.id, userMessageId: userMessage.id, messageId: null, status: 'BUDGET_REJECTED', estimate: usd(estimate), remaining: usd(remaining) }, 201);
+      return ok({ runId: run.id, threadId: thread.id, userMessageId: userMessage.id, messageId: null, status: 'BUDGET_REJECTED', estimate: usd(estimate), remaining: usd(remaining), budget: { scope: 'WORKSPACE', policyId: null, limit: ai.budget.limit, remaining: usd(remaining) } }, 201);
     }
-    ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: MODEL.id, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'MODEL', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
+    ai.costEntries.push({ id: uuid(), workspaceId: wid, runId: run.id, modelConfigId: MODEL.id, entryType: 'ESTIMATE', tier: 'PREFLIGHT_ESTIMATE', costClass: 'AI_API', amount: usd(estimate), currency: 'USD', feature: body.graph, isDemo: true, createdAt });
     const assistant = { id: uuid(), workspaceId: wid, threadId: thread.id, parentMessageId: userMessage.id, role: 'ASSISTANT', content: '', status: 'STREAMING', aiRunId: run.id, createdAt, citations: [] };
     ai.messages.push(assistant);
     run.messageId = assistant.id;
@@ -534,9 +535,11 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     };
   }
 
-  function summary(wid, days) {
+  function summary(wid, days, model = null) {
     const since = Date.now() - days * 86400_000;
-    const finals = ai.costEntries.filter((e) => e.workspaceId === wid && e.entryType === 'FINAL' && new Date(e.createdAt).getTime() >= since);
+    const finals = ai.costEntries.filter(
+      (e) => e.workspaceId === wid && e.entryType === 'FINAL' && e.costClass === 'AI_API' && (!model || e.modelConfigId === model) && new Date(e.createdAt).getTime() >= since,
+    );
     const group = (key) => {
       const m = new Map();
       for (const e of finals) m.set(key(e), (m.get(key(e)) ?? 0) + Number(e.amount));
@@ -548,6 +551,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     }));
     return {
       days,
+      model,
       currency: 'USD',
       total: usd(finals.reduce((a, e) => a + Number(e.amount), 0)),
       isDemo: finals.length > 0,
@@ -632,7 +636,7 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     const r = rest.join('/');
     if (r === 'events' && method === 'GET') return noContent();
     if (r === 'budget' && method === 'GET') return ok(budgetStatus(wid));
-    if (r === 'costs/summary' && method === 'GET') return ok(summary(wid, Math.min(Math.max(Number(query.get('days')) || 30, 1), 365)));
+    if (r === 'costs/summary' && method === 'GET') return ok(summary(wid, Math.min(Math.max(Number(query.get('days')) || 30, 1), 365), query.get('model') || null));
     if (r === 'costs/entries' && method === 'GET') {
       const rows = ai.costEntries.filter((e) => e.workspaceId === wid).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return ok(rows.slice(0, Number(query.get('limit')) || 100));
@@ -740,5 +744,5 @@ export function createFakeAi({ db, uuid, iso, ok, problem, noContent, opts }) {
     return undefined;
   }
 
-  return { ai, handle, seed, seedInsight, knowledge, model: MODEL, models: MODELS, createRun, complete, receipt };
+  return { ai, handle, seed, seedInsight, knowledge, model: MODEL, models: MODELS, createRun, complete, receipt, summary, budgetStatus };
 }

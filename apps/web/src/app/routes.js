@@ -86,7 +86,7 @@ export const APP_ROUTES = [
   { id: 'studio-battle', path: '/app/studio/battles/:battleId', title: 'Model Battle', section: 'studio', gate: 8, forceDark: true },
   { id: 'studio-evaluations', path: '/app/studio/evaluations', title: 'Evaluations', section: 'studio', gate: 8, forceDark: true },
   { id: 'costs', path: '/app/costs', title: 'Cost Center', section: 'costs', gate: 3 },
-  { id: 'admin-costs', path: '/app/admin/costs', title: 'Cost administration', section: 'admin', gate: 9 },
+  { id: 'admin-costs', path: '/app/admin/costs', title: 'Cost Command Center', section: 'admin', gate: 9 },
   { id: 'admin-pricing', path: '/app/admin/pricing', title: 'Model prices', section: 'admin', gate: 9 },
   { id: 'admin-models', path: '/app/admin/models', title: 'Model registry', section: 'admin', gate: 9 },
   { id: 'docs', path: '/app/docs', title: 'Documentation', section: 'docs', gate: 12 },

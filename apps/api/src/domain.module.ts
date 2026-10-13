@@ -10,6 +10,7 @@ import { ArtifactsService } from './modules/artifacts/artifacts.service';
 import { DiscoveryService } from './modules/discovery/discovery.service';
 import { EventsModule } from './modules/events/events.service';
 import { IngestionExecutorService } from './modules/ingestion/ingestion-executor.service';
+import { CostRollupService } from './modules/costs/rollup.service';
 import { BudgetService } from './modules/ledger/budget.service';
 import { LibraryService } from './modules/library/library.service';
 import { LedgerService } from './modules/ledger/ledger.service';
@@ -23,6 +24,7 @@ import { StudioService } from './modules/studio/studio.service';
 import { WriterService } from './modules/writer/writer.service';
 
 const services = [
+  CostRollupService,
   StudioService,
   DiscoveryService,
   WriterService,

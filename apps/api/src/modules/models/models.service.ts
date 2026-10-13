@@ -58,7 +58,10 @@ export class ModelsService {
 
   async list() {
     const [configs, providers] = await Promise.all([
-      this.prisma.modelConfig.findMany({ orderBy: [{ isDemo: 'asc' }, { id: 'asc' }], include: { prices: { orderBy: { effectiveFrom: 'desc' }, take: 1 } } }),
+      this.prisma.modelConfig.findMany({
+        orderBy: [{ isDemo: 'asc' }, { id: 'asc' }],
+        include: { prices: { where: { effectiveFrom: { lte: new Date() } }, orderBy: { effectiveFrom: 'desc' }, take: 1 } },
+      }),
       this.availableProviders(),
     ]);
     return configs.map((c) => ({ ...c, available: providers.includes(c.provider) && c.status !== 'DISABLED' }));

@@ -677,6 +677,8 @@ model ModelPrice {
   reasoningPerMTok   Decimal?  @map("reasoning_per_mtok") @db.Decimal(18, 8)
   batchDiscount      Decimal?  @map("batch_discount") @db.Decimal(6, 4)
   currency           String    @default("USD")
+  /// MTOK: rates per 1M tokens. CPU_HOUR: `inputPerMTok` holds the rate per CPU-hour (local compute).
+  unit               String    @default("MTOK")
   effectiveFrom      DateTime  @map("effective_from")
   effectiveTo        DateTime? @map("effective_to")
   sourceUrl          String    @map("source_url")
@@ -1672,5 +1674,94 @@ model EvaluationRun {
 
   @@index([workspaceId, createdAt])
   @@map("evaluation_runs")
+  @@schema("app")
+}
+
+// ───────────────────────────── cost intelligence ─────────────────────────────
+
+/// Derived spend per workspace, bucket and dimension, recomputed from `cost_entries` (never edited by hand).
+model CostRollup {
+  id          String   @id @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  /// HOUR | DAY
+  granularity String
+  bucketStart DateTime @map("bucket_start")
+  /// total | user | model | feature | class
+  dimension   String
+  key         String
+  amount      Decimal  @db.Decimal(18, 8)
+  entries     Int
+  isDemo      Boolean  @default(false) @map("is_demo")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  @@unique([workspaceId, granularity, bucketStart, dimension, key])
+  @@index([granularity, bucketStart])
+  @@map("cost_rollups")
+  @@schema("app")
+}
+
+/// A day whose spend sits far above the workspace's trailing baseline (z-score).
+model CostAnomaly {
+  id           String   @id @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  day          DateTime
+  dimension    String
+  key          String
+  amount       Decimal  @db.Decimal(18, 8)
+  baselineMean Decimal  @map("baseline_mean") @db.Decimal(18, 8)
+  baselineStd  Decimal  @map("baseline_std") @db.Decimal(18, 8)
+  zScore       Float    @map("z_score")
+  isDemo       Boolean  @default(false) @map("is_demo")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([workspaceId, day, dimension, key])
+  @@index([createdAt])
+  @@map("cost_anomalies")
+  @@schema("app")
+}
+
+/// A provider's billed amount for one UTC day, compared against the ledger once.
+model ProviderCostReport {
+  id           String    @id @db.Uuid
+  provider     String
+  day          DateTime
+  amount       Decimal   @db.Decimal(18, 8)
+  currency     String    @default("USD")
+  /// CSV | API
+  source       String
+  isDemo       Boolean   @default(false) @map("is_demo")
+  /// PENDING | RECONCILED | VARIANCE
+  status       String    @default("PENDING")
+  ledgerAmount Decimal?  @map("ledger_amount") @db.Decimal(18, 8)
+  variance     Decimal?  @db.Decimal(18, 8)
+  entries      Int       @default(0)
+  importedById String?   @map("imported_by_id") @db.Uuid
+  reconciledAt DateTime? @map("reconciled_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@unique([provider, day])
+  @@map("provider_cost_reports")
+  @@schema("app")
+}
+
+/// Platform infrastructure spend (CLOUD_INFRA): not attributable to a workspace, so kept outside `cost_entries`.
+model InfraCost {
+  id          String   @id @db.Uuid
+  day         DateTime
+  provider    String   @default("gcp")
+  service     String
+  amount      Decimal  @db.Decimal(18, 8)
+  currency    String   @default("USD")
+  /// MANUAL | GCP_BILLING_EXPORT
+  source      String
+  externalKey String?  @unique @map("external_key")
+  note        String?
+  isDemo      Boolean  @default(false) @map("is_demo")
+  enteredById String?  @map("entered_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([day])
+  @@map("infra_costs")
   @@schema("app")
 }

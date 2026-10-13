@@ -1,5 +1,5 @@
 # Model registry seed. Entries are created with status UNVERIFIED; an admin verifies them in
-# /app/admin/costs. Model identifiers for real providers are never hard-coded: they come from
+# /app/admin/models. Model identifiers for real providers are never hard-coded: they come from
 # environment variables, and entries whose variable is unset are skipped.
 # Prices are entered by an admin with a source URL and effective date. The only seeded price is
 # the deterministic mock model's DEMO price, clearly flagged as not a real provider price.
@@ -64,8 +64,9 @@ models:
     capabilities: [chat]
     isDemo: false
 
-  # Ingestion/embedding CPU time. Not selectable for chat. Its "price" is a per-hour compute rate
-  # (stored in inputPerMTok) that an admin may enter; until then local compute is FINAL_ESTIMATED at 0.
+  # Embedding and rerank CPU time (ingestion and queries). Not selectable for chat. Its price is a
+  # CPU_HOUR rate (stored in inputPerMTok) that an admin may enter; until then local compute is
+  # FINAL_ESTIMATED at 0.
   - id: local-compute
     provider: local
     model: cpu-embedding

@@ -39,10 +39,8 @@ export class LedgerService {
     let priceId: string | null = null;
 
     if (ev.costClass === 'LOCAL_COMPUTE') {
-      const rate = await this.prisma.modelPrice.findFirst({
-        where: { modelConfigId: 'local-compute' },
-        orderBy: { effectiveFrom: 'desc' },
-      });
+      const price = await this.priceFor(ev.modelConfigId ?? 'local-compute', ev.createdAt);
+      const rate = price?.unit === 'CPU_HOUR' ? price : null;
       const seconds = new Decimal(ev.computeSeconds?.toString() ?? '0');
       amount = rate ? seconds.mul(rate.inputPerMTok.toString()).div(3600).toDecimalPlaces(8, Decimal.ROUND_HALF_UP) : new Decimal(0);
       tier = rate ? 'FINALIZED' : 'FINAL_ESTIMATED';
@@ -69,7 +67,6 @@ export class LedgerService {
       priceId = price?.id ?? null;
     }
 
-    const reservation = ev.runId ? await this.prisma.budgetReservation.findFirst({ where: { runId: ev.runId } }) : null;
     try {
       await this.prisma.costEntry.create({
         data: {
@@ -97,7 +94,8 @@ export class LedgerService {
       }
       throw e;
     }
-    await this.budgets.addSpend(ev.workspaceId, amount, reservation?.periodId);
+    // Budgets cap AI API spend; local compute is an estimate reported separately.
+    if (ev.costClass === 'AI_API') await this.budgets.addSpend(ev.workspaceId, amount, { runId: ev.runId, userId: ev.userId ?? run?.userId });
     await this.prisma.usageEvent.update({ where: { id: ev.id }, data: { processedAt: new Date() } });
     return 'created';
   }
@@ -116,25 +114,35 @@ export class LedgerService {
     return n;
   }
 
-  /** Run total = sum of FINAL entries (+ reconciliation adjustments). */
+  /** Run total = AI API FINAL entries plus reconciliation adjustments; local compute is reported beside it. */
   async runTotals(runId: string) {
     const entries = await this.prisma.costEntry.findMany({ where: { runId }, orderBy: { createdAt: 'asc' } });
-    const final = entries.filter((e) => e.entryType === 'FINAL' || e.entryType === 'RECONCILIATION');
-    const total = final.reduce((acc, e) => acc.plus(e.amount.toString()), new Decimal(0));
+    const settled = entries.filter((e) => SETTLED.has(e.entryType));
+    const api = settled.filter((e) => e.costClass === 'AI_API');
+    const local = settled.filter((e) => e.costClass === 'LOCAL_COMPUTE');
+    const sum = (xs: typeof entries) => xs.reduce((acc, e) => acc.plus(e.amount.toString()), new Decimal(0));
     const estimate = entries.find((e) => e.entryType === 'ESTIMATE');
-    let tier: string = estimate ? 'PREFLIGHT_ESTIMATE' : 'FINALIZED';
-    if (final.length) {
-      if (final.some((e) => e.tier === 'VARIANCE')) tier = 'VARIANCE';
-      else if (final.every((e) => e.tier === 'RECONCILED')) tier = 'RECONCILED';
-      else if (final.some((e) => e.tier === 'FINAL_ESTIMATED')) tier = 'FINAL_ESTIMATED';
-      else tier = 'FINALIZED';
-    }
     return {
-      total: total.toFixed(8),
+      total: sum(api).toFixed(8),
       estimate: estimate?.amount.toString() ?? null,
-      tier,
+      tier: settledTier(api, !!estimate),
+      localCompute: local.length ? { amount: sum(local).toFixed(8), tier: settledTier(local, false) } : null,
       isDemo: entries.some((e) => e.isDemo),
       entries,
     };
   }
+}
+
+/** Entry types that count toward spend (estimates never do). */
+export const SETTLED = new Set(['FINAL', 'RECONCILIATION', 'VARIANCE']);
+
+/** Cost state of a set of settled entries: reconciliation outranks finalization, a variance outranks both. */
+export function settledTier(entries: { entryType: string; tier: string }[], hasEstimate: boolean): string {
+  const finals = entries.filter((e) => e.entryType === 'FINAL');
+  if (!finals.length) return hasEstimate ? 'PREFLIGHT_ESTIMATE' : 'FINALIZED';
+  if (entries.some((e) => e.tier === 'VARIANCE')) return 'VARIANCE';
+  const reconciled = entries.filter((e) => e.tier === 'RECONCILED').length;
+  if (reconciled >= finals.length) return 'RECONCILED';
+  if (finals.some((e) => e.tier === 'FINAL_ESTIMATED')) return 'FINAL_ESTIMATED';
+  return 'FINALIZED';
 }

@@ -8,6 +8,7 @@ import { EvidenceDrawer } from '@/shared/overlays/EvidenceDrawer.jsx';
 import { ModelSelector } from '@/shared/overlays/ModelSelector.jsx';
 import { RunReceipt } from '@/shared/overlays/RunReceipt.jsx';
 import { Button, Callout, Skeleton } from '@/shared/ui/index.js';
+import { budgetScopeText } from '../costs/queries.js';
 import { CitedText } from '../runs/CitedText.jsx';
 import { runKeys, useModels, useReceipt, useThread, useThreads } from '../runs/queries.js';
 import { useRunEvents } from '../runs/useRunEvents.js';
@@ -87,7 +88,7 @@ export function ChatPanel({ wid, source, version, projectId, canAsk, canEdit, bl
       setExtraScope([]);
       if (res.threadId && res.threadId !== activeThreadId) setThreadId(res.threadId);
       if (res.status === 'BUDGET_REJECTED') {
-        setNotice({ kind: 'budget', question: q, estimate: res.estimate, remaining: res.remaining });
+        setNotice({ kind: 'budget', question: q, estimate: res.estimate, remaining: res.remaining, budget: res.budget });
         if (res.userMessageId) setLeafId(res.userMessageId);
       } else {
         setLeafId(res.messageId);
@@ -233,8 +234,8 @@ export function ChatPanel({ wid, source, version, projectId, canAsk, canEdit, bl
         )}
         {notice?.kind === 'budget' && (
           <Callout tone="bad" role="alert">
-            <b>Budget limit reached.</b> This question was not sent to a model, so nothing was charged. Estimated cost {formatUsd(notice.estimate)}, remaining{' '}
-            {formatUsd(notice.remaining)}. <Link to="/app/costs">Open Cost Center</Link>
+            <b>Budget limit reached.</b> This question would exceed {budgetScopeText(notice.budget)}, so it was not sent to a model and nothing was charged. Estimated cost{' '}
+            {formatUsd(notice.estimate)}, remaining {formatUsd(notice.remaining)}. <Link to="/app/costs">Open Cost Center</Link>
           </Callout>
         )}
         {notice?.kind === 'error' && (

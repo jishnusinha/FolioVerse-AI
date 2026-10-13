@@ -1,4 +1,8 @@
 import { ArtifactsController } from './modules/artifacts/artifacts.controller';
+import { AdminCostsController, AdminModelsController } from './modules/costs/admin.controller';
+import { AdminCostsService } from './modules/costs/admin-costs.service';
+import { BudgetsController } from './modules/costs/budgets.controller';
+import { ReconciliationService } from './modules/costs/reconciliation.service';
 import { DiscoveryController } from './modules/discovery/discovery.controller';
 import { InsightsController } from './modules/insights/insights.controller';
 import { LibraryController } from './modules/library/library.controller';
@@ -24,5 +28,8 @@ export const FEATURE_CONTROLLERS: any[] = [
   LibraryController,
   DiscoveryController,
   StudioController,
+  BudgetsController,
+  AdminModelsController,
+  AdminCostsController,
 ];
-export const FEATURE_PROVIDERS: any[] = [MetadataService];
+export const FEATURE_PROVIDERS: any[] = [MetadataService, AdminCostsService, ReconciliationService];

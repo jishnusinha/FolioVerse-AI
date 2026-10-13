@@ -15,6 +15,73 @@ export function findSeedFile(): string | null {
   return candidates.find((p) => existsSync(p)) ?? null;
 }
 
+export interface SeedEntry {
+  id: string;
+  provider: string;
+  /** Resolved model id, or null when it comes from an unset `env:` variable. */
+  model: string | null;
+  envVar: string | null;
+  displayName: string;
+  contextWindow: number;
+  maxOutputTokens: number;
+  capabilities: string[];
+  fallbacks: string[];
+  isDemo: boolean;
+}
+
+export function readSeed(): SeedEntry[] {
+  const file = findSeedFile();
+  if (!file) return [];
+  const doc = YAML.parse(readFileSync(file, 'utf8')) as { models: any[] };
+  return doc.models.map((m) => {
+    const envVar = typeof m.model === 'string' && m.model.startsWith('env:') ? m.model.slice(4) : null;
+    return {
+      id: m.id,
+      provider: m.provider,
+      model: envVar ? (process.env[envVar] ?? null) : m.model,
+      envVar,
+      displayName: m.displayName,
+      contextWindow: m.contextWindow ?? 0,
+      maxOutputTokens: m.maxOutputTokens ?? 0,
+      capabilities: m.capabilities ?? [],
+      fallbacks: m.fallbacks ?? [],
+      isDemo: !!m.isDemo,
+    };
+  });
+}
+
+type DbConfig = { id: string; provider: string; model: string; displayName: string; contextWindow: number; maxOutputTokens: number; capabilities: string[]; fallbackIds: string[]; isDemo: boolean };
+
+/** Seed file vs database registry: entries only in the seed, only in the database, and fields that differ. */
+export function registryDiff(seed: SeedEntry[], db: DbConfig[]) {
+  const byId = new Map(db.map((c) => [c.id, c]));
+  const seedIds = new Set(seed.map((s) => s.id));
+  const norm = (xs: string[]) => [...xs].sort().join(', ');
+  const changed = seed
+    .filter((s) => byId.has(s.id))
+    .map((s) => {
+      const c = byId.get(s.id)!;
+      const pairs: [string, unknown, unknown][] = [
+        ['provider', s.provider, c.provider],
+        ['model', s.model, c.model],
+        ['displayName', s.displayName, c.displayName],
+        ['contextWindow', s.contextWindow, c.contextWindow],
+        ['maxOutputTokens', s.maxOutputTokens, c.maxOutputTokens],
+        ['capabilities', norm(s.capabilities), norm(c.capabilities)],
+        ['fallbacks', norm(s.fallbacks), norm(c.fallbackIds)],
+        ['isDemo', s.isDemo, c.isDemo],
+      ];
+      const fields = pairs.filter(([f, a, b]) => !(f === 'model' && a === null) && a !== b).map(([field, seedValue, dbValue]) => ({ field, seed: seedValue, db: dbValue }));
+      return { id: s.id, fields };
+    })
+    .filter((x) => x.fields.length);
+  return {
+    added: seed.filter((s) => !byId.has(s.id)).map((s) => ({ id: s.id, provider: s.provider, displayName: s.displayName, blockedBy: s.model === null ? s.envVar : null })),
+    removed: db.filter((c) => !seedIds.has(c.id)).map((c) => ({ id: c.id, provider: c.provider, displayName: c.displayName })),
+    changed,
+  };
+}
+
 /**
  * Creates registry entries that do not exist yet (status UNVERIFIED). Never overwrites admin edits.
  * Entries whose model comes from an unset `env:` variable are skipped.

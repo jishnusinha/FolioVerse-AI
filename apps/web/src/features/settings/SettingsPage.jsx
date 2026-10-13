@@ -3,13 +3,14 @@ import { useThemeStore } from '@/stores/theme.js';
 import { useUiStore } from '@/stores/ui.js';
 import { Callout, Segmented } from '@/shared/ui/index.js';
 import { Panes } from '@/shared/layout/Panes.jsx';
+import { BudgetsSettings } from '@/features/costs/BudgetsSettings.jsx';
 
 const TABS = [
   ['appearance', 'Appearance', null],
   ['profile', 'Profile', 2],
   ['workspace', 'Workspace', 2],
   ['models', 'Models', 3],
-  ['budgets', 'Budgets', 9],
+  ['budgets', 'Budgets', null],
   ['privacy', 'Privacy', 2],
   ['notifications', 'Notifications', 2],
 ];
@@ -72,7 +73,7 @@ export function SettingsPage() {
       <div className="page">
         <p className="eyebrow">Settings</p>
         <h1 style={{ marginBottom: 20 }}>{label}</h1>
-        {gate ? <p className="lede">These settings arrive with Gate {gate}.</p> : <Appearance />}
+        {gate ? <p className="lede">These settings arrive with Gate {gate}.</p> : section === 'budgets' ? <BudgetsSettings /> : <Appearance />}
       </div>
     </Panes>
   );

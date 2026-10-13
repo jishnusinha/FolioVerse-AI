@@ -99,7 +99,7 @@ export class ManuscriptsController {
   async get(@Param('workspaceId') workspaceId: string, @Param('manuscriptId') id: string) {
     const m = await this.writer.manuscript(workspaceId, id);
     const [nodes, project, stats] = await Promise.all([
-      this.prisma.manuscriptNode.findMany({ where: { manuscriptId: m.id }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] }),
+      this.prisma.manuscriptNode.findMany({ where: { manuscriptId: m.id }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] }),
       this.prisma.project.findUnique({ where: { id: m.projectId }, select: { id: true, name: true } }),
       this.writer.stats(m.id),
     ]);
@@ -141,7 +141,7 @@ export class ManuscriptsController {
 
   /** Renumbers siblings 0..n-1, placing `moved` at `position`. */
   private async reorder(manuscriptId: string, parentId: string | null, moved: string, position?: number) {
-    const sibs = await this.prisma.manuscriptNode.findMany({ where: { manuscriptId, parentId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }] });
+    const sibs = await this.prisma.manuscriptNode.findMany({ where: { manuscriptId, parentId }, orderBy: [{ position: 'asc' }, { createdAt: 'asc' }, { id: 'asc' }] });
     const rest = sibs.filter((s) => s.id !== moved);
     const at = Math.min(position ?? rest.length, rest.length);
     const ordered = [...rest.slice(0, at), sibs.find((s) => s.id === moved)!, ...rest.slice(at)].filter(Boolean);

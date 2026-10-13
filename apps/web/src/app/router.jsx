@@ -36,6 +36,9 @@ import { LibraryPage } from '@/features/library/LibraryPage.jsx';
 import { ReaderPage } from '@/features/reader/ReaderPage.jsx';
 import { DiscoverPage } from '@/features/discover/DiscoverPage.jsx';
 import { LabPage } from '@/features/discover/LabPage.jsx';
+import { AdminCostsPage } from '@/features/admin/AdminCostsPage.jsx';
+import { AdminPricingPage } from '@/features/admin/AdminPricingPage.jsx';
+import { AdminModelsPage } from '@/features/admin/AdminModelsPage.jsx';
 import { Toaster } from '@/shared/ui/toast.jsx';
 
 /** Page components that have replaced placeholders, keyed by route id. */
@@ -60,6 +63,9 @@ const PAGES = {
   'studio-battle': BattlePage,
   'studio-evaluations': EvaluationsPage,
   costs: CostsPage,
+  'admin-costs': AdminCostsPage,
+  'admin-pricing': AdminPricingPage,
+  'admin-models': AdminModelsPage,
   writer: WriterHomePage,
   manuscript: ManuscriptPage,
   dna: DnaPage,

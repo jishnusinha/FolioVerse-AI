@@ -12,6 +12,7 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from ..metering import meter_local
 from ..repo import get_repo
 from ..retrieval.retrieve import candidates_json, packed_json, retrieve
 from ..text import content_words, count_tokens, split_sentences
@@ -122,6 +123,14 @@ async def gather_reader_context(ctx, passage: str, page: int, query: str) -> tup
     if page > 1:
         try:
             r = await retrieve(query, ctx.scope, {**ctx.options, "pageMax": page - 1, "topK": EARLIER_HITS})
+            await meter_local(
+                ctx.workspace_id,
+                r.compute_seconds,
+                r.params.get("embedder", "embedder"),
+                "retrieval",
+                ctx.run_id,
+                ctx.user_id,
+            )
             earlier = [{**p, "level": "EARLIER"} for p in r.packed]
             await repo.insert_retrieval_event(
                 {

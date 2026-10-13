@@ -165,6 +165,12 @@ const MATRIX: Record<string, Role> = {
   'GET /workspaces/:workspaceId/costs/summary': 'VIEWER',
   'GET /workspaces/:workspaceId/costs/entries': 'VIEWER',
   'GET /workspaces/:workspaceId/costs/export.csv': 'VIEWER',
+  'POST /workspaces/:workspaceId/costs/estimate': 'VIEWER',
+  'GET /workspaces/:workspaceId/costs/anomalies': 'VIEWER',
+  'GET /workspaces/:workspaceId/budgets': 'VIEWER',
+  'POST /workspaces/:workspaceId/budgets': 'ADMIN',
+  'PATCH /workspaces/:workspaceId/budgets/:policyId': 'ADMIN',
+  'DELETE /workspaces/:workspaceId/budgets/:policyId': 'ADMIN',
 
   'GET /workspaces/:workspaceId/notifications': 'VIEWER',
   'POST /workspaces/:workspaceId/notifications/read-all': 'VIEWER',

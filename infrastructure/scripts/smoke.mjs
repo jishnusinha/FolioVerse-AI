@@ -5,7 +5,8 @@
  * -> notes and search -> writer (save, suggestion accept, DNA extract, continuity, export)
  * -> library (EPUB shelf, progress, annotation, spoiler-guarded explain, reader excerpt)
  * -> discovery (taste, recommendations, save to Library, Lab re-rank, rec_explain, offline evaluation)
- * -> AI Studio (fork from a checkpoint, X-Ray, compare, Model Battle, failure injection, RAG evaluation) -> costs.
+ * -> AI Studio (fork from a checkpoint, X-Ray, compare, Model Battle, failure injection, RAG evaluation)
+ * -> costs (estimator, project budget rejection, local compute, CSV export, super-admin rollups and reconciliation).
  * Also checks abstention (no model call) and cross-workspace 404.
  * Uses the deterministic mock model unless a live provider is configured. Prints no secrets.
  *
@@ -345,6 +346,55 @@ async function studioSmoke(c, wid, step, { knowledgeId, sourceId, runId }) {
   if (done.status !== 'SUCCEEDED' || m.retrievalRecall == null) throw new Error(`rag evaluation failed: ${done.error ?? done.status}`);
 }
 
+/**
+ * Gate 9: estimator, a project budget that rejects a run before any model call, local compute metering, CSV export,
+ * and (when FV_SEED_ADMIN_EMAIL is set for both the API and this script) the super-admin cost routes.
+ */
+async function costsSmoke(c, wid, step, { knowledgeId, sourceId }) {
+  const ws = `/api/workspaces/${wid}`;
+  const models = await c.get('/api/models');
+  const chat = models.find((m) => m.isDefault) ?? models[0];
+  const est = await c.post(`${ws}/costs/estimate`, { modelConfigId: chat.id, calls: 10, inputTokens: 6000, cachedInputTokens: 1500, outputTokens: 500 });
+  step(`estimate ${chat.id}: ${est.status} ${est.perCall}/call × ${est.calls} = ${est.total} ${est.currency}${est.price?.isDemo ? ' (DEMO price)' : ''}`);
+
+  const budget = await c.post(`${ws}/budgets`, { scope: 'PROJECT', scopeRefId: knowledgeId, period: 'DAILY', limitAmount: '0.00000001', hard: true, alertThresholds: [50, 100] });
+  const rejected = await c.post(`${ws}/runs`, { graph: 'grounded_qa', input: { question: 'What is the downside scenario?' }, scope: { sourceIds: [sourceId] } });
+  step(`project budget "${budget.label}" (${budget.period}, hard): run ${rejected.status} scope=${rejected.budget?.scope} estimate=${rejected.estimate}`);
+  await c.req('DELETE', `${ws}/budgets/${budget.id}`);
+  if (Number(est.total) > 0 && (rejected.status !== 'BUDGET_REJECTED' || rejected.budget?.scope !== 'PROJECT')) throw new Error('project budget did not reject the run');
+
+  const sum = await c.get(`${ws}/costs/summary?days=7`);
+  step(`summary 7d: AI API ${sum.total}; local compute ${sum.localCompute.seconds.toFixed(3)} CPU-s = ${sum.localCompute.amount} (priced=${sum.localCompute.priced}); budgets=${sum.budgets.length} byProject=${sum.byProject.length}`);
+  if (!(sum.localCompute.seconds > 0)) throw new Error('local compute was not metered');
+  const csv = await c.get(`${ws}/costs/export.csv?days=7`);
+  step(`csv export: ${csv.trim().split('\n').length - 1} ledger rows; header ok=${csv.startsWith('created_at,entry_id,run_id,entry_type')}`);
+  const hidden = await c.get('/api/admin/models', { allowError: true });
+  step(`admin routes for a regular user: ${hidden.status} (expect 404)`);
+  if (hidden.status !== 404) throw new Error('admin routes are visible to a regular user');
+
+  const adminEmail = process.env.FV_SEED_ADMIN_EMAIL;
+  if (!adminEmail) return step('super admin: skipped (set FV_SEED_ADMIN_EMAIL for the API and this script)');
+  const a = new Client(base);
+  await a.get('/api/auth/csrf');
+  const reg = await a.post('/api/auth/register', { email: adminEmail, password: `Pw-${randomBytes(12).toString('base64url')}`, displayName: 'Smoke admin' }, { allowError: true });
+  if (reg.status === 409) return step('super admin: skipped (that admin email is already registered; use a fresh one per smoke run)');
+  if (reg.status >= 400) throw new Error(`admin register -> ${reg.status}`);
+  if ((await a.get('/api/auth/me')).user.platformRole !== 'SUPER_ADMIN') throw new Error('FV_SEED_ADMIN_EMAIL did not create a super admin (is the API using the same value?)');
+  const registry = await a.get('/api/admin/models');
+  const diff = await a.get('/api/admin/models/registry/diff');
+  step(`registry: ${registry.length} configs (${registry.filter((m) => m.currentPriceId).length} priced); seed diff added=${diff.added.length} removed=${diff.removed.length} changed=${diff.changed.length}`);
+  const roll = await a.post('/api/admin/costs/rollup', { days: 2 });
+  const ov = await a.get('/api/admin/costs/overview?days=7');
+  step(`rollup: ${roll.rows} rows, ${roll.anomalies} anomalies; overview 7d platform=${ov.totals.platform} aiApi=${ov.totals.aiApi} local=${ov.totals.localCompute} calls=${ov.recentCalls.length}`);
+  const yesterday = new Date(Date.now() - 86400_000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const imp = await a.post('/api/admin/costs/reconciliation/import', { provider: 'mock', csv: `date,amount\n${yesterday},0.01\n${today},1\n` });
+  step(`reconciliation CSV (mock, DEMO): ${imp.results.map((r) => `${r.day} ${r.status}${r.variance ? ` Δ${r.variance}` : ''}`).join('; ')}`);
+  const fetched = await a.post('/api/admin/costs/reconciliation/fetch', { provider: 'openai', days: 1 }, { allowError: true });
+  const gcp = await a.post('/api/admin/costs/infra/import-gcp', { days: 1 }, { allowError: true });
+  step(`OpenAI Costs API: ${fetched.status} ${fetched.data?.code ?? ''}; GCP billing import: ${gcp.status} ${gcp.data?.code ?? ''}`);
+}
+
 async function main() {
   const step = (m) => console.log(`• ${m}`);
   const c = new Client(base);
@@ -415,6 +465,7 @@ async function main() {
   await librarySmoke(c, wid, step, writer);
   await discoverySmoke(c, wid, step);
   await studioSmoke(c, wid, step, { knowledgeId: knowledge.id, sourceId: done.sourceId, runId });
+  await costsSmoke(c, wid, step, { knowledgeId: knowledge.id, sourceId: done.sourceId });
 
   const costs = await c.get(`/api/workspaces/${wid}/costs/summary`);
   step(`costs summary: ${JSON.stringify(costs).slice(0, 200)}`);

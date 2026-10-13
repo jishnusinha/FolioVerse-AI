@@ -8,6 +8,7 @@ import { Badge, StatusBadge } from '@/shared/StatusBadge.jsx';
 import { EvidenceDrawer } from '@/shared/overlays/EvidenceDrawer.jsx';
 import { RunReceipt } from '@/shared/overlays/RunReceipt.jsx';
 import { Button, Callout, Skeleton } from '@/shared/ui/index.js';
+import { budgetScopeText } from '../costs/queries.js';
 import { useReceipt } from '../runs/queries.js';
 import { useRunEvents } from '../runs/useRunEvents.js';
 import { visibleText } from '../runs/runState.js';
@@ -57,7 +58,7 @@ export function InsightsPanel({ wid, source, version, projectId, canRun, blocked
         method: 'POST',
         body: { graph: action.graph, input: { action: action.id }, scope: { sourceVersionIds: [version.id, ...extraVersionIds] } },
       });
-      if (res.status === 'BUDGET_REJECTED') setActive({ action, phase: 'budget', estimate: res.estimate, remaining: res.remaining });
+      if (res.status === 'BUDGET_REJECTED') setActive({ action, phase: 'budget', estimate: res.estimate, remaining: res.remaining, budget: res.budget });
       else setActive({ action, phase: 'running', runId: res.runId });
     } catch (e) {
       setActive({ action, phase: 'error', message: e.message });
@@ -202,8 +203,8 @@ function ActiveInsight({ wid, active, onRetry, onFinished, onCite, projectId }) 
   if (active.phase === 'budget') {
     return (
       <Callout tone="bad" role="alert">
-        <b>Budget limit reached.</b> {label} was not sent to a model, so nothing was charged. Estimated cost {formatUsd(active.estimate)}, remaining{' '}
-        {formatUsd(active.remaining)}.
+        <b>Budget limit reached.</b> {label} would exceed {budgetScopeText(active.budget)}, so it was not sent to a model and nothing was charged. Estimated cost{' '}
+        {formatUsd(active.estimate)}, remaining {formatUsd(active.remaining)}.
       </Callout>
     );
   }

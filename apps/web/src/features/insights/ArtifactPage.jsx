@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/api/client.js';
 import { can, useCurrentWorkspace } from '@/features/auth/session.js';
+import { budgetScopeText } from '@/features/costs/queries.js';
 import { ConfirmDialog, NameDialog } from '@/features/knowledge/dialogs.jsx';
 import { formatDate } from '@/shared/format.js';
 import { Icon } from '@/shared/icons.jsx';
@@ -83,7 +84,7 @@ export function ArtifactPage() {
         method: 'POST',
         body: { graph: action.graph, input: { action: action.id }, scope: { sourceVersionIds: [...new Set(pins.map((p) => p.currentVersionId))] } },
       });
-      if (res.status === 'BUDGET_REJECTED') toast('Budget limit reached. Nothing was sent to a model.', 'bad');
+      if (res.status === 'BUDGET_REJECTED') toast(`Budget limit reached: this would exceed ${budgetScopeText(res.budget)}. Nothing was sent to a model.`, 'bad');
       else {
         toast('Regenerating on the current version. The new artifact appears when the run finishes.', 'ai');
         const doc = pins.length === 1 ? pins[0] : null;

@@ -42,6 +42,7 @@ const EXPECTED_H1 = {
   discover: 'Find your next story',
 };
 const SIGNED_OUT = new Set(['login', 'register', 'forgot', 'reset', 'verify']);
+const SUPER_ADMIN = new Set(['admin-costs', 'admin-pricing', 'admin-models']);
 
 describe('route registry', () => {
   it('has unique ids and paths', () => {
@@ -64,6 +65,7 @@ describe('route registry', () => {
 describe('router smoke', () => {
   it.each(ALL_ROUTES.map((r) => [r.path, r]))('renders %s', async (_path, route) => {
     if (SIGNED_OUT.has(route.id)) installFakeFetch(createFakeApi({ signedIn: false }));
+    if (SUPER_ADMIN.has(route.id)) installFakeFetch(createFakeApi({ superAdmin: true }));
     renderAt(sample(route.path));
     const name = EXPECTED_H1[route.id] ?? route.title;
     expect(await screen.findByRole('heading', { level: 1, name })).toBeInTheDocument();

@@ -81,6 +81,7 @@ async def test_reader_context_stops_at_the_passage(repo):
         options={},
         workspace_id=WS,
         run_id="r",
+        user_id=None,
     )
     packed, info = await gather_reader_context(ctx, CH2_PASSAGE, 2, CH2_PASSAGE)
     levels = [p["level"] for p in packed]

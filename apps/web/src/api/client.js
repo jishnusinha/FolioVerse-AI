@@ -71,6 +71,25 @@ export async function apiBytes(path, opts = {}) {
 }
 
 /**
+ * Downloads a file below /api with the session cookie (a plain link would skip the token refresh) and saves it.
+ * @param {string} path @param {string} filename
+ */
+export async function downloadFile(path, filename) {
+  const open = () => fetch(`/api${path}`, { credentials: 'same-origin' });
+  let res = await open();
+  if (res.status === 401 && (await refresh())) res = await open();
+  if (!res.ok) throw new ApiError(res.status, { detail: `Download failed (${res.status})` });
+  const url = URL.createObjectURL(await res.blob());
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.append(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
  * Splits a text/event-stream buffer into complete events. Returns the parsed events and the unparsed tail.
  * @param {string} buf
  * @returns {{ events: { id?: string, event?: string, data: string }[], rest: string }}

@@ -290,3 +290,58 @@ describe('run lifecycle', () => {
     expect(plan.budgetGuard.prices.inputPerMTok).toBeTruthy();
   });
 });
+
+/** Own app instance: registration is rate limited per app. */
+describe('multi-scope budgets', () => {
+  beforeAll(async () => {
+    await app.close();
+    app = await createApp();
+    prisma = app.get(PrismaService);
+  });
+
+  it('a project budget rejects runs in that project and gives back the workspace reservation', async () => {
+    const u = await readyWorkspace('projbudget');
+    const project = u.projects.find((p) => p.kind === 'KNOWLEDGE');
+    const created = await u.c.post(`/api/workspaces/${u.workspaceId}/budgets`, { scope: 'PROJECT', scopeRefId: project.id, limitAmount: '0.00000001', hard: true });
+    expect(created.status).toBe(201);
+    const ws = await app.get(BudgetService).currentPeriod(u.workspaceId);
+    await prisma.budgetPolicy.update({ where: { id: ws!.policy.id }, data: { hard: true } });
+
+    const res = await ask(u, 'Too expensive for the project');
+    expect(res.body.status).toBe('BUDGET_REJECTED');
+    expect(res.body.budget).toMatchObject({ scope: 'PROJECT', policyId: created.body.id });
+    expect(await prisma.budgetReservation.count({ where: { runId: res.body.runId, status: 'OPEN' } })).toBe(0);
+    const period = await prisma.budgetPeriod.findUniqueOrThrow({ where: { id: ws!.period.id } });
+    expect(period.reservedOpen.toString()).toBe('0');
+    const run = await prisma.aiRun.findUniqueOrThrow({ where: { id: res.body.runId } });
+    expect(run.error).toMatchObject({ code: 'BUDGET', scope: 'PROJECT' });
+  });
+
+  it('a user budget is reserved and charged alongside the workspace budget', async () => {
+    const u = await readyWorkspace('userbudget');
+    const created = await u.c.post(`/api/workspaces/${u.workspaceId}/budgets`, { scope: 'USER', scopeRefId: u.userId, limitAmount: '0.05', hard: true, alertThresholds: [1] });
+    expect(created.status).toBe(201);
+    const { runId } = (await ask(u, 'What is the base-case growth?')).body;
+    const held = await prisma.budgetReservation.findMany({ where: { runId, status: 'OPEN' } });
+    const periods = await prisma.budgetPeriod.findMany({ where: { id: { in: held.map((r) => r.periodId) } } });
+    expect(periods.map((p) => p.policyId).sort()).toEqual([created.body.id, (await app.get(BudgetService).currentPeriod(u.workspaceId))!.policy.id].sort());
+
+    await app.get(RunExecutorService).execute(runId);
+    const usage = await prisma.usageEvent.findFirstOrThrow({ where: { runId } });
+    await app.get(LedgerService).processUsageEvent(usage.id);
+    await app.get(BudgetService).releaseRun(runId);
+    const list = (await u.c.get(`/api/workspaces/${u.workspaceId}/budgets`)).body as any[];
+    const mine = list.find((b) => b.id === created.body.id);
+    expect(Number(mine.current.spent)).toBeGreaterThan(0);
+    expect(Number(mine.current.reserved)).toBe(0);
+    expect(mine.label).toContain('userbudget');
+    expect(mine.current.alertsSent).toContain(1);
+    const alerts = await prisma.notification.findMany({ where: { workspaceId: u.workspaceId, kind: 'BUDGET_ALERT' } });
+    expect(alerts).toEqual([expect.objectContaining({ userId: u.userId, title: expect.stringContaining('userbudget’s AI budget 1% used') })]);
+
+    // Tighten the user budget below what one run costs: the next run is rejected at USER scope.
+    await u.c.patch(`/api/workspaces/${u.workspaceId}/budgets/${created.body.id}`, { limitAmount: mine.current.spent });
+    const again = await ask(u, 'What is the base-case growth?');
+    expect(again.body).toMatchObject({ status: 'BUDGET_REJECTED', budget: { scope: 'USER' } });
+  });
+});

@@ -10,7 +10,7 @@ export const runKeys = {
   thread: (wid, threadId) => ['thread', wid, threadId],
   models: () => ['models'],
   budget: (wid) => ['budget', wid],
-  costSummary: (wid, days) => ['costs', wid, 'summary', days],
+  costSummary: (wid, days, model) => ['costs', wid, 'summary', days, model ?? null],
   costEntries: (wid) => ['costs', wid, 'entries'],
 };
 
@@ -74,8 +74,15 @@ export function useBudget(wid) {
   return useQuery({ queryKey: runKeys.budget(wid), queryFn: () => api(`/workspaces/${wid}/budget`), enabled: Boolean(wid) });
 }
 
-export function useCostSummary(wid, days = 30) {
-  return useQuery({ queryKey: runKeys.costSummary(wid, days), queryFn: () => api(`/workspaces/${wid}/costs/summary?days=${days}`), enabled: Boolean(wid) });
+/** @param {string | undefined} wid @param {number} [days] @param {string | null} [model] model config id filter */
+export function useCostSummary(wid, days = 30, model = null) {
+  const qs = new URLSearchParams({ days: String(days), ...(model ? { model } : {}) });
+  return useQuery({
+    queryKey: runKeys.costSummary(wid, days, model),
+    queryFn: () => api(`/workspaces/${wid}/costs/summary?${qs}`),
+    enabled: Boolean(wid),
+    placeholderData: (prev, prevQuery) => (prevQuery?.queryKey[1] === wid ? prev : undefined),
+  });
 }
 
 export function useCostEntries(wid) {

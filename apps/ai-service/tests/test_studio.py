@@ -34,6 +34,9 @@ async def test_xray_candidates_carry_ranks_and_packer_decisions(repo):
     assert ev["params"]["mode"] == "query" and ev["params"]["chunkLevel"] == "auto"
     for p in ev["packed"]:
         assert p["pageFrom"] <= p["page"] <= p["pageTo"]
+    local = [u for u in repo.usage_events if u.get("feature") == "retrieval"]
+    assert local and local[-1]["cost_class"] == "LOCAL_COMPUTE"
+    assert local[-1]["run_id"] == ev["run_id"] and local[-1]["compute_seconds"] > 0
 
 
 async def test_child_chunk_level_never_packs_parents(repo):

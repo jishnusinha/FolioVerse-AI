@@ -6,6 +6,7 @@ import time
 import httpx
 
 from ..events import Emitter
+from ..metering import meter_local
 from ..repo import get_repo
 from ..retrieval.embedder import get_embedder
 from ..retrieval.store import get_store
@@ -78,9 +79,13 @@ async def run_ingestion(req: dict, emitter: Emitter, data: bytes | None = None) 
     embedder = get_embedder()
     store = get_store()
     texts = [c["text"] for c in children]
+    t0 = time.perf_counter()
     dense = await asyncio.to_thread(embedder.embed_documents, texts)
+    embed_seconds = time.perf_counter() - t0
     await stage("INDEXING", 0.75, f"{len(children)} passages embedded")
+    t0 = time.perf_counter()
     sparse = await asyncio.to_thread(embedder.sparse_documents, texts)
+    embed_seconds += time.perf_counter() - t0
     store.ensure(embedder.dims)
     await asyncio.to_thread(store.delete_versions, wid, [svid])
     payloads = [
@@ -119,26 +124,12 @@ async def run_ingestion(req: dict, emitter: Emitter, data: bytes | None = None) 
         "embedder": embedder.name,
         "collection": store.collection,
         "seconds": round(time.perf_counter() - started, 3),
+        "embedSeconds": round(embed_seconds, 3),
     }
     if doc.metadata:
         stats["metadata"] = doc.metadata
     if doc.chapters:
         stats["chapters"] = doc.chapters[:1000]
     state = "PARTIAL" if doc.failed_pages else "READY"
-    # Local compute cost (embedding CPU time) is metered as LOCAL_COMPUTE usage.
-    try:
-        await get_repo().insert_usage_event(
-            {
-                "workspace_id": wid,
-                "cost_class": "LOCAL_COMPUTE",
-                "provider": "local",
-                "model": embedder.name,
-                "model_config_id": "local-compute",
-                "compute_seconds": stats["seconds"],
-                "reported": True,
-                "feature": "ingestion",
-            }
-        )
-    except Exception:  # noqa: S110 - metering must never fail ingestion
-        pass
+    await meter_local(wid, embed_seconds, embedder.name, "ingestion")
     return await finish(state, stats)

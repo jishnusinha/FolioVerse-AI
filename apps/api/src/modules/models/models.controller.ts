@@ -26,6 +26,8 @@ export class ModelsController {
             inputPerMTok: m.prices[0].inputPerMTok.toString(),
             outputPerMTok: m.prices[0].outputPerMTok.toString(),
             cachedInputPerMTok: m.prices[0].cachedInputPerMTok?.toString() ?? null,
+            unit: m.prices[0].unit,
+            effectiveFrom: m.prices[0].effectiveFrom,
             isDemo: m.prices[0].isDemo,
             sourceUrl: m.prices[0].sourceUrl,
           }

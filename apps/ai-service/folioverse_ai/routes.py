@@ -11,6 +11,7 @@ from .graphs.checkpoints import list_checkpoints
 from .graphs.registry import GRAPHS, describe
 from .graphs.runner import run_unit
 from .ingestion.pipeline import run_ingestion
+from .metering import meter_local
 from .providers import available_providers
 from .repo import get_repo
 from .retrieval.retrieve import retrieve
@@ -63,11 +64,12 @@ class SearchRequest(BaseModel):
 
 @run_router.post("/search")
 async def search(req: SearchRequest):
-    """Semantic passage search for the workspace search page. No model call, nothing billed."""
+    """Semantic passage search for the workspace search page. No model call; only local compute is metered."""
     scope = verify_scope(req.scopeToken, req.searchId, req.workspaceId)
     if not scope.source_version_ids:
         return {"items": [], "abstain": True}
     r = await retrieve(req.query, scope, {"topK": req.topK, "contextBudget": 4000})
+    await meter_local(req.workspaceId, r.compute_seconds, r.params.get("embedder", "embedder"), "search")
     items = [
         {
             "chunkId": p["chunkId"],

@@ -2020,6 +2020,61 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "model",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "costs"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/costs/estimate": {
+      "post": {
+        "operationId": "CostsController_estimate",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EstimateDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "costs"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/costs/anomalies": {
+      "get": {
+        "operationId": "CostsController_anomalies",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -2079,6 +2134,14 @@
             "name": "workspaceId",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "days",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -5400,6 +5463,433 @@
           "studio"
         ]
       }
+    },
+    "/api/workspaces/{workspaceId}/budgets": {
+      "get": {
+        "operationId": "BudgetsController_list",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "costs"
+        ]
+      },
+      "post": {
+        "operationId": "BudgetsController_create",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "costs"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/budgets/{policyId}": {
+      "patch": {
+        "operationId": "BudgetsController_update",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BudgetPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "costs"
+        ]
+      },
+      "delete": {
+        "operationId": "BudgetsController_remove",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "policyId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "costs"
+        ]
+      }
+    },
+    "/api/admin/models": {
+      "get": {
+        "operationId": "AdminModelsController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/models/registry/diff": {
+      "get": {
+        "operationId": "AdminModelsController_diff",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/models/registry/sync": {
+      "post": {
+        "operationId": "AdminModelsController_sync",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/models/{modelId}": {
+      "patch": {
+        "operationId": "AdminModelsController_patch",
+        "parameters": [
+          {
+            "name": "modelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModelPatchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/models/{modelId}/prices": {
+      "post": {
+        "operationId": "AdminModelsController_addPrice",
+        "parameters": [
+          {
+            "name": "modelId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PriceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/overview": {
+      "get": {
+        "operationId": "AdminCostsController_overview",
+        "parameters": [
+          {
+            "name": "days",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "model",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/rollup": {
+      "post": {
+        "operationId": "AdminCostsController_rollup",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RollupDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/reconciliation": {
+      "get": {
+        "operationId": "AdminCostsController_reconciliation",
+        "parameters": [
+          {
+            "name": "days",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/reconciliation/import": {
+      "post": {
+        "operationId": "AdminCostsController_importCsv",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CsvImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/reconciliation/fetch": {
+      "post": {
+        "operationId": "AdminCostsController_fetchReport",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FetchDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/infra": {
+      "get": {
+        "operationId": "AdminCostsController_infra",
+        "parameters": [
+          {
+            "name": "days",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "AdminCostsController_addInfra",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InfraDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/api/admin/costs/infra/import-gcp": {
+      "post": {
+        "operationId": "AdminCostsController_importGcp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GcpImportDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "admin"
+        ]
+      }
     }
   },
   "info": {
@@ -5839,6 +6329,35 @@
             "type": "boolean"
           }
         }
+      },
+      "EstimateDto": {
+        "type": "object",
+        "properties": {
+          "modelConfigId": {
+            "type": "string",
+            "example": "mock-grounded"
+          },
+          "calls": {
+            "type": "number",
+            "default": 1
+          },
+          "inputTokens": {
+            "type": "number",
+            "description": "Input tokens per call (including cached)"
+          },
+          "cachedInputTokens": {
+            "type": "number",
+            "description": "Of which served from the provider cache"
+          },
+          "outputTokens": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "modelConfigId",
+          "inputTokens",
+          "outputTokens"
+        ]
       },
       "UpdateArtifactDto": {
         "type": "object",
@@ -6828,6 +7347,238 @@
           "dataset",
           "scope"
         ]
+      },
+      "BudgetDto": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "type": "string",
+            "enum": [
+              "WORKSPACE",
+              "PROJECT",
+              "USER"
+            ]
+          },
+          "scopeRefId": {
+            "type": "string",
+            "description": "Project id (PROJECT) or member user id (USER)"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "MONTHLY"
+            ],
+            "default": "MONTHLY"
+          },
+          "limitAmount": {
+            "type": "string",
+            "example": "10.00"
+          },
+          "hard": {
+            "type": "boolean",
+            "description": "Hard limits reject runs that could exceed them; soft limits only alert",
+            "default": true
+          },
+          "alertThresholds": {
+            "default": [
+              75,
+              90,
+              100
+            ],
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        },
+        "required": [
+          "scope",
+          "limitAmount"
+        ]
+      },
+      "BudgetPatchDto": {
+        "type": "object",
+        "properties": {
+          "limitAmount": {
+            "type": "string"
+          },
+          "hard": {
+            "type": "boolean"
+          },
+          "period": {
+            "type": "string",
+            "enum": [
+              "DAILY",
+              "MONTHLY"
+            ]
+          },
+          "alertThresholds": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          }
+        }
+      },
+      "ModelPatchDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "UNVERIFIED",
+              "VERIFIED",
+              "DISABLED"
+            ]
+          },
+          "isDefault": {
+            "type": "boolean",
+            "description": "Make this the default chat model (clears the flag elsewhere)"
+          }
+        }
+      },
+      "PriceDto": {
+        "type": "object",
+        "properties": {
+          "unit": {
+            "type": "string",
+            "enum": [
+              "MTOK",
+              "CPU_HOUR"
+            ],
+            "default": "MTOK"
+          },
+          "inputPerMTok": {
+            "type": "string",
+            "description": "USD per 1M input tokens, or per CPU-hour for CPU_HOUR",
+            "example": "0.40"
+          },
+          "outputPerMTok": {
+            "type": "string",
+            "description": "USD per 1M output tokens (required for MTOK)"
+          },
+          "cachedInputPerMTok": {
+            "type": "string"
+          },
+          "reasoningPerMTok": {
+            "type": "string"
+          },
+          "batchDiscount": {
+            "type": "string",
+            "description": "Fraction off for batch calls, 0–1"
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "effectiveFrom": {
+            "type": "string",
+            "description": "ISO time; defaults to now"
+          },
+          "sourceUrl": {
+            "type": "string",
+            "description": "Where the price was published (https), or demo:// for DEMO prices"
+          },
+          "isDemo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "inputPerMTok",
+          "sourceUrl"
+        ]
+      },
+      "RollupDto": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 365,
+            "default": 2
+          }
+        }
+      },
+      "CsvImportDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "example": "openai"
+          },
+          "csv": {
+            "type": "string",
+            "description": "CSV with a date column and an amount column (optional currency)"
+          }
+        },
+        "required": [
+          "provider",
+          "csv"
+        ]
+      },
+      "FetchDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "openai"
+            ]
+          },
+          "days": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90,
+            "default": 7
+          }
+        },
+        "required": [
+          "provider"
+        ]
+      },
+      "InfraDto": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "example": "2026-10-01"
+          },
+          "service": {
+            "type": "string",
+            "example": "Cloud Run"
+          },
+          "amount": {
+            "type": "string",
+            "example": "1.25"
+          },
+          "currency": {
+            "type": "string",
+            "default": "USD"
+          },
+          "note": {
+            "type": "string"
+          },
+          "isDemo": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "day",
+          "service",
+          "amount"
+        ]
+      },
+      "GcpImportDto": {
+        "type": "object",
+        "properties": {
+          "days": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90,
+            "default": 7
+          }
+        }
       }
     }
   }

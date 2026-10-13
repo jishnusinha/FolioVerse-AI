@@ -41,6 +41,14 @@ const schema = z.object({
   FV_OLLAMA_MODEL: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   FV_SEED_ADMIN_EMAIL: z.string().optional(),
+  /** OpenAI admin key for the Costs API (reconciliation only; never used for inference). */
+  OPENAI_ADMIN_KEY: z.string().optional(),
+  /** Cloud Billing export table `project.dataset.table`; enables the GCP infrastructure cost import. */
+  FV_GCP_BILLING_TABLE: z.string().optional(),
+  FV_GCP_PROJECT: z.string().optional(),
+  FV_RECON_TOLERANCE_USD: z.string().regex(/^\d+(\.\d+)?$/).default('0.01'),
+  FV_ANOMALY_Z: z.coerce.number().positive().default(3),
+  FV_ANOMALY_MIN_USD: z.coerce.number().nonnegative().default(0.01),
   OTEL_EXPORTER_OTLP_ENDPOINT: z.string().optional(),
   LOG_LEVEL: z.string().default('info'),
 });

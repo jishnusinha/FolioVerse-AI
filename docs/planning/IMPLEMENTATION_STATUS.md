@@ -399,10 +399,56 @@ accuracy 0.9, abstention 0.917, relevance 3.73 (DEMO judge), cost per answer 0.0
 Not done: live judge model and real-model battles / evaluations (BLOCKED, no `OPENAI_API_KEY`; the mock judge is a
 word-overlap heuristic labelled DEMO, and mock prices are DEMO); evaluation datasets beyond `qa-small`.
 
-## Gates 9–13 — PLANNED
+## Gate 9 — Cost Intelligence — DONE (OpenAI Costs API and GCP Billing export BLOCKED: not configured; manual fallbacks work)
+
+Validation: Python `pnpm test:py` (ai-service incl. LOCAL_COMPUTE metering in `test_studio.py`), ruff clean; API
+`tsc` 0, eslint clean, unit 89/89 (`test/unit/costs.spec.ts` 18: anomaly z-score, pro-rata allocation, provider CSV
+parsing, settled tier, budget periods, registry diff, OpenAI Costs API pagination without leaking the key, GCP query),
+integration 226/226 (`costs.spec.ts`: budgets API and validation codes, 13 super-admin routes 404 for a regular user,
+price rules, local compute per CPU-hour, reconciliation within tolerance / variance / skipped / unchanged / conflict,
+rollups idempotent with 2 anomalies and notifications, estimator, CSV formula escaping; `runs.spec.ts` multi-scope
+budgets: project budget rejection and user budget alert; authz matrix rows for 6 cost routes); `contracts:check` OK
+(141 paths); web `vitest run` 306/306 (`costs.test.jsx` 11, `admin.test.jsx` 6), `eslint src playwright` clean, `tsc`
+clean, `vite build` OK; Playwright `gate9-preview.spec.js` 1/1 (screenshots
+`apps/web/test-results/gate9/{cost-center,notifications,budgets,command-center,prices,models}.png`, not baselines);
+`node infrastructure/scripts/smoke.mjs` OK against `pnpm dev` with a throwaway `FV_SEED_ADMIN_EMAIL` in the process
+environment: estimate 0.03375 USD for 10 calls (DEMO price); a hard project budget rejected the run before any model
+call (`scope=PROJECT`); local compute 1.008 CPU-s metered (unpriced, $0); CSV export 88 rows; `/api/admin/*` 404 for a
+regular user; rollup 436 rows; mock-provider CSV reconciliation RECONCILED for yesterday and SKIPPED for today; OpenAI
+Costs API `503 RECONCILIATION_UNCONFIGURED` and GCP import `503 GCP_BILLING_UNCONFIGURED`. The local dev database
+needed `prisma migrate deploy` for `0007_costs` (additive).
+
+- `PRICE-001` Price management — DONE. Super-admin Model prices page: per-model price history (current, scheduled,
+  superseded), new versions with effective time, https source and DEMO flag; USD only; backdate note (D-090). Model
+  registry page: verify / disable / re-enable, default chat model, seed-file diff (entries waiting for a model-id env
+  var are listed, never invented) and add-only sync.
+- `BUDG-002` Budgets — DONE. Workspace / project / member budgets, daily or monthly, hard or soft, alerts at
+  configurable thresholds (default 75/90/100) as notifications; BUDGET_REJECTED shows the estimate, the remaining
+  amount and which budget stopped the run (D-088). Settings → Budgets for admins, read-only for others; the bell shows
+  unread notifications with "Mark all read".
+- `RECON-003` Reconciliation — DONE for CSV upload (provider usage export); the OpenAI Costs API fetch is implemented
+  and unit-tested but BLOCKED (no `OPENAI_ADMIN_KEY`) (D-091).
+- `CLOUD-004` Cloud costs — DONE for manual entry; GCP Billing export import implemented behind
+  `FV_GCP_BILLING_TABLE` and BLOCKED (no GCP project) (D-092).
+- `LOCAL-005` Local compute — DONE. Ingestion, retrieval and search embedding time metered as LOCAL_COMPUTE, priced
+  per CPU-hour when a rate exists (D-089); shown separately from API spend.
+- `ROLL-006` Rollups, anomalies, estimator — DONE (D-093). `POST costs/estimate` prices N calls at the current
+  price and the Cost Center compares it with another priced model.
+- `UI-007` Dashboards — DONE. Cost Center: budgets, local compute, spending trend with range and model filters, by
+  model / project / feature / member (admins), token mix, recent runs, unusual spend, prices, estimator, CSV export
+  (formula-injection escaped). Cost Command Center (super admin): platform totals by class, daily stacked chart, by
+  model, budget alerts and rejections, top users, high-cost workflows, anomalies, reconciliation, recent model calls,
+  cloud costs (D-094).
+
+Not done: real OpenAI Costs API reconciliation and GCP billing import (BLOCKED, not configured); real model prices
+(none entered: prices come from an admin with a source URL; the seeded mock prices are DEMO).
+
+## Gates 10–13 — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.
-- GCP project / WIF / Artifact Registry — BLOCKED.
+- OpenAI admin key for the Costs API — BLOCKED (`OPENAI_ADMIN_KEY`); CSV reconciliation is the fallback.
+- GCP project / WIF / Artifact Registry — BLOCKED. GCP Billing export to BigQuery (`FV_GCP_BILLING_TABLE`) — BLOCKED;
+  manual cloud cost entry is the fallback.
 - GitHub remote + Actions — BLOCKED.
 - Kaggle account — BLOCKED (notebooks run locally only).

@@ -427,6 +427,53 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Decision: integration tests and the smoke wait for (or call) ledger processing before reading costs, because FINAL
   cost entries are written by the ledger queue after the run completes.
 
+## D-088 Budgets per workspace, project and member
+- Decision: `budget_policies` have a scope (`WORKSPACE`, `PROJECT`, `USER`), a period (`DAILY`, `MONTHLY`), a hard or
+  soft limit and up to five alert thresholds (default 75/90/100). A run reserves its estimate against every policy
+  that applies (the workspace's, its project's, its user's); if any hard policy lacks room, reservations already taken
+  are released and the run is `BUDGET_REJECTED` with `budget.scope` naming the one that stopped it, so the UI can say
+  "your personal / this project's / the workspace AI budget".
+- A run's project is `scope.projectId`, else its thread's project, else the project of its single source; it is
+  stored in the run scope for reporting. Budgets cap AI API spend only.
+
+## D-089 Local compute is priced per CPU-hour
+- Decision: `model_prices.unit` is `MTOK` (per 1M tokens) or `CPU_HOUR`; `CPU_HOUR` is only valid for provider `local`
+  and stores the rate in `input_per_mtok`. Embedding, sparse encoding and rerank wall time is metered by the AI
+  service as `LOCAL_COMPUTE` usage (features `ingestion`, `retrieval`, `search`) and priced like any other usage; with
+  no rate it records $0 as `FINAL_ESTIMATED`. Local compute never counts against budgets or a run's API total.
+
+## D-090 Price entry rules
+- Decision: prices are USD only (`CURRENCY_UNSUPPORTED`; the ledger does not convert), need an `https://` source URL
+  (`demo://` only when the price is flagged DEMO), and are never edited: a new row with `effectiveFrom` supersedes the
+  old one. A backdated price does not reprice entries already finalized; the API returns a note saying so. Public
+  `/models` shows only the current price (`effectiveFrom <= now`), so a scheduled price is not shown early.
+
+## D-091 Reconciliation per provider and UTC day
+- Decision: a provider report (CSV upload, or the OpenAI Costs API when `OPENAI_ADMIN_KEY` is set) is stored once per
+  provider and closed UTC day. Within `FV_RECON_TOLERANCE_USD` every FINAL entry of that day gets a zero
+  `RECONCILIATION` entry with tier `RECONCILED`; otherwise the difference is split pro rata over the day's entries as
+  `VARIANCE` entries. Both carry `supersedes_entry_id`, so the ledger stays append-only. Today is `SKIPPED`; a repeat
+  import with the same amount is `UNCHANGED`, a different amount is `CONFLICT ALREADY_RECONCILED`. Reports for the
+  `mock` provider are DEMO.
+
+## D-092 Cloud costs in `infra_costs`
+- Decision: cloud spend is not ledger data (it is not per run), so it lives in `infra_costs` (day, service, amount,
+  source `MANUAL | GCP_BILLING`). The GCP import queries the Billing export table (`FV_GCP_BILLING_TABLE`) through the
+  BigQuery REST API with the runtime service account's metadata-server token; without the variable the import answers
+  `503 GCP_BILLING_UNCONFIGURED` and costs are entered by hand.
+
+## D-093 Rollups and anomalies
+- Decision: `cost_rollups` (hourly and daily, per workspace × dimension `total|model|feature|user|class`) are rebuilt
+  with idempotent `INSERT … ON CONFLICT` by the `cost-rollup` worker job every 10 minutes (or on demand by a super
+  admin). Anomalies use a z-score of the day against its previous 14 days (missing days count as 0, at least 7 days
+  with spend, standard deviation floored at 10% of the mean), flagged at `FV_ANOMALY_Z` (3) and `FV_ANOMALY_MIN_USD`;
+  each new anomaly notifies the workspace's owners and admins.
+
+## D-094 Super-admin pages answer "not found"
+- Decision: `/app/admin/*` render the same Not found page as the API's 404 for anyone without `platformRole =
+  SUPER_ADMIN`; the rail item and palette entries appear only for super admins. The Cost Command Center reads
+  rollups, never run inputs or document text.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

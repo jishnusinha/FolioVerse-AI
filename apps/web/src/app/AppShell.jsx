@@ -9,7 +9,6 @@ import { useGlobalShortcuts } from '@/shared/a11y/shortcuts.js';
 import { allCommands, useCommandRegistry } from '@/shared/commands.js';
 import { CommandPalette } from '@/shared/overlays/CommandPalette.jsx';
 import { ShortcutsDialog } from '@/shared/overlays/ShortcutsDialog.jsx';
-import { Sheet } from '@/shared/ui/Dialog.jsx';
 import { Toaster } from '@/shared/ui/toast.jsx';
 import { DropdownMenu, TooltipProvider } from '@/shared/ui/Radix.jsx';
 import { useQueryClient } from '@tanstack/react-query';
@@ -18,6 +17,8 @@ import { signOut, useCurrentWorkspace, useMe } from '@/features/auth/session.js'
 import { useWorkspaceEvents } from '@/features/runs/useWorkspaceEvents.js';
 import { useSearch } from '@/features/insights/queries.js';
 import { SEARCH_GROUPS, searchHref, useDebouncedValue } from '@/features/insights/search.js';
+import { NotificationsSheet, useUnreadCount } from '@/features/notifications/NotificationsSheet.jsx';
+import { useIsSuperAdmin } from '@/features/admin/queries.js';
 
 const SEARCH_TYPE_LABEL = Object.fromEntries(SEARCH_GROUPS.map(([type, label]) => [type, label.replace(/s$/, '')]));
 
@@ -144,6 +145,8 @@ function ShellFrame() {
   const mainRef = useRef(null);
   const workspace = useCurrentWorkspace();
   useWorkspaceEvents(workspace?.id);
+  const superAdmin = useIsSuperAdmin();
+  const unread = useUnreadCount(workspace?.id);
 
   const [paletteQuery, setPaletteQuery] = useState('');
   const searchTerm = useDebouncedValue(paletteQuery, 200);
@@ -196,8 +199,9 @@ function ShellFrame() {
           { id: 'act:shortcuts', label: 'Show keyboard shortcuts', group: 'Actions', run: openHelp, shortcut: ['?'] },
         ],
         sources,
+        { superAdmin },
       ),
-    [toggleTheme, toggleRail, openHelp, sources],
+    [toggleTheme, toggleRail, openHelp, sources, superAdmin],
   );
 
   return (
@@ -228,6 +232,7 @@ function ShellFrame() {
           </button>
           <div className="rail-sep" />
           <div className="rail-bottom">
+            {superAdmin && <NavItem to="/app/admin/costs" icon="admin" label="Super Admin" hideOnMobile />}
             <NavItem to="/app/settings" icon="settings" label="Settings" hideOnMobile />
             <button
               type="button"
@@ -265,8 +270,19 @@ function ShellFrame() {
             <button type="button" className="btn primary sm" onClick={() => setPaletteOpen(true)}>
               + New
             </button>
-            <button type="button" className="icon-btn" aria-label="Notifications" onClick={() => setNotificationsOpen(true)}>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+              onClick={() => setNotificationsOpen(true)}
+              style={{ position: 'relative' }}
+            >
               <Icon name="bell" />
+              {unread > 0 && (
+                <span className="dot-count" aria-hidden="true">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
             </button>
           </header>
           <main id="main" ref={mainRef} tabIndex={-1} className={cn(forceDark && 'studio')}>
@@ -283,9 +299,7 @@ function ShellFrame() {
         onQueryChange={setPaletteQuery}
       />
       <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-      <Sheet open={notificationsOpen} onOpenChange={setNotificationsOpen} title="Notifications">
-        <p className="empty">No notifications yet. Ingestion results, budget alerts and proposed story facts will appear here.</p>
-      </Sheet>
+      <NotificationsSheet wid={workspace?.id} open={notificationsOpen} onOpenChange={setNotificationsOpen} />
       <Toaster />
     </TooltipProvider>
   );

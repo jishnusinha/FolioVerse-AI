@@ -4,6 +4,7 @@
  * 401 without a session, 404 outside the workspace, 403 below the required role, problem+json errors.
  */
 import { createFakeAi } from './fakeAi.js';
+import { createFakeCosts } from './fakeCosts.js';
 import { createFakeDiscover } from './fakeDiscover.js';
 import { FAKE_INSIGHT_ACTIONS } from './fakeKnowledge.js';
 import { createFakeLibrary } from './fakeLibrary.js';
@@ -38,12 +39,14 @@ const noContent = () => ({ status: 204, headers: {}, body: null });
 /**
  * @param {{ signedIn?: boolean, role?: 'OWNER'|'ADMIN'|'EDITOR'|'VIEWER', advance?: boolean, empty?: boolean, emailVerified?: boolean,
  *   budgetLimit?: string, budgetHard?: boolean, streamCut?: number, pdfBytes?: Uint8Array, epubBytes?: Uint8Array, artifacts?: string[],
- *   writer?: boolean, library?: boolean, metadata?: boolean }} [opts]
+ *   writer?: boolean, library?: boolean, metadata?: boolean, superAdmin?: boolean, anomaly?: boolean, allModels?: boolean }} [opts]
  *   `role` applies to an extra TEAM workspace; `advance` moves busy sources one ingestion step per list request.
  *   `budgetLimit`/`budgetHard` set the monthly budget; `streamCut` ends a run's first event stream early;
  *   `pdfBytes` is served as the file of every PDF version; `artifacts` lists insight actions to run on the
  *   Market Outlook PDF up front, each leaving a saved artifact. `epubBytes` is served for EPUB versions; `library: false`
- *   skips the seeded shelf; `metadata: true` turns on the (DEMO) metadata lookup.
+ *   skips the seeded shelf; `metadata: true` turns on the (DEMO) metadata lookup. `superAdmin` makes the user a platform
+ *   super admin (the /admin routes answer 404 otherwise); `anomaly` seeds a spend anomaly with its notification;
+ *   `allModels` lists both DEMO chat models on /models instead of only the default.
  */
 export function createFakeApi(opts = {}) {
   const userId = uuid();
@@ -140,6 +143,8 @@ export function createFakeApi(opts = {}) {
   if (opts.library !== false && !opts.empty) fakeLibrary.seed(personal, libraryProject, addSource);
   const fakeDiscover = createFakeDiscover({ db, uuid, iso, ok, problem, library: fakeLibrary });
   const fakeStudio = createFakeStudio({ db, uuid, iso, ok, problem, ai: fakeAi, opts });
+  const fakeCosts = createFakeCosts({ db, uuid, iso, ok, problem, noContent, ai: fakeAi, opts });
+  if (opts.anomaly) fakeCosts.seedAnomaly(personal);
 
   const member = (wid) => db.memberships.find((m) => m.workspaceId === wid);
   const live = (rows, wid) => rows.filter((r) => r.workspaceId === wid && !r.deletedAt);
@@ -209,7 +214,8 @@ export function createFakeApi(opts = {}) {
     if (db.accessExpired) return problem(401, 'Session expired', 'TOKEN_EXPIRED');
     if (method !== 'GET' && headers['x-csrf-token'] !== FAKE_CSRF) return problem(403, 'CSRF token missing or invalid', 'CSRF');
 
-    if (path === '/models' && method === 'GET') return ok([fakeAi.model]);
+    if (seg[0] === 'admin') return fakeCosts.handleAdmin(method, seg.slice(1), body, u.searchParams);
+    if (path === '/models' && method === 'GET') return ok(opts.allModels ? fakeAi.models : [fakeAi.model]);
     if (path === '/insight-actions' && method === 'GET') return ok(FAKE_INSIGHT_ACTIONS);
     if (path === '/workspaces' && method === 'POST') {
       const id = uuid();
@@ -345,6 +351,8 @@ export function createFakeApi(opts = {}) {
       }
     }
 
+    const costed = fakeCosts.handle(method, wid, rest, body, need, u.searchParams);
+    if (costed) return costed;
     const studied = fakeStudio.handle(method, wid, rest, body, need, u.searchParams);
     if (studied) return studied;
     const discovered = fakeDiscover.handle(method, wid, rest, body, need, u.searchParams);
@@ -361,7 +369,7 @@ export function createFakeApi(opts = {}) {
     return u;
   }
 
-  return { db, handle, ai: fakeAi, writer: fakeWriter, library: fakeLibrary, discover: fakeDiscover, studio: fakeStudio };
+  return { db, handle, ai: fakeAi, writer: fakeWriter, library: fakeLibrary, discover: fakeDiscover, studio: fakeStudio, costs: fakeCosts };
 }
 
 /** Routes `fetch` to a fake API inside jsdom tests. Returns the fake for assertions. */
