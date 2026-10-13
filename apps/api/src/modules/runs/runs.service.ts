@@ -25,7 +25,11 @@ export const GRAPH_TIERS: Record<string, 'T0' | 'T1' | 'T2'> = {
   passage_explain: 'T0',
   research_writing: 'T2',
   rec_explain: 'T0',
+  answer_judge: 'T0',
 };
+
+/** Failure injection (lab runs only, `FV_LAB_FAULTS=true`). */
+export const LAB_FAULTS = ['provider_timeout', 'provider_429', 'malformed_output', 'retrieval_down'] as const;
 
 /** Graphs whose answers are grounded in workspace sources and therefore need a retrieval scope. */
 export const RETRIEVAL_GRAPHS = new Set(['grounded_qa', 'insight', 'multi_doc_compare', 'risk_contradiction', 'knowledge_map', 'passage_explain', 'research_writing']);
@@ -45,6 +49,10 @@ export interface RunSpec {
   options?: Record<string, unknown>;
   parentRunId?: string;
   forkedFromCheckpoint?: string;
+  /** Lab runs only: replaces the registry fallbacks (Failure Lab). */
+  fallbackModels?: string[];
+  /** Lab runs only: a chat graph runs without creating a conversation thread (Playground, Battle, evaluations). */
+  detached?: boolean;
 }
 
 @Injectable()
@@ -117,11 +125,17 @@ export class RunsService {
     return this.prisma.source.findUnique({ where: { id: ids[0] }, select: { id: true, projectId: true } });
   }
 
-  async create(workspaceId: string, user: AuthUser, spec: RunSpec) {
+  /** `enqueue: false` leaves the run QUEUED for a caller that executes it inline (evaluation jobs). */
+  async create(workspaceId: string, user: Pick<AuthUser, 'id'>, spec: RunSpec, opts: { enqueue?: boolean } = {}) {
     let tier = GRAPH_TIERS[spec.graph];
     if (!tier) throw new BadRequestException({ message: 'Unknown graph', code: 'UNKNOWN_GRAPH' });
-    if (spec.options?.inject && !env().FV_LAB_FAULTS) throw new BadRequestException({ message: 'Failure injection is disabled', code: 'LAB_DISABLED' });
-    if (spec.options?.inject && !spec.lab) throw new BadRequestException({ message: 'Failure injection is only allowed for lab runs', code: 'LAB_ONLY' });
+    const inject = spec.options?.inject;
+    if (inject && !env().FV_LAB_FAULTS) throw new BadRequestException({ message: 'Failure injection is disabled', code: 'LAB_DISABLED' });
+    if (inject && !spec.lab) throw new BadRequestException({ message: 'Failure injection is only allowed for lab runs', code: 'LAB_ONLY' });
+    if (inject && !(LAB_FAULTS as readonly unknown[]).includes(inject)) throw new BadRequestException({ message: 'Unknown failure injection', code: 'UNKNOWN_FAULT' });
+    if ((spec.fallbackModels?.length || spec.detached) && !spec.lab) {
+      throw new BadRequestException({ message: 'Fallback overrides and detached runs are only allowed for lab runs', code: 'LAB_ONLY' });
+    }
 
     const action = ARTIFACT_GRAPHS.has(spec.graph as any) ? actionFor(spec.graph, spec.input?.action) : null;
     if (ARTIFACT_GRAPHS.has(spec.graph as any)) {
@@ -149,16 +163,16 @@ export class RunsService {
       }
     }
 
-    const plan = await this.models.resolvePlan(spec.modelPreference);
+    const plan = await this.models.resolvePlan(spec.modelPreference, spec.fallbackModels?.length ? { fallbackIds: spec.fallbackModels } : {});
     const runId = newId();
 
     // Conversation bookkeeping for chat graphs.
     let threadId: string | null = null;
     let userMessageId: string | null = null;
     let assistantMessageId: string | null = null;
-    if (CHAT_GRAPHS.has(spec.graph)) {
+    if (CHAT_GRAPHS.has(spec.graph) && !(spec.input.question ?? '').trim()) throw new BadRequestException('A question is required');
+    if (CHAT_GRAPHS.has(spec.graph) && !spec.detached) {
       const question = (spec.input.question ?? '').trim();
-      if (!question) throw new BadRequestException('A question is required');
       if (spec.threadId) {
         if (!isUuid(spec.threadId)) throw new NotFoundException();
         const t = await this.prisma.thread.findFirst({ where: { id: spec.threadId, workspaceId } });
@@ -266,7 +280,7 @@ export class RunsService {
         data: { id: assistantMessageId, workspaceId, threadId, parentMessageId: userMessageId, role: 'ASSISTANT', content: '', status: 'STREAMING', aiRunId: runId },
       });
     }
-    await this.queues.queue(QUEUES.runs).add('run', { runId }, { jobId: runId, attempts: 1 });
+    if (opts.enqueue !== false) await this.queues.queue(QUEUES.runs).add('run', { runId }, { jobId: runId, attempts: 1 });
     return { runId, threadId, userMessageId, messageId: assistantMessageId, status: 'QUEUED', estimate: estimate.amount.toFixed(8), model: plan.primary };
   }
 

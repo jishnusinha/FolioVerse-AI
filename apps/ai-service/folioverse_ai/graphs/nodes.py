@@ -20,7 +20,7 @@ async def do_retrieve(ctx: RunContext, query: str, page_max: int | None = None) 
             "workspace_id": ctx.workspace_id,
             "run_id": ctx.run_id,
             "query": query[:2000],
-            "params": r.params | {"mode": "query"},
+            "params": {"mode": "query"} | r.params,
             "candidates": candidates_json(r),
             "packed": packed_json(r),
             "latency_ms": r.latency_ms,

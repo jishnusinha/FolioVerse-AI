@@ -1,7 +1,7 @@
 import { Body, Controller, Get, HttpCode, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsArray, IsBoolean, IsIn, IsObject, IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsIn, IsObject, IsOptional, IsString, IsUUID, MaxLength, ValidateNested } from 'class-validator';
 import { AuthUser, CurrentUser, RequireRole } from '../../common/auth.decorators';
 import { AiClientService } from '../ai-client/ai-client.service';
 import { GRAPH_TIERS, RunsService } from './runs.service';
@@ -26,6 +26,16 @@ export class RunSpecDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(80) modelPreference?: string;
   @ApiPropertyOptional() @IsOptional() @IsBoolean() lab?: boolean;
   @ApiPropertyOptional() @IsOptional() @IsObject() options?: Record<string, unknown>;
+  @ApiPropertyOptional({ type: [String], description: 'Lab runs only: fallback models replacing the registry fallbacks' })
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(2)
+  @IsString({ each: true })
+  fallbackModels?: string[];
+  @ApiPropertyOptional({ description: 'Lab runs only: run a chat graph without creating a conversation thread' })
+  @IsOptional()
+  @IsBoolean()
+  detached?: boolean;
 }
 class ForkDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) checkpointId?: string;
@@ -86,6 +96,15 @@ export class RunsController {
   async checkpoints(@Param('workspaceId') workspaceId: string, @Param('runId') runId: string) {
     await this.runs.getRun(workspaceId, runId);
     return this.ai.json(`/internal/runs/${runId}/checkpoints`);
+  }
+
+  @Get('runs/:runId/checkpoints/:checkpointId')
+  async checkpoint(@Param('workspaceId') workspaceId: string, @Param('runId') runId: string, @Param('checkpointId') checkpointId: string) {
+    await this.runs.getRun(workspaceId, runId);
+    const { checkpoints } = await this.ai.json<{ checkpoints: { checkpointId: string }[] }>(`/internal/runs/${runId}/checkpoints`);
+    const cp = checkpoints.find((c) => c.checkpointId === checkpointId);
+    if (!cp) throw new NotFoundException();
+    return cp;
   }
 
   /**

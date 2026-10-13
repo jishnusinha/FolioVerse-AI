@@ -22,12 +22,14 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --filter @folioverse/api 
 FROM node:22-slim AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 ENV NODE_ENV=production FV_SKIP_DOTENV=1 FV_MODEL_REGISTRY_SEED=/app/config/models/registry.seed.yaml \
-    FV_REC_CATALOG=/app/data/catalog/catalog.jsonl
+    FV_REC_CATALOG=/app/data/catalog/catalog.jsonl FV_EVAL_DIR=/app/data/evaluation
 WORKDIR /app
 COPY --from=build --chown=node:node /out /app
 COPY --chown=node:node config/models /app/config/models
 # Synthetic DEMO catalog; the seed loads it only when FV_DEMO_CATALOG=true.
 COPY --chown=node:node datasets/synthetic/catalog /app/data/catalog
+# Golden RAG evaluation sets for AI Studio.
+COPY --chown=node:node datasets/evaluation /app/data/evaluation
 USER node
 EXPOSE 3000
 CMD ["node", "dist/src/main.js"]

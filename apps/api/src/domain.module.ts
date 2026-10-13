@@ -19,9 +19,11 @@ import { PurgeService } from './modules/maintenance/purge.service';
 import { RunExecutorService } from './modules/runs/run-executor.service';
 import { RunsService } from './modules/runs/runs.service';
 import { SourcesService } from './modules/sources/sources.service';
+import { StudioService } from './modules/studio/studio.service';
 import { WriterService } from './modules/writer/writer.service';
 
 const services = [
+  StudioService,
   DiscoveryService,
   WriterService,
   LibraryService,

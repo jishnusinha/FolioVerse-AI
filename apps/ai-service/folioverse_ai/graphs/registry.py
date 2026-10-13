@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from . import artifacts, grounded_qa, reader, research, writer
+from . import artifacts, grounded_qa, judge, reader, research, writer
 
 
 @dataclass(frozen=True)
@@ -116,6 +116,15 @@ GRAPHS: dict[str, GraphSpec] = {
         reader.rec_result,
         False,
         "Explains a recommendation from its signals.",
+    ),
+    "answer_judge": GraphSpec(
+        "answer_judge",
+        "T0",
+        judge.build,
+        judge.initial_state,
+        judge.result,
+        False,
+        "Grades how well an answer addresses its question (opt-in evaluation judge).",
     ),
 }
 

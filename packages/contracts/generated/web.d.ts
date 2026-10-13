@@ -688,6 +688,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/runs/{runId}/checkpoints/{checkpointId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RunsController_checkpoint"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/workspaces/{workspaceId}/runs/{runId}/fork": {
         parameters: {
             query?: never;
@@ -1872,6 +1888,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/workspaces/{workspaceId}/studio/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StudioController_capabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/studio/compare": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StudioController_compare"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/studio/battles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StudioController_battles"];
+        put?: never;
+        post: operations["StudioController_createBattle"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/studio/battles/{battleId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StudioController_battle"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/studio/battles/{battleId}/vote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["StudioController_vote"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/studio/evaluations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StudioController_evaluations"];
+        put?: never;
+        post: operations["StudioController_createEvaluation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/workspaces/{workspaceId}/studio/evaluations/{evaluationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["StudioController_evaluation"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1968,7 +2096,7 @@ export interface components {
         };
         RunSpecDto: {
             /** @enum {string} */
-            graph: "grounded_qa" | "insight" | "multi_doc_compare" | "risk_contradiction" | "knowledge_map" | "writer_revision" | "continuity_check" | "dna_extraction" | "passage_explain" | "research_writing" | "rec_explain";
+            graph: "grounded_qa" | "insight" | "multi_doc_compare" | "risk_contradiction" | "knowledge_map" | "writer_revision" | "continuity_check" | "dna_extraction" | "passage_explain" | "research_writing" | "rec_explain" | "answer_judge";
             threadId?: string;
             parentMessageId?: string;
             input: components["schemas"]["RunInputDto"];
@@ -1976,6 +2104,10 @@ export interface components {
             modelPreference?: string;
             lab?: boolean;
             options?: Record<string, never>;
+            /** @description Lab runs only: fallback models replacing the registry fallbacks */
+            fallbackModels?: string[];
+            /** @description Lab runs only: run a chat graph without creating a conversation thread */
+            detached?: boolean;
         };
         ForkDto: {
             checkpointId?: string;
@@ -2247,6 +2379,40 @@ export interface components {
         };
         EvaluateDto: {
             k?: number;
+        };
+        BattleDto: {
+            /** @description Finished grounded_qa run whose packed passages are frozen for every contestant */
+            runId: string;
+            models: string[];
+            /** @description Defaults to the source run question */
+            question?: string;
+        };
+        VoteDto: {
+            /** @enum {string} */
+            winner: "A" | "B" | "C" | "D" | "TIE";
+        };
+        EvalScopeDto: {
+            projectId?: string;
+            sourceIds?: string[];
+            sourceVersionIds?: string[];
+        };
+        RetrievalOptionsDto: {
+            topK?: number;
+            /** @enum {string} */
+            fusion?: "rrf" | "dense" | "sparse";
+            rerank?: boolean;
+            /** @enum {string} */
+            chunkLevel?: "auto" | "child";
+            contextBudget?: number;
+        };
+        EvaluationDto: {
+            /** @example qa-small */
+            dataset: string;
+            scope: components["schemas"]["EvalScopeDto"];
+            modelPreference?: string;
+            options?: components["schemas"]["RetrievalOptionsDto"];
+            /** @description Opt-in: grade answer relevance with a judge model (extra billed calls) */
+            judge?: boolean;
         };
     };
     responses: never;
@@ -3381,6 +3547,27 @@ export interface operations {
             path: {
                 workspaceId: string;
                 runId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RunsController_checkpoint: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                runId: string;
+                checkpointId: string;
             };
             cookie?: never;
         };
@@ -5522,6 +5709,190 @@ export interface operations {
             path: {
                 workspaceId: string;
                 id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_capabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_compare: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_battles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_createBattle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BattleDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_battle: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                battleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_vote: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                battleId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VoteDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_evaluations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_createEvaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvaluationDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    StudioController_evaluation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                workspaceId: string;
+                evaluationId: string;
             };
             cookie?: never;
         };

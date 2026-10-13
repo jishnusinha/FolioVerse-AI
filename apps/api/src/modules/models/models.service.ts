@@ -64,7 +64,8 @@ export class ModelsService {
     return configs.map((c) => ({ ...c, available: providers.includes(c.provider) && c.status !== 'DISABLED' }));
   }
 
-  async resolvePlan(preference?: string, opts: { temperature?: number; maxOutputTokens?: number } = {}): Promise<ModelPlan> {
+  /** `fallbackIds` (lab runs only) replaces the registry fallbacks; every id must be usable. */
+  async resolvePlan(preference?: string, opts: { temperature?: number; maxOutputTokens?: number; fallbackIds?: string[] } = {}): Promise<ModelPlan> {
     const providers = await this.availableProviders();
     const configs = await this.prisma.modelConfig.findMany({ where: { status: { not: 'DISABLED' } } });
     const usable = configs.filter((c) => providers.includes(c.provider));
@@ -79,7 +80,11 @@ export class ModelsService {
       model: c.model,
       contextWindow: c.contextWindow,
     });
-    const fallbacks = primary.fallbackIds.map((id) => usable.find((c) => c.id === id)).filter(Boolean).map((c) => ref(c!));
+    if (opts.fallbackIds?.some((id) => !usable.some((c) => c.id === id))) {
+      throw new BadRequestException({ message: 'Requested fallback model is not available', code: 'MODEL_UNAVAILABLE' });
+    }
+    const fallbackIds = (opts.fallbackIds ?? primary.fallbackIds).filter((id) => id !== primary!.id);
+    const fallbacks = fallbackIds.map((id) => usable.find((c) => c.id === id)).filter(Boolean).map((c) => ref(c!));
     return {
       primary: ref(primary),
       fallbacks,

@@ -30,12 +30,21 @@
     },
     "modelPreference": { "type": "string", "description": "model_configs.id or alias; resolved server-side" },
     "lab": { "type": "boolean", "description": "Studio lab run (playground, battle, failure injection)" },
+    "fallbackModels": {
+      "type": "array",
+      "maxItems": 2,
+      "items": { "type": "string" },
+      "description": "Lab only: explicit fallback model_configs ids replacing the registry fallbacks"
+    },
+    "detached": { "type": "boolean", "description": "Lab only: no thread or messages are written" },
     "options": {
       "type": "object",
       "properties": {
         "topK": { "type": "integer", "minimum": 1, "maximum": 50 },
         "fusion": { "enum": ["rrf", "dense", "sparse"] },
         "rerank": { "type": "boolean" },
+        "chunkLevel": { "enum": ["auto", "child"] },
+        "contextBudget": { "type": "integer", "minimum": 500, "maximum": 12000 },
         "inject": { "enum": ["provider_timeout", "provider_429", "malformed_output", "retrieval_down"] }
       }
     }

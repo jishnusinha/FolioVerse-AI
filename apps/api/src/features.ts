@@ -5,6 +5,7 @@ import { LibraryController } from './modules/library/library.controller';
 import { MetadataService } from './modules/library/metadata.service';
 import { NotesController } from './modules/notes/notes.controller';
 import { SearchController } from './modules/search/search.controller';
+import { StudioController } from './modules/studio/studio.controller';
 import { DnaController } from './modules/writer/dna.controller';
 import { ManuscriptsController } from './modules/writer/manuscripts.controller';
 import { ResearchController } from './modules/writer/research.controller';
@@ -22,5 +23,6 @@ export const FEATURE_CONTROLLERS: any[] = [
   ResearchController,
   LibraryController,
   DiscoveryController,
+  StudioController,
 ];
 export const FEATURE_PROVIDERS: any[] = [MetadataService];

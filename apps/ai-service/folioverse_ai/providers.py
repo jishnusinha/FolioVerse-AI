@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -32,6 +33,20 @@ def _messages_tokens(messages: list[dict]) -> int:
     return sum(count_tokens(m["content"]) + 4 for m in messages)
 
 
+_FIRST_CITED = re.compile(r"^(.*?)\s*(\[S\d+\])", re.S)
+
+
+def concise(text: str) -> str:
+    """The `*-concise` mock variant keeps the main clause of the first cited sentence (a terser contestant)."""
+    if text.lstrip().startswith(("{", "[")):
+        return text
+    m = _FIRST_CITED.match(text)
+    if not m:
+        return text[:160]
+    body = m.group(1).split(", ")[0].rstrip(" .")
+    return f"{body} {m.group(2)}."
+
+
 class MockProvider:
     """Deterministic provider for demos and CI. Output is the graph's extractive draft (`mock_text`).
 
@@ -58,7 +73,7 @@ class MockProvider:
             raise ProviderError("TIMEOUT", "Mock provider timed out (injected)")
         if inject == "provider_429":
             raise ProviderError("RATE_LIMIT", "Mock provider rate limited (injected)")
-        text = mock_text
+        text = concise(mock_text) if str(model).endswith("-concise") else mock_text
         if inject == "malformed_output":
             text = '{"items": [ {"broken": tru' if json_mode else text[: max(1, len(text) // 3)] + " [S99]"
         words = text.split(" ")

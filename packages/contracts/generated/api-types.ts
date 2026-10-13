@@ -306,10 +306,22 @@ modelPreference?: string
  * Studio lab run (playground, battle, failure injection)
  */
 lab?: boolean
+/**
+ * Lab only: explicit fallback model_configs ids replacing the registry fallbacks
+ * 
+ * @maxItems 2
+ */
+fallbackModels?: []|[string]|[string, string]
+/**
+ * Lab only: no thread or messages are written
+ */
+detached?: boolean
 options?: {
 topK?: number
 fusion?: ("rrf" | "dense" | "sparse")
 rerank?: boolean
+chunkLevel?: ("auto" | "child")
+contextBudget?: number
 inject?: ("provider_timeout" | "provider_429" | "malformed_output" | "retrieval_down")
 }
 }

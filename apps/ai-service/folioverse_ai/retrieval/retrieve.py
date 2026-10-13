@@ -32,6 +32,8 @@ class Candidate:
     fused: float = 0.0
     rerank: float | None = None
     lexical: float = 0.0
+    fused_rank: int | None = None
+    note: str = "below-top-k"
 
 
 @dataclass
@@ -73,6 +75,8 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
     started = time.perf_counter()
     if options.get("inject") == "retrieval_down":
         raise ConnectionError("Vector store unavailable (injected failure)")
+    if options.get("frozenContext"):
+        return await frozen_retrieval(query, scope, options, started)
     embedder = get_embedder()
     store: VectorStore = get_store()
     page_max = options.get("pageMax")
@@ -91,6 +95,8 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
     )
     fused = rrf(dense_hits, sparse_hits)
     ranked = sorted(fused.values(), key=lambda c: c.fused, reverse=True)[:pool]
+    for i, c in enumerate(ranked, start=1):
+        c.fused_rank = i
 
     repo = get_repo()
     child_rows = await repo.get_chunks([c.chunk_id for c in ranked])
@@ -119,11 +125,17 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
 
     packed, used = [], 0
     budget = int(options.get("contextBudget", s.context_budget_tokens))
-    parents = await repo.get_chunks([c.parent_id for c in top if c.parent_id])
+    child_only = options.get("chunkLevel") == "child"
+    parents = {} if child_only else await repo.get_chunks([c.parent_id for c in top if c.parent_id])
     seen_parents: set[str] = set()
+    full = False
     for c in top:
         child = child_rows.get(c.chunk_id)
         if not child:
+            c.note = "missing-text"
+            continue
+        if full:
+            c.note = "over-budget"
             continue
         parent = parents.get(c.parent_id) if c.parent_id else None
         text, level = child["text"], "CHILD"
@@ -131,6 +143,7 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
             text, level = parent["text"], "PARENT"
             seen_parents.add(c.parent_id)
         elif c.parent_id in seen_parents:
+            c.note = "parent-already-packed"
             continue
         t = count_tokens(text)
         if used + t > budget:
@@ -138,7 +151,10 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
                 text = text[: budget * 4]
                 t = count_tokens(text)
             else:
-                break
+                c.note = "over-budget"
+                full = True
+                continue
+        c.note = "packed-parent" if level == "PARENT" else "packed-child"
         used += t
         packed.append(
             {
@@ -165,10 +181,71 @@ async def retrieve(query: str, scope: Scope, options: dict | None = None) -> Ret
         "budget": budget,
         "embedder": embedder.name,
         "pool": pool,
+        "chunkLevel": "child" if child_only else "auto",
     }
     if page_max is not None:
         params["pageMax"] = page_max
     return Retrieval(query, ranked, packed, abstain, round(top_dense, 4), used, round(latency, 2), params)
+
+
+async def frozen_retrieval(query: str, scope: Scope, options: dict, started: float) -> Retrieval:
+    """Re-packs a recorded context (Model Battle) instead of searching. Only chunks inside the signed
+    scope are used; anything else in the request is dropped."""
+    s = get_settings()
+    items = [i for i in options["frozenContext"] if isinstance(i, dict) and i.get("chunkId")][:20]
+    repo = get_repo()
+    rows = await repo.get_chunks([str(i["chunkId"]) for i in items])
+    allowed = set(scope.source_version_ids)
+
+    def in_scope(row: dict | None) -> bool:
+        return bool(row) and row["workspace_id"] == scope.workspace_id and row["source_version_id"] in allowed
+
+    parents = await repo.get_chunks(
+        [r["parent_id"] for r in rows.values() if r.get("parent_id") and in_scope(r)]
+    )
+    budget = int(options.get("contextBudget", s.context_budget_tokens))
+    packed, candidates, used = [], [], 0
+    for i in items:
+        child = rows.get(str(i["chunkId"]))
+        if not in_scope(child):
+            continue
+        parent = parents.get(child.get("parent_id") or "")
+        use_parent = i.get("level") == "PARENT" and in_scope(parent)
+        text = parent["text"] if use_parent else child["text"]
+        t = count_tokens(text)
+        if used + t > budget and packed:
+            break
+        used += t
+        c = Candidate(
+            child["id"], child.get("parent_id"), child["source_version_id"], None, child.get("page_start")
+        )
+        c.note = "packed-parent" if use_parent else "packed-child"
+        candidates.append(c)
+        packed.append(
+            {
+                "marker": f"S{len(packed) + 1}",
+                "chunkId": child["id"],
+                "parentId": child.get("parent_id"),
+                "sourceVersionId": child["source_version_id"],
+                "title": None,
+                "page": child.get("page_start"),
+                "level": "PARENT" if use_parent else "CHILD",
+                "text": text,
+                "childText": child["text"],
+                "locator": child.get("locator"),
+                "score": 1.0,
+            }
+        )
+    latency = (time.perf_counter() - started) * 1000
+    params = {
+        "mode": "frozen",
+        "frozenFrom": options.get("frozenFrom"),
+        "requested": len(items),
+        "budget": budget,
+    }
+    return Retrieval(
+        query, candidates, packed, not packed, 1.0 if packed else 0.0, used, round(latency, 2), params
+    )
 
 
 def candidates_json(r: Retrieval) -> list[dict]:
@@ -180,14 +257,17 @@ def candidates_json(r: Retrieval) -> list[dict]:
             "page": c.page,
             "denseRank": c.dense_rank,
             "sparseRank": c.sparse_rank,
+            "fusedRank": c.fused_rank,
+            "finalRank": i,
             "denseScore": round(c.dense_score, 4),
             "sparseScore": round(c.sparse_score, 4),
             "fused": round(c.fused, 6),
             "rerank": c.rerank,
             "lexical": c.lexical,
-            "packed": any(p["chunkId"] == c.chunk_id for p in r.packed),
+            "packed": c.note.startswith("packed"),
+            "note": c.note,
         }
-        for c in r.candidates
+        for i, c in enumerate(r.candidates, start=1)
     ]
 
 

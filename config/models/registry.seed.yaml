@@ -19,6 +19,22 @@ models:
       cachedInputPerMTok: "0.25"
       sourceUrl: "demo://not-a-real-provider-price"
 
+  # Second deterministic mock (answers with the main clause of its first cited sentence) so Model Battle,
+  # fallbacks and Cost-vs-Quality have two contestants without a paid provider. DEMO price, not real.
+  - id: mock-concise
+    provider: mock
+    model: folioverse-mock-concise
+    displayName: FolioVerse Mock Concise (deterministic)
+    contextWindow: 32000
+    maxOutputTokens: 300
+    capabilities: [chat, json]
+    isDemo: true
+    demoPrice:
+      inputPerMTok: "0.20"
+      outputPerMTok: "0.60"
+      cachedInputPerMTok: "0.10"
+      sourceUrl: "demo://not-a-real-provider-price"
+
   - id: openai-primary
     provider: openai
     model: env:FV_OPENAI_MODEL

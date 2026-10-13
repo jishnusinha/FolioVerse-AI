@@ -9,6 +9,7 @@ import { LedgerService } from './modules/ledger/ledger.service';
 import { PurgeService } from './modules/maintenance/purge.service';
 import { ModelsService } from './modules/models/models.service';
 import { RunExecutorService } from './modules/runs/run-executor.service';
+import { StudioService } from './modules/studio/studio.service';
 import { PrismaService } from './infra/prisma.service';
 import { WORKER_FEATURE_HANDLERS } from './worker-features';
 
@@ -27,6 +28,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly models: ModelsService,
     private readonly prisma: PrismaService,
     private readonly discovery: DiscoveryService,
+    private readonly studio: StudioService,
   ) {}
 
   async onModuleInit() {
@@ -56,6 +58,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       if (job.name === 'reap') return this.runs.reap();
       if (job.name === 'purge') return this.purge.purgeExpired();
       if (job.name === 'rec-eval') return this.discovery.runEvaluation(job.data.reportId);
+      if (job.name === 'rag-eval') return this.studio.runEvaluation(job.data.evaluationId);
       const handler = WORKER_FEATURE_HANDLERS[job.name];
       if (handler) return handler(job);
     });

@@ -1625,3 +1625,52 @@ model EvaluationReport {
   @@map("evaluation_reports")
   @@schema("rec")
 }
+
+// ───────────────────────────── AI Studio (Gate 8) ─────────────────────────────
+
+/// Model Battle: one question, a frozen retrieval context and 2–4 contestant runs shown blind until a vote.
+model ModelBattle {
+  id          String    @id @db.Uuid
+  workspaceId String    @map("workspace_id") @db.Uuid
+  createdById String    @map("created_by_id") @db.Uuid
+  question    String
+  sourceRunId String    @map("source_run_id") @db.Uuid
+  /// [{ label: "A", runId, modelConfigId }] in display order (shuffled at creation).
+  contestants Json
+  /// Frozen context: [{ chunkId, level, marker, page, sourceVersionId }] copied from the source run.
+  context     Json
+  /// "A".."D" or "TIE"; null until voted.
+  winner      String?
+  votedById   String?   @map("voted_by_id") @db.Uuid
+  votedAt     DateTime? @map("voted_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([workspaceId, createdAt])
+  @@map("model_battles")
+  @@schema("app")
+}
+
+/// RAG evaluation over a golden question set: one lab run per item, metrics computed from the recorded runs.
+model EvaluationRun {
+  id            String     @id @db.Uuid
+  workspaceId   String     @map("workspace_id") @db.Uuid
+  requestedById String     @map("requested_by_id") @db.Uuid
+  status        EvalStatus @default(QUEUED)
+  dataset       String
+  scope         Json
+  modelConfigId String     @map("model_config_id")
+  options       Json
+  judge         Boolean    @default(false)
+  runIds        String[]   @default([]) @map("run_ids") @db.Uuid
+  items         Json?
+  metrics       Json?
+  isDemo        Boolean    @default(false) @map("is_demo")
+  error         String?
+  createdAt     DateTime   @default(now()) @map("created_at")
+  startedAt     DateTime?  @map("started_at")
+  finishedAt    DateTime?  @map("finished_at")
+
+  @@index([workspaceId, createdAt])
+  @@map("evaluation_runs")
+  @@schema("app")
+}

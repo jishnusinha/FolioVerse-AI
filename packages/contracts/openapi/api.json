@@ -1626,6 +1626,45 @@
         ]
       }
     },
+    "/api/workspaces/{workspaceId}/runs/{runId}/checkpoints/{checkpointId}": {
+      "get": {
+        "operationId": "RunsController_checkpoint",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "runId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "checkpointId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "runs"
+        ]
+      }
+    },
     "/api/workspaces/{workspaceId}/runs/{runId}/fork": {
       "post": {
         "operationId": "RunsController_fork",
@@ -5113,6 +5152,254 @@
           "discovery"
         ]
       }
+    },
+    "/api/workspaces/{workspaceId}/studio/capabilities": {
+      "get": {
+        "operationId": "StudioController_capabilities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/studio/compare": {
+      "get": {
+        "operationId": "StudioController_compare",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/studio/battles": {
+      "get": {
+        "operationId": "StudioController_battles",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      },
+      "post": {
+        "operationId": "StudioController_createBattle",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BattleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/studio/battles/{battleId}": {
+      "get": {
+        "operationId": "StudioController_battle",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "battleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/studio/battles/{battleId}/vote": {
+      "post": {
+        "operationId": "StudioController_vote",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "battleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoteDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/studio/evaluations": {
+      "get": {
+        "operationId": "StudioController_evaluations",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      },
+      "post": {
+        "operationId": "StudioController_createEvaluation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EvaluationDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
+    },
+    "/api/workspaces/{workspaceId}/studio/evaluations/{evaluationId}": {
+      "get": {
+        "operationId": "StudioController_evaluation",
+        "parameters": [
+          {
+            "name": "workspaceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "evaluationId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "studio"
+        ]
+      }
     }
   },
   "info": {
@@ -5469,7 +5756,8 @@
               "dna_extraction",
               "passage_explain",
               "research_writing",
-              "rec_explain"
+              "rec_explain",
+              "answer_judge"
             ]
           },
           "threadId": {
@@ -5492,6 +5780,17 @@
           },
           "options": {
             "type": "object"
+          },
+          "fallbackModels": {
+            "description": "Lab runs only: fallback models replacing the registry fallbacks",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "detached": {
+            "type": "boolean",
+            "description": "Lab runs only: run a chat graph without creating a conversation thread"
           }
         },
         "required": [
@@ -6407,6 +6706,128 @@
             "maximum": 20
           }
         }
+      },
+      "BattleDto": {
+        "type": "object",
+        "properties": {
+          "runId": {
+            "type": "string",
+            "description": "Finished grounded_qa run whose packed passages are frozen for every contestant"
+          },
+          "models": {
+            "minItems": 2,
+            "maxItems": 4,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "question": {
+            "type": "string",
+            "description": "Defaults to the source run question"
+          }
+        },
+        "required": [
+          "runId",
+          "models"
+        ]
+      },
+      "VoteDto": {
+        "type": "object",
+        "properties": {
+          "winner": {
+            "type": "string",
+            "enum": [
+              "A",
+              "B",
+              "C",
+              "D",
+              "TIE"
+            ]
+          }
+        },
+        "required": [
+          "winner"
+        ]
+      },
+      "EvalScopeDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "sourceIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sourceVersionIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "RetrievalOptionsDto": {
+        "type": "object",
+        "properties": {
+          "topK": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 20
+          },
+          "fusion": {
+            "type": "string",
+            "enum": [
+              "rrf",
+              "dense",
+              "sparse"
+            ]
+          },
+          "rerank": {
+            "type": "boolean"
+          },
+          "chunkLevel": {
+            "type": "string",
+            "enum": [
+              "auto",
+              "child"
+            ]
+          },
+          "contextBudget": {
+            "type": "number",
+            "minimum": 500,
+            "maximum": 12000
+          }
+        }
+      },
+      "EvaluationDto": {
+        "type": "object",
+        "properties": {
+          "dataset": {
+            "type": "string",
+            "example": "qa-small"
+          },
+          "scope": {
+            "$ref": "#/components/schemas/EvalScopeDto"
+          },
+          "modelPreference": {
+            "type": "string"
+          },
+          "options": {
+            "$ref": "#/components/schemas/RetrievalOptionsDto"
+          },
+          "judge": {
+            "type": "boolean",
+            "description": "Opt-in: grade answer relevance with a judge model (extra billed calls)"
+          }
+        },
+        "required": [
+          "dataset",
+          "scope"
+        ]
       }
     }
   }
