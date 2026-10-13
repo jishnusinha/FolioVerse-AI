@@ -17,6 +17,8 @@ export default defineConfig({
       '/api': { target: API, changeOrigin: false },
       // Browser spans (VITE_OTEL_ENABLED=true) go to the local collector's OTLP/HTTP port.
       '/otlp': { target: process.env.VITE_OTLP_PROXY || 'http://localhost:4318', rewrite: (p) => p.replace(/^\/otlp/, '') },
+      // Documentation site (`pnpm --filter @folioverse/docs dev`), served under /docs like in the web image.
+      '^/docs(/|$)': { target: process.env.VITE_DOCS_PROXY || 'http://localhost:4321' },
     },
   },
   build: {

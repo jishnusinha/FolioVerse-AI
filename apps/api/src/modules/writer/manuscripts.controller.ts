@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, Delete, Get, HttpCode, NotFoundException, Param, ParseIntPipe, Patch, Post, Query, Res } from '@nestjs/common';
-import { ApiProperty, ApiPropertyOptional, ApiTags } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, IsUUID, Max, MaxLength, Min, MinLength } from 'class-validator';
 import type { Response } from 'express';
 import { AuditService } from '../../common/audit.service';
@@ -284,6 +284,7 @@ export class ManuscriptsController {
   }
 
   @Get('manuscripts/:manuscriptId/export')
+  @ApiQuery({ name: 'format', required: true, enum: ['md', 'docx'], description: 'Export format' })
   async export(@Param('workspaceId') workspaceId: string, @Param('manuscriptId') id: string, @Query('format') format: string, @Res() res: Response) {
     if (format !== 'md' && format !== 'docx') throw new BadRequestException({ message: 'format must be md or docx', code: 'VALIDATION' });
     const c = await this.compiled(workspaceId, id);

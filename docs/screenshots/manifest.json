@@ -1,0 +1,33 @@
+{
+  "generatedAt": "2026-10-13T13:24:58.151Z",
+  "commit": "6cca713",
+  "baseUrl": "http://localhost:5173",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "colorScheme": "light",
+  "note": "Captured from the running app by apps/web/playwright/docs-shots.mjs; not edited. Model output is the DEMO mock model unless a provider key was configured.",
+  "shots": [
+    {
+      "file": "home.png",
+      "route": "/app",
+      "description": "Home with recent work and quick actions"
+    },
+    {
+      "file": "document-answer.png",
+      "route": "/app/knowledge/projects/:id/documents/:id",
+      "description": "Document workspace with a cited answer (DEMO mock model unless a provider key is set)"
+    },
+    {
+      "file": "studio-run.png",
+      "route": "/app/studio/runs/:id",
+      "description": "AI Developer Studio: the recorded grounded_qa run, its graph and events"
+    },
+    {
+      "file": "cost-center.png",
+      "route": "/app/costs",
+      "description": "Cost Center with the ledger entries of the run above"
+    }
+  ]
+}

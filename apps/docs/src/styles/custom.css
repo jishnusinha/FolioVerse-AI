@@ -1,0 +1,57 @@
+/* FolioVerse tokens (packages/design-tokens) drive Starlight's palette; both use html[data-theme]. */
+:root,
+:root[data-theme='light'] {
+  --sl-font: var(--fv-font-sans);
+  --sl-font-mono: var(--fv-font-mono);
+  --sl-color-accent: var(--fv-accent);
+  --sl-color-accent-low: color-mix(in srgb, var(--fv-accent) 18%, var(--fv-bg));
+  --sl-color-accent-high: color-mix(in srgb, var(--fv-accent) 55%, var(--fv-text));
+}
+
+.fv-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0 0 1.25rem;
+}
+.fv-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.1rem 0.6rem;
+  font-size: var(--sl-text-xs);
+  font-weight: 600;
+  border: 1px solid currentColor;
+  cursor: help;
+}
+.fv-badge[data-kind='implemented'] { color: var(--fv-ok); }
+.fv-badge[data-kind='planned'] { color: var(--fv-info); }
+.fv-badge[data-kind='demo'] { color: var(--fv-warn); }
+.fv-badge[data-kind='blocked'] { color: var(--fv-bad); }
+.fv-badge-note {
+  font-size: var(--sl-text-xs);
+  color: var(--sl-color-gray-3);
+  align-self: center;
+}
+
+.fv-erd {
+  overflow: auto;
+  max-height: 80vh;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+  background: var(--sl-color-bg-nav);
+}
+.fv-erd svg { display: block; max-width: none; }
+.fv-erd .erd-node rect { fill: var(--sl-color-bg); stroke: var(--sl-color-gray-4); }
+.fv-erd .erd-node .erd-head { fill: var(--sl-color-accent-low); stroke: none; }
+.fv-erd text { fill: var(--sl-color-text); font-family: var(--sl-font-mono); font-size: 12px; }
+.fv-erd .erd-node .erd-title { font-weight: 700; }
+.fv-erd .erd-key { fill: var(--sl-color-accent-high); }
+.fv-erd .erd-more { fill: var(--sl-color-gray-3); }
+.fv-erd .erd-edge { fill: none; stroke: var(--sl-color-gray-3); stroke-width: 1.2; }
+.fv-erd .erd-arrow { fill: var(--sl-color-gray-3); }
+
+.fv-shot {
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 0.5rem;
+}

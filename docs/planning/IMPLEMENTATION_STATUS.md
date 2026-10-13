@@ -523,7 +523,44 @@ folioverse-ml 11/11; `contracts:check` OK; API `tsc` 0, eslint clean, unit 92/92
 Not done: publishing to Kaggle (BLOCKED: no account or API token); a GitHub Actions run of `kaggle-smoke.yml`
 (BLOCKED: no remote). Full-mode latency figures (cross-encoder 0.5–1 s per query) depend on machine load.
 
-## Gates 12–13 — PLANNED
+## Gate 12 — Documentation — DONE locally (site not published: no remote or deployment; web image not rebuilt locally)
+
+Validation: `@folioverse/docs` generator tests 18/18 (OpenAPI, ERD, Markdown links, CSP hashes, sync over the
+real repository); `pnpm docs:build` 27 pages (Pagefind index 26 pages), 5 inline-script hashes written; web
+`vitest run` 326/326 with `--maxWorkers=4` (`catalog.test.js`, `Markdown.test.jsx`, `docs.test.jsx` new), `eslint
+src playwright` clean, `tsc` clean, `vite build` OK (docs content in its own lazy chunk); API `tsc` 0, eslint clean,
+unit 92/92; ai-service pytest 107/107 (`test_openapi_export.py` new), ruff check and format clean;
+`contracts:check` OK; actionlint clean; Caddyfile validated with and without the generated CSP snippet.
+
+- `FV-G12-SITE-001` Starlight site — DONE (D-108, D-110, D-111, D-113). `apps/docs` (Astro Starlight, `base:
+  /docs`): Getting Started (getting started, architecture, user guide, walkthrough), AI/ML, DevOps, Reference
+  (design system, troubleshooting, interview guide, API reference from `api.json`, AI service reference from the new
+  `ai.json`, data model with per-schema ERDs from `schema.prisma`), Runbooks (mirrored from
+  `infrastructure/runbooks`), Project (status and decision log mirrors), a home page with the gate table. Content is
+  generated from `docs/guide`, never edited in `apps/docs`. Served at `/docs/` by the web image's Caddy with a
+  hashed-script CSP; checked in a Caddy container (policy applied, search and theme scripts run without
+  violations, unknown paths get the 404 page with status 404). Vite proxies `/docs` to `pnpm docs:dev`. CI `docs`
+  job: generator tests, build, `docs-site` artifact.
+- `FV-G12-SHOT-002` Screenshots — DONE (D-112). `pnpm docs:shots` captured `home`, `document-answer`,
+  `studio-run` and `cost-center` from the running local stack on 2026-10-13 (DEMO mock model, labelled in the
+  images); `docs/screenshots/manifest.json` records commit, origin, viewport and routes. Used in the user guide and
+  walkthrough on both surfaces.
+- `FV-G12-INAPP-003` In-app docs — DONE (D-108, D-109). `/app/docs` and `/app/docs/:slug` render the same 15 pages
+  with Implemented / Planned / DEMO / Blocked badges computed from this file, DEMO and external-setup callouts,
+  an "On this page" outline, a page picker below 820 px, and links to the site's generated reference. Checked in
+  the browser against the dev stack at 1440 px (three columns) and narrow widths (picker), screenshots loaded.
+- Defects found and fixed: Nest swagger marked all 48 `@Query()` parameters required (D-110); the global
+  `Content-Security-Policy` header, applied last, overwrote the docs policy (now `?` default); heading ids
+  collapsed repeated spaces unlike Starlight; ESLint gave `.mjs` files in the web app no Node globals.
+- Known issue for Gate 13: on this 12-thread laptop with little free memory, `pnpm test` in the web app (default
+  11 workers) fails a varying 1–11 tests with `findBy` timeouts in the writer, studio, documents, knowledge and
+  auth suites. Each file passes alone, and the whole suite passes with 4 workers.
+
+Not done: publishing the site anywhere (BLOCKED: no remote or GCP deployment); building the full web image locally
+(disk space; the CI `docker` job builds it). The main web chunk (about 1.3 MB) still triggers Vite's size warning
+(Gate 13 performance).
+
+## Gate 13 — Hardening — PLANNED
 
 ## External setup (Section N)
 - OpenAI API key — BLOCKED until provided (`OPENAI_API_KEY`, `FV_LIVE_PROVIDER_TESTS=1`). Mock provider used.

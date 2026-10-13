@@ -4,6 +4,7 @@ import { APP_ROUTES, PUBLIC_ROUTES } from './routes.js';
 import { AppShell, useApplyTheme } from './AppShell.jsx';
 import { NotFoundPage, PlaceholderPage } from './PlaceholderPage.jsx';
 import { DesignGalleryPage } from '@/features/design/DesignGalleryPage.jsx';
+import { DocsPage } from '@/features/docs/DocsPage.jsx';
 import { SettingsPage } from '@/features/settings/SettingsPage.jsx';
 import {
   ForgotPasswordPage,
@@ -77,6 +78,8 @@ const PAGES = {
   'rec-lab': LabPage,
   project: ProjectPage,
   trash: TrashPage,
+  docs: DocsPage,
+  'docs-page': DocsPage,
   'docs-design': DesignGalleryPage,
   settings: SettingsPage,
   'settings-section': SettingsPage,

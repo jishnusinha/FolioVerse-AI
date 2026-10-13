@@ -32,6 +32,8 @@
     "db:seed": "pnpm --filter @folioverse/api run db:seed",
     "demo": "node infrastructure/scripts/demo.mjs",
     "docs:build": "pnpm --filter @folioverse/docs run build",
+    "docs:dev": "pnpm --filter @folioverse/docs run dev",
+    "docs:shots": "pnpm --filter @folioverse/web run docs:shots",
     "kaggle:smoke": "node ml-notebooks/run-smoke.mjs",
     "format": "prettier --write ."
   },

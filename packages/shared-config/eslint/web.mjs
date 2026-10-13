@@ -6,7 +6,7 @@ export default function webPreset({ plugins = {}, rules = {} } = {}) {
   return [
     js.configs.recommended,
     {
-      files: ['**/*.{js,jsx}'],
+      files: ['**/*.{js,jsx,mjs}'],
       languageOptions: {
         ecmaVersion: 'latest',
         sourceType: 'module',

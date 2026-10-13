@@ -3539,11 +3539,11 @@ export interface operations {
     };
     SourcesController_list: {
         parameters: {
-            query: {
-                folderId: string;
-                q: string;
-                state: string;
-                type: string;
+            query?: {
+                folderId?: string;
+                q?: string;
+                state?: string;
+                type?: string;
             };
             header?: never;
             path: {
@@ -3713,8 +3713,8 @@ export interface operations {
     };
     SourcesController_diff: {
         parameters: {
-            query: {
-                against: string;
+            query?: {
+                against?: string;
             };
             header?: never;
             path: {
@@ -3778,11 +3778,11 @@ export interface operations {
     };
     RunsController_list: {
         parameters: {
-            query: {
-                graph: string;
-                status: string;
-                lab: string;
-                limit: string;
+            query?: {
+                graph?: string;
+                status?: string;
+                lab?: string;
+                limit?: string;
             };
             header?: never;
             path: {
@@ -4047,11 +4047,11 @@ export interface operations {
     };
     ThreadsController_list: {
         parameters: {
-            query: {
-                sourceId: string;
-                projectId: string;
-                q: string;
-                archived: string;
+            query?: {
+                sourceId?: string;
+                projectId?: string;
+                q?: string;
+                archived?: string;
             };
             header?: never;
             path: {
@@ -4159,9 +4159,9 @@ export interface operations {
     };
     CostsController_summary: {
         parameters: {
-            query: {
-                days: string;
-                model: string;
+            query?: {
+                days?: string;
+                model?: string;
             };
             header?: never;
             path: {
@@ -4221,9 +4221,9 @@ export interface operations {
     };
     CostsController_entries: {
         parameters: {
-            query: {
-                limit: string;
-                runId: string;
+            query?: {
+                limit?: string;
+                runId?: string;
             };
             header?: never;
             path: {
@@ -4243,8 +4243,8 @@ export interface operations {
     };
     CostsController_csv: {
         parameters: {
-            query: {
-                days: string;
+            query?: {
+                days?: string;
             };
             header?: never;
             path: {
@@ -4336,12 +4336,12 @@ export interface operations {
     };
     ArtifactsController_list: {
         parameters: {
-            query: {
-                projectId: string;
-                sourceId: string;
-                kind: string;
-                q: string;
-                archived: string;
+            query?: {
+                projectId?: string;
+                sourceId?: string;
+                kind?: string;
+                q?: string;
+                archived?: string;
             };
             header?: never;
             path: {
@@ -4425,9 +4425,9 @@ export interface operations {
     };
     NotesController_list: {
         parameters: {
-            query: {
-                sourceId: string;
-                projectId: string;
+            query?: {
+                sourceId?: string;
+                projectId?: string;
             };
             header?: never;
             path: {
@@ -4514,9 +4514,9 @@ export interface operations {
     };
     SearchController_search: {
         parameters: {
-            query: {
-                projectId: string;
-                semantic: string;
+            query?: {
+                projectId?: string;
+                semantic?: string;
             };
             header?: never;
             path: {
@@ -4536,8 +4536,8 @@ export interface operations {
     };
     ManuscriptsController_list: {
         parameters: {
-            query: {
-                projectId: string;
+            query?: {
+                projectId?: string;
             };
             header?: never;
             path: {
@@ -4850,7 +4850,8 @@ export interface operations {
     ManuscriptsController_export: {
         parameters: {
             query: {
-                format: string;
+                /** @description Export format */
+                format: "md" | "docx";
             };
             header?: never;
             path: {
@@ -4871,9 +4872,9 @@ export interface operations {
     };
     SuggestionsController_list: {
         parameters: {
-            query: {
-                nodeId: string;
-                state: string;
+            query?: {
+                nodeId?: string;
+                state?: string;
             };
             header?: never;
             path: {
@@ -5085,9 +5086,9 @@ export interface operations {
     };
     DnaController_issues: {
         parameters: {
-            query: {
-                state: string;
-                nodeId: string;
+            query?: {
+                state?: string;
+                nodeId?: string;
             };
             header?: never;
             path: {
@@ -5309,10 +5310,10 @@ export interface operations {
     };
     LibraryController_list: {
         parameters: {
-            query: {
-                status: string;
-                collectionId: string;
-                q: string;
+            query?: {
+                status?: string;
+                collectionId?: string;
+                q?: string;
             };
             header?: never;
             path: {
@@ -5443,8 +5444,8 @@ export interface operations {
     };
     LibraryController_annotations: {
         parameters: {
-            query: {
-                since: string;
+            query?: {
+                since?: string;
             };
             header?: never;
             path: {
@@ -5857,12 +5858,12 @@ export interface operations {
     };
     DiscoveryController_catalog: {
         parameters: {
-            query: {
-                q: string;
-                kind: string;
-                genre: string;
-                mood: string;
-                theme: string;
+            query?: {
+                q?: string;
+                kind?: string;
+                genre?: string;
+                mood?: string;
+                theme?: string;
             };
             header?: never;
             path: {
@@ -5902,8 +5903,8 @@ export interface operations {
     };
     DiscoveryController_similar: {
         parameters: {
-            query: {
-                otherKind: string;
+            query?: {
+                otherKind?: string;
             };
             header?: never;
             path: {
@@ -5947,8 +5948,8 @@ export interface operations {
     };
     DiscoveryController_latest: {
         parameters: {
-            query: {
-                mode: string;
+            query?: {
+                mode?: string;
             };
             header?: never;
             path: {
@@ -6497,9 +6498,9 @@ export interface operations {
     };
     AdminCostsController_overview: {
         parameters: {
-            query: {
-                days: string;
-                model: string;
+            query?: {
+                days?: string;
+                model?: string;
             };
             header?: never;
             path?: never;
@@ -6538,8 +6539,8 @@ export interface operations {
     };
     AdminCostsController_reconciliation: {
         parameters: {
-            query: {
-                days: string;
+            query?: {
+                days?: string;
             };
             header?: never;
             path?: never;
@@ -6599,8 +6600,8 @@ export interface operations {
     };
     AdminCostsController_infra: {
         parameters: {
-            query: {
-                days: string;
+            query?: {
+                days?: string;
             };
             header?: never;
             path?: never;

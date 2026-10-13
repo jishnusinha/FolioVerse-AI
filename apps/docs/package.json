@@ -4,12 +4,16 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "astro dev",
-    "build": "node scripts/sync-content.mjs && astro build",
-    "preview": "astro preview"
+    "sync": "node scripts/sync-content.mjs",
+    "dev": "node scripts/sync-content.mjs && astro dev --port 4321",
+    "build": "node scripts/sync-content.mjs && astro build && node scripts/csp.mjs",
+    "preview": "astro preview --port 4321",
+    "test": "node --test \"test/*.test.mjs\""
   },
   "dependencies": {
     "@astrojs/starlight": "^0.28.3",
+    "@dagrejs/dagre": "^1.1.4",
+    "@folioverse/design-tokens": "workspace:*",
     "astro": "^4.16.7",
     "sharp": "^0.33.5"
   }

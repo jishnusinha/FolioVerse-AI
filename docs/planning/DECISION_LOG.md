@@ -601,6 +601,66 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Weighted score fusion in notebook 03 breaks ties by rank in the heavier-weighted list, so α=0 and α=1 reproduce
   the sparse and dense lists exactly (sparse scores tie often on short documents).
 
+## D-108 One set of documentation sources for the site and the app
+- Decision: guide pages are written once in `docs/guide/*.md` (plus `docs/notebooks.md`), each with flat
+  frontmatter (`title`, `description`, `section`, `order`, `gates`, `blocked`, `demo`). The Starlight site at
+  `apps/docs` does not hold content of its own: `scripts/sync-content.mjs` generates `src/content/docs` (git-ignored)
+  before every `dev` and `build`, rewriting links (other guide pages, the mirrored runbooks, status file and decision
+  log, otherwise the repository at `FV_DOCS_REPO_URL`/`VITE_REPO_URL`, otherwise the plain path) and copying
+  referenced images. The in-app `/app/docs` reads the same files through Vite `?raw` imports, in a lazily loaded
+  chunk so the main bundle does not carry them, and renders them with a small React-only Markdown renderer (headings,
+  lists, tables, code, images, quotes, inline links) instead of adding a Markdown dependency.
+- `apps/web/src/features/docs/catalog.js` holds the shared logic (frontmatter, ordering, slugs matching Starlight's
+  heading ids, link resolution, status badges) and is imported by both; tests in both packages run it over the real
+  pages, failing on unknown gates, unknown external entries or links to files that do not exist.
+
+## D-109 Status badges are derived from IMPLEMENTATION_STATUS.md
+- Decision: a page's badges are computed, never written by hand. "Implemented" when every gate it lists is DONE in
+  the status file, "Planned" otherwise; "DEMO" when its frontmatter says what is simulated; one "Blocked" badge per
+  listed external integration whose entry is BLOCKED (the entry's text is the badge tooltip and the site's caution
+  aside). Tones are the same on both surfaces: implemented ok, planned info, DEMO warn, blocked bad. When a gate or
+  integration changes state in the status file, both surfaces change on the next build without editing any page.
+
+## D-110 The API reference is generated from the committed OpenAPI documents
+- Decision: the site's API reference pages are rendered from `packages/contracts/openapi/api.json` (grouped by
+  Nest tag) and `ai.json` (grouped by path segment), with an operation table, parameter, body and response tables,
+  and schema field tables. `ai.json` is new: `python -m folioverse_ai.openapi_export` writes it from
+  `create_app().openapi()` with `ROLE=all` and telemetry off, and a pytest fails when the committed file is stale.
+- Rendering the reference surfaced a Nest swagger artefact: every `@Query()` parameter was emitted as required (48
+  of them). `relaxImplicitQueryParams` in `bootstrap.ts` marks query parameters optional unless they were declared
+  with `@ApiQuery` (which always carries a description); the one truly required parameter (`format` on manuscript
+  export) is now declared explicitly. `api.json` and the generated web types were regenerated.
+
+## D-111 The data model diagram is drawn by the docs build, not by prisma-erd-generator
+- Context: the plan names a Prisma ERD. `prisma-erd-generator` renders through mermaid-cli, which pulls in
+  Puppeteer and a Chromium download as a Prisma generator, i.e. on every `prisma generate` in every image and CI job.
+- Decision: `apps/docs/scripts/lib/erd.mjs` parses `schema.prisma` (models, maps, enums, composite ids,
+  `@relation` fields) and lays out an SVG with `@dagrejs/dagre`: each connected group of tables is laid out top to
+  bottom and the groups are shelf-packed to the page width. Boxes show key columns (ids, foreign keys, uniques)
+  with a "+N columns" count; full column tables follow the diagram. Only declared relations are drawn, so
+  tables that keep a `workspace_id` without a Prisma relation (for example `cost_entries`) appear unconnected,
+  which the page states.
+
+## D-112 Screenshots come from the running app and carry a manifest
+- Decision: `pnpm docs:shots` (`apps/web/playwright/docs-shots.mjs`) runs against a live stack
+  (`FV_SHOTS_BASE_URL`, default the Vite dev server): it registers a throwaway user and uploads the DEMO document
+  through the API with the smoke script's helpers, asks a real question in the UI, and captures Home, the document
+  answer with citations, the Studio run and the Cost Center at 1440×900 in light mode with reduced motion. It
+  writes `docs/screenshots/manifest.json` (time, commit, origin, viewport, routes with ids replaced by `:id`). Pages
+  that reference a missing image show "Screenshot not captured yet" instead of a placeholder picture. Answers in
+  the screenshots come from the DEMO mock model and say so. CI does not capture screenshots (it has no stack).
+
+## D-113 /docs is served by the web image under its own CSP
+- Decision: the web image builds the site and Caddy serves it from `/srv/docs` (`redir /docs /docs/`, immutable
+  caching for `/docs/_astro/*`, the site's 404 page for unknown `/docs/` paths). Starlight ships five inline
+  scripts (theme, search, tabs), which the app's `script-src 'self'` forbids; a post-build step hashes them and
+  writes `csp/docs-csp.caddy`, imported for `/docs/*` by glob so Caddy still starts without it. The global header
+  became `?Content-Security-Policy` (set only when absent): the global header block is deferred, and a plain `set`
+  would overwrite the docs policy. In development Vite proxies `/docs` to the Astro dev server (`VITE_DOCS_PROXY`).
+- Checked in a Caddy container with the built site: the docs policy is applied, search and the theme switcher run
+  without CSP violations, and unknown paths return the 404 page with status 404. The full web image was not rebuilt
+  locally (disk space); CI's `docker` job builds it.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

@@ -40,6 +40,7 @@ const EXPECTED_H1 = {
   'manuscript-print': 'Manuscript not found',
   reader: 'Book not found',
   discover: 'Find your next story',
+  'docs-page': 'Page not found',
 };
 const SIGNED_OUT = new Set(['login', 'register', 'forgot', 'reset', 'verify']);
 const SUPER_ADMIN = new Set(['admin-costs', 'admin-pricing', 'admin-models']);

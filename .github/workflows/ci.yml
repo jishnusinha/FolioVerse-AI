@@ -27,6 +27,7 @@ jobs:
       contracts: ${{ steps.f.outputs.contracts }}
       docker: ${{ steps.f.outputs.docker }}
       infra: ${{ steps.f.outputs.infra }}
+      docs: ${{ steps.f.outputs.docs }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -34,11 +35,12 @@ jobs:
         with:
           filters: |
             shared: &shared ['packages/shared-config/**', 'packages/contracts/**', 'pnpm-lock.yaml', '.github/workflows/ci.yml']
-            web: [*shared, 'apps/web/**', 'packages/design-tokens/**']
+            web: [*shared, 'apps/web/**', 'packages/design-tokens/**', 'docs/guide/**', 'docs/notebooks.md', 'docs/planning/IMPLEMENTATION_STATUS.md']
             api: [*shared, 'apps/api/**', 'config/models/**']
             ai: ['apps/ai-service/**', 'packages/folioverse-ml/**', 'packages/contracts/**', 'uv.lock', 'pyproject.toml']
             contracts: ['packages/contracts/**', 'apps/api/src/**']
-            docker: ['infrastructure/docker/**', 'docker-compose.yml', 'pnpm-lock.yaml', 'uv.lock', '.github/workflows/ci.yml']
+            docker: ['infrastructure/docker/**', 'docker-compose.yml', 'pnpm-lock.yaml', 'uv.lock', '.github/workflows/ci.yml', 'apps/docs/**']
+            docs: ['apps/docs/**', 'docs/**', 'infrastructure/runbooks/**', 'packages/contracts/openapi/**', 'apps/api/prisma/schema.prisma', 'apps/web/src/features/docs/**', 'packages/design-tokens/**', 'pnpm-lock.yaml', '.github/workflows/ci.yml']
             infra: ['infrastructure/**', '.github/workflows/**', 'docker-compose.yml', 'apps/api/src/infra/observability.ts', 'apps/api/src/worker.module.ts']
 
   node:
@@ -61,6 +63,24 @@ jobs:
         run: pnpm contracts:check
       - name: Web build
         run: pnpm --filter @folioverse/web run build
+
+  # Documentation site: generators' unit tests, then a full Starlight build (content sync, Pagefind, CSP hashes).
+  docs:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - run: pnpm install --frozen-lockfile --filter @folioverse/docs...
+      - name: Generator tests
+        run: pnpm --filter @folioverse/docs run test
+      - name: Build
+        run: pnpm docs:build
+      - uses: actions/upload-artifact@v4
+        with: { name: docs-site, path: apps/docs/dist, retention-days: 7 }
 
   web-e2e:
     needs: changes

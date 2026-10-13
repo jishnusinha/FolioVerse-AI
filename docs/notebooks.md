@@ -1,4 +1,12 @@
-# Research notebooks
+---
+title: Research notebooks
+description: Eleven evaluation notebooks over the production code and synthetic data, with their key findings.
+section: AI/ML
+order: 4
+gates: [11]
+blocked: [Kaggle account]
+demo: Notebooks use synthetic datasets, the DEMO mock model and DEMO prices.
+---
 
 FolioVerse ships eleven evaluation notebooks in [`ml-notebooks/`](../ml-notebooks/README.md). Each one runs the
 production `folioverse_ai` / `folioverse_ml` code on the synthetic datasets (`datasets/synthetic`,

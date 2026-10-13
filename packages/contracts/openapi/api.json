@@ -978,7 +978,7 @@
           },
           {
             "name": "folderId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -986,7 +986,7 @@
           },
           {
             "name": "q",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -994,7 +994,7 @@
           },
           {
             "name": "state",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1002,7 +1002,7 @@
           },
           {
             "name": "type",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1290,7 +1290,7 @@
           },
           {
             "name": "against",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1430,7 +1430,7 @@
           },
           {
             "name": "graph",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1438,7 +1438,7 @@
           },
           {
             "name": "status",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1446,7 +1446,7 @@
           },
           {
             "name": "lab",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1454,7 +1454,7 @@
           },
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1820,7 +1820,7 @@
           },
           {
             "name": "sourceId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1828,7 +1828,7 @@
           },
           {
             "name": "projectId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1836,7 +1836,7 @@
           },
           {
             "name": "q",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -1844,7 +1844,7 @@
           },
           {
             "name": "archived",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2015,7 +2015,7 @@
           },
           {
             "name": "days",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2023,7 +2023,7 @@
           },
           {
             "name": "model",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2101,7 +2101,7 @@
           },
           {
             "name": "limit",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2109,7 +2109,7 @@
           },
           {
             "name": "runId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2140,7 +2140,7 @@
           },
           {
             "name": "days",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2245,7 +2245,7 @@
           },
           {
             "name": "projectId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2253,7 +2253,7 @@
           },
           {
             "name": "sourceId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2261,7 +2261,7 @@
           },
           {
             "name": "kind",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2269,7 +2269,7 @@
           },
           {
             "name": "q",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2277,7 +2277,7 @@
           },
           {
             "name": "archived",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2407,7 +2407,7 @@
           },
           {
             "name": "sourceId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2415,7 +2415,7 @@
           },
           {
             "name": "projectId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2547,7 +2547,7 @@
           },
           {
             "name": "projectId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2555,7 +2555,7 @@
           },
           {
             "name": "semantic",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -2586,7 +2586,7 @@
           },
           {
             "name": "projectId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3144,7 +3144,12 @@
             "name": "format",
             "required": true,
             "in": "query",
+            "description": "Export format",
             "schema": {
+              "enum": [
+                "md",
+                "docx"
+              ],
               "type": "string"
             }
           }
@@ -3181,7 +3186,7 @@
           },
           {
             "name": "nodeId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3189,7 +3194,7 @@
           },
           {
             "name": "state",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3570,7 +3575,7 @@
           },
           {
             "name": "state",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3578,7 +3583,7 @@
           },
           {
             "name": "nodeId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3940,7 +3945,7 @@
           },
           {
             "name": "status",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3948,7 +3953,7 @@
           },
           {
             "name": "collectionId",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -3956,7 +3961,7 @@
           },
           {
             "name": "q",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4166,7 +4171,7 @@
           },
           {
             "name": "since",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4808,7 +4813,7 @@
           },
           {
             "name": "q",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4816,7 +4821,7 @@
           },
           {
             "name": "kind",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4824,7 +4829,7 @@
           },
           {
             "name": "genre",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4832,7 +4837,7 @@
           },
           {
             "name": "mood",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4840,7 +4845,7 @@
           },
           {
             "name": "theme",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4910,7 +4915,7 @@
           },
           {
             "name": "otherKind",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -4974,7 +4979,7 @@
           },
           {
             "name": "mode",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -5702,7 +5707,7 @@
         "parameters": [
           {
             "name": "days",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -5710,7 +5715,7 @@
           },
           {
             "name": "model",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -5757,7 +5762,7 @@
         "parameters": [
           {
             "name": "days",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -5828,7 +5833,7 @@
         "parameters": [
           {
             "name": "days",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"

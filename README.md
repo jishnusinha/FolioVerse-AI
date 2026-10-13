@@ -11,6 +11,7 @@ inspectable in AI Studio.
 
 ```
 browser ── Caddy (:8080) ──┬── static SPA (React 19, Vite, Tailwind v4)
+                           ├── /docs ── documentation site (Astro Starlight, static)
                            └── /api ── NestJS API (auth, workspaces, uploads, runs, SSE, ledger)
                                          │  BullMQ (Redis) ── API worker ──NDJSON──┐
                                          │                                         ├── AI service api role (LangGraph graphs)
@@ -50,6 +51,13 @@ pnpm test                                  # unit tests (TS + Python), no networ
 pnpm test:integration                      # API against Postgres/Redis/S3 from `pnpm up -- --infra`
 node infrastructure/scripts/smoke.mjs      # end-to-end backend slice against a running stack
 ```
+
+## Documentation
+
+Guides live in [`docs/guide`](docs/guide) and are published twice: at `/docs/` (Starlight, with the generated
+API reference and data model; `pnpm docs:dev` or `pnpm docs:build`) and inside the app at `/app/docs`, with
+status badges taken from the implementation status file. `pnpm docs:shots` refreshes the screenshots from a
+running stack.
 
 ## Repository guide
 
