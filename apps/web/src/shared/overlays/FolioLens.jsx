@@ -63,8 +63,19 @@ export function FolioLens({ open, kind, text, anchor, onClose, onAction, onAsk, 
 
   const { focusAt } = roving;
   useEffect(() => {
-    if (open && autoFocus && !result) focusAt(0);
-  }, [open, autoFocus, result, focusAt]);
+    if (open && autoFocus && !result && pos.left !== -9999) {
+      focusAt(0);
+    }
+  }, [open, autoFocus, result, pos.left, focusAt]);
+
+  const openedAtRef = useRef(0);
+  useEffect(() => {
+    if (open) {
+      openedAtRef.current = Date.now();
+    } else {
+      setPos({ left: -9999, top: -9999 });
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -81,6 +92,7 @@ export function FolioLens({ open, kind, text, anchor, onClose, onAction, onAsk, 
       if (ref.current && !ref.current.contains(ev.target)) onClose();
     };
     const onScroll = (ev) => {
+      if (Date.now() - openedAtRef.current < 200) return;
       if (ref.current && !(ev.target instanceof Node && ref.current.contains(ev.target))) onClose();
     };
     document.addEventListener('keydown', onKey, true);

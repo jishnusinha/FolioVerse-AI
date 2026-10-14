@@ -189,10 +189,67 @@ export async function ensureCsrf() {
  * @param {{ onProgress?: (pct: number) => void, signal?: AbortSignal }} [opts]
  * @returns {Promise<void>}
  */
-export function uploadWithProgress(target, file, opts = {}) {
+export async function uploadWithProgress(target, file, opts = {}) {
+  const CHUNK_SIZE = 5 * 1024 * 1024;
+  const sameOrigin = target.url.startsWith('/');
+  // If file is larger than 5MB and uploading through same-origin upload endpoint, use chunked multipart upload
+  if (file.size > CHUNK_SIZE && sameOrigin && target.url.includes('/uploads/')) {
+    const totalParts = Math.ceil(file.size / CHUNK_SIZE);
+    const baseUploadUrl = target.url.replace(/\/content$/, '');
+    let uploadedBytes = 0;
+
+    for (let partNumber = 1; partNumber <= totalParts; partNumber++) {
+      if (opts.signal?.aborted) throw new ApiError(0, { detail: 'Upload cancelled', code: 'ABORTED' });
+      const start = (partNumber - 1) * CHUNK_SIZE;
+      const end = Math.min(start + CHUNK_SIZE, file.size);
+      const chunk = file.slice(start, end);
+
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open('PUT', `${baseUploadUrl}/parts/${partNumber}`);
+        xhr.withCredentials = true;
+        for (const [k, v] of Object.entries(target.headers ?? {})) xhr.setRequestHeader(k, v);
+        xhr.setRequestHeader('x-csrf-token', readCookie('fv_csrf') ?? '');
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) {
+            const currentTotal = uploadedBytes + e.loaded;
+            opts.onProgress?.(Math.min(99, Math.round((currentTotal / file.size) * 100)));
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            uploadedBytes += chunk.size;
+            opts.onProgress?.(Math.min(99, Math.round((uploadedBytes / file.size) * 100)));
+            resolve();
+          } else {
+            let problem;
+            try {
+              problem = JSON.parse(xhr.responseText);
+            } catch {
+              problem = { detail: xhr.statusText || 'Part upload failed' };
+            }
+            reject(new ApiError(xhr.status, problem));
+          }
+        };
+        xhr.onerror = () => reject(new ApiError(0, { detail: 'Network error during part upload' }));
+        xhr.onabort = () => reject(new ApiError(0, { detail: 'Upload cancelled', code: 'ABORTED' }));
+        opts.signal?.addEventListener('abort', () => xhr.abort());
+        xhr.send(chunk);
+      });
+    }
+
+    // Assemble parts
+    await api(`${baseUploadUrl.replace(/^\/api/, '')}/assemble`, {
+      method: 'POST',
+      body: { totalParts },
+      signal: opts.signal,
+    });
+    opts.onProgress?.(100);
+    return;
+  }
+
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const sameOrigin = target.url.startsWith('/');
     xhr.open(target.method || 'PUT', target.url);
     xhr.withCredentials = sameOrigin;
     for (const [k, v] of Object.entries(target.headers ?? {})) xhr.setRequestHeader(k, v);

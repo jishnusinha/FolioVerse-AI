@@ -54,11 +54,25 @@ const fields = (r: CatalogRecord) => ({
   isDemo: r.isDemo !== false,
 });
 
+export interface LoadCatalogOptions {
+  dryRun?: boolean;
+  onConflict?: 'skip' | 'replace';
+}
+
+export interface LoadCatalogResult {
+  total: number;
+  created: number;
+  updated: number;
+  skipped: number;
+  dryRun: boolean;
+}
+
 /**
  * Idempotent load: inserts new items, updates changed ones and replaces their themes. Ids are stable
  * (UUIDv5 of the slug) so the AI service's model artifact and the database agree on identity.
+ * Respects options.dryRun and options.onConflict ('skip' | 'replace').
  */
-export async function loadCatalog(prisma: PrismaClient, records: CatalogRecord[]) {
+export async function loadCatalog(prisma: PrismaClient, records: CatalogRecord[], options: LoadCatalogOptions = {}): Promise<LoadCatalogResult> {
   const existing = new Map((await prisma.catalogItem.findMany({ include: { themes: true } })).map((i) => [i.id, i]));
   const fresh = records.filter((r) => !existing.has(r.id));
   const changed = records.filter((r) => {
@@ -69,21 +83,40 @@ export async function loadCatalog(prisma: PrismaClient, records: CatalogRecord[]
     const had = e.themes.map((t) => `${t.theme}:${t.weight}`).sort().join('|');
     return themes !== had || Object.entries(now).some(([k, v]) => JSON.stringify((e as any)[k]) !== JSON.stringify(v));
   });
+  const onConflict = options.onConflict ?? 'replace';
+  const toUpdate = onConflict === 'skip' ? [] : changed;
+
+  if (options.dryRun) {
+    return {
+      total: records.length,
+      created: fresh.length,
+      updated: toUpdate.length,
+      skipped: records.length - fresh.length - toUpdate.length,
+      dryRun: true,
+    };
+  }
+
   if (fresh.length) {
     await prisma.catalogItem.createMany({ data: fresh.map((r) => ({ id: r.id, ...fields(r) })), skipDuplicates: true });
   }
-  for (const r of changed) {
+  for (const r of toUpdate) {
     await prisma.$transaction([
       prisma.catalogItem.update({ where: { id: r.id }, data: fields(r) }),
       prisma.itemTheme.deleteMany({ where: { itemId: r.id } }),
     ]);
   }
-  const themed = [...fresh, ...changed];
+  const themed = [...fresh, ...toUpdate];
   if (themed.length) {
     await prisma.itemTheme.createMany({
       data: themed.flatMap((r) => (r.themes ?? []).map((t) => ({ itemId: r.id, theme: t.name, weight: t.weight }))),
       skipDuplicates: true,
     });
   }
-  return { total: records.length, created: fresh.length, updated: changed.length };
+  return {
+    total: records.length,
+    created: fresh.length,
+    updated: toUpdate.length,
+    skipped: records.length - fresh.length - toUpdate.length,
+    dryRun: false,
+  };
 }

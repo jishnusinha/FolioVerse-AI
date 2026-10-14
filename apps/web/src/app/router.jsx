@@ -1,11 +1,10 @@
-import { useEffect } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { Navigate, Outlet, useMatches } from 'react-router';
 import { APP_ROUTES, PUBLIC_ROUTES } from './routes.js';
 import { AppShell, useApplyTheme } from './AppShell.jsx';
 import { NotFoundPage, PlaceholderPage } from './PlaceholderPage.jsx';
-import { DesignGalleryPage } from '@/features/design/DesignGalleryPage.jsx';
-import { DocsPage } from '@/features/docs/DocsPage.jsx';
-import { SettingsPage } from '@/features/settings/SettingsPage.jsx';
+import { Skeleton } from '@/shared/ui/index.js';
+import { Toaster } from '@/shared/ui/toast.jsx';
 import {
   ForgotPasswordPage,
   LoginPage,
@@ -15,32 +14,37 @@ import {
 } from '@/features/auth/AuthPages.jsx';
 import { OnboardingPage } from '@/features/auth/OnboardingPage.jsx';
 import { AcceptInvitePage } from '@/features/auth/AcceptInvitePage.jsx';
-import { KnowledgeHomePage } from '@/features/knowledge/KnowledgeHomePage.jsx';
-import { ProjectPage } from '@/features/knowledge/ProjectPage.jsx';
-import { TrashPage } from '@/features/knowledge/TrashPage.jsx';
-import { DocumentPage } from '@/features/documents/DocumentPage.jsx';
-import { ArtifactPage } from '@/features/insights/ArtifactPage.jsx';
-import { SearchPage } from '@/features/insights/SearchPage.jsx';
 import { HomePage } from '@/features/home/HomePage.jsx';
-import { StudioPage } from '@/features/studio/StudioPage.jsx';
-import { ComparePage } from '@/features/studio/ComparePage.jsx';
-import { PlaygroundPage } from '@/features/studio/PlaygroundPage.jsx';
-import { BattlePage, BattlesPage } from '@/features/studio/BattlesPage.jsx';
-import { EvaluationsPage } from '@/features/studio/EvaluationsPage.jsx';
-import { CostsPage } from '@/features/costs/CostsPage.jsx';
-import { WriterHomePage } from '@/features/writer/WriterHomePage.jsx';
-import { ManuscriptPage } from '@/features/writer/ManuscriptPage.jsx';
-import { DnaPage } from '@/features/writer/DnaPage.jsx';
-import { ContinuityPage } from '@/features/writer/ContinuityPage.jsx';
-import { PrintPage } from '@/features/writer/PrintPage.jsx';
-import { LibraryPage } from '@/features/library/LibraryPage.jsx';
-import { ReaderPage } from '@/features/reader/ReaderPage.jsx';
-import { DiscoverPage } from '@/features/discover/DiscoverPage.jsx';
-import { LabPage } from '@/features/discover/LabPage.jsx';
-import { AdminCostsPage } from '@/features/admin/AdminCostsPage.jsx';
-import { AdminPricingPage } from '@/features/admin/AdminPricingPage.jsx';
-import { AdminModelsPage } from '@/features/admin/AdminModelsPage.jsx';
-import { Toaster } from '@/shared/ui/toast.jsx';
+
+// Lazy-loaded route components for fast initial bundle loading
+const KnowledgeHomePage = lazy(() => import('@/features/knowledge/KnowledgeHomePage.jsx').then((m) => ({ default: m.KnowledgeHomePage })));
+const ProjectPage = lazy(() => import('@/features/knowledge/ProjectPage.jsx').then((m) => ({ default: m.ProjectPage })));
+const TrashPage = lazy(() => import('@/features/knowledge/TrashPage.jsx').then((m) => ({ default: m.TrashPage })));
+const DocumentPage = lazy(() => import('@/features/documents/DocumentPage.jsx').then((m) => ({ default: m.DocumentPage })));
+const ArtifactPage = lazy(() => import('@/features/insights/ArtifactPage.jsx').then((m) => ({ default: m.ArtifactPage })));
+const SearchPage = lazy(() => import('@/features/insights/SearchPage.jsx').then((m) => ({ default: m.SearchPage })));
+const StudioPage = lazy(() => import('@/features/studio/StudioPage.jsx').then((m) => ({ default: m.StudioPage })));
+const ComparePage = lazy(() => import('@/features/studio/ComparePage.jsx').then((m) => ({ default: m.ComparePage })));
+const PlaygroundPage = lazy(() => import('@/features/studio/PlaygroundPage.jsx').then((m) => ({ default: m.PlaygroundPage })));
+const BattlesPage = lazy(() => import('@/features/studio/BattlesPage.jsx').then((m) => ({ default: m.BattlesPage })));
+const BattlePage = lazy(() => import('@/features/studio/BattlesPage.jsx').then((m) => ({ default: m.BattlePage })));
+const EvaluationsPage = lazy(() => import('@/features/studio/EvaluationsPage.jsx').then((m) => ({ default: m.EvaluationsPage })));
+const CostsPage = lazy(() => import('@/features/costs/CostsPage.jsx').then((m) => ({ default: m.CostsPage })));
+const AdminCostsPage = lazy(() => import('@/features/admin/AdminCostsPage.jsx').then((m) => ({ default: m.AdminCostsPage })));
+const AdminPricingPage = lazy(() => import('@/features/admin/AdminPricingPage.jsx').then((m) => ({ default: m.AdminPricingPage })));
+const AdminModelsPage = lazy(() => import('@/features/admin/AdminModelsPage.jsx').then((m) => ({ default: m.AdminModelsPage })));
+const WriterHomePage = lazy(() => import('@/features/writer/WriterHomePage.jsx').then((m) => ({ default: m.WriterHomePage })));
+const ManuscriptPage = lazy(() => import('@/features/writer/ManuscriptPage.jsx').then((m) => ({ default: m.ManuscriptPage })));
+const DnaPage = lazy(() => import('@/features/writer/DnaPage.jsx').then((m) => ({ default: m.DnaPage })));
+const ContinuityPage = lazy(() => import('@/features/writer/ContinuityPage.jsx').then((m) => ({ default: m.ContinuityPage })));
+const PrintPage = lazy(() => import('@/features/writer/PrintPage.jsx').then((m) => ({ default: m.PrintPage })));
+const LibraryPage = lazy(() => import('@/features/library/LibraryPage.jsx').then((m) => ({ default: m.LibraryPage })));
+const ReaderPage = lazy(() => import('@/features/reader/ReaderPage.jsx').then((m) => ({ default: m.ReaderPage })));
+const DiscoverPage = lazy(() => import('@/features/discover/DiscoverPage.jsx').then((m) => ({ default: m.DiscoverPage })));
+const LabPage = lazy(() => import('@/features/discover/LabPage.jsx').then((m) => ({ default: m.LabPage })));
+const DocsPage = lazy(() => import('@/features/docs/DocsPage.jsx').then((m) => ({ default: m.DocsPage })));
+const DesignGalleryPage = lazy(() => import('@/features/design/DesignGalleryPage.jsx').then((m) => ({ default: m.DesignGalleryPage })));
+const SettingsPage = lazy(() => import('@/features/settings/SettingsPage.jsx').then((m) => ({ default: m.SettingsPage })));
 
 /** Page components that have replaced placeholders, keyed by route id. */
 const PAGES = {
@@ -85,9 +89,24 @@ const PAGES = {
   'settings-section': SettingsPage,
 };
 
+function PageLoader() {
+  return (
+    <div className="page" style={{ padding: 24, maxWidth: 900 }}>
+      <Skeleton height={32} width={220} style={{ marginBottom: 16 }} />
+      <Skeleton height={180} />
+    </div>
+  );
+}
+
 function element(route) {
   const Page = PAGES[route.id];
-  return Page ? <Page /> : <PlaceholderPage route={route} />;
+  return Page ? (
+    <Suspense fallback={<PageLoader />}>
+      <Page />
+    </Suspense>
+  ) : (
+    <PlaceholderPage route={route} />
+  );
 }
 
 function PublicLayout() {

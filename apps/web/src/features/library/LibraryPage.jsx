@@ -29,7 +29,7 @@ function minutes(seconds) {
   return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
 }
 
-function Shelves({ items, status, setStatus, collections, collectionId, setCollectionId, onNewCollection, onRemoveCollection }) {
+function Shelves({ items, status, setStatus, collections, collectionId, setCollectionId, onNewCollection, onRenameCollection, onRemoveCollection }) {
   const count = (k) => items.filter((i) => !k || i.status === k).length;
   const shelves = [['', 'All books'], ...STATUSES];
   return (
@@ -83,7 +83,10 @@ function Shelves({ items, status, setStatus, collections, collectionId, setColle
                   <Icon name="more" size={14} />
                 </button>
               }
-              items={[{ label: 'Delete collection', danger: true, onSelect: () => onRemoveCollection(c) }]}
+              items={[
+                { label: 'Rename collection', onSelect: () => onRenameCollection(c) },
+                { label: 'Delete collection', danger: true, onSelect: () => onRemoveCollection(c) },
+              ]}
             />
           </li>
         ))}
@@ -217,6 +220,10 @@ export function LibraryPage() {
     const name = window.prompt('Collection name')?.trim();
     if (name) act(() => libraryApi.createCollection(wid, { name }), `Collection “${name}” created`);
   };
+  const onRenameCollection = (c) => {
+    const name = window.prompt('Rename collection', c.name)?.trim();
+    if (name && name !== c.name) act(() => libraryApi.updateCollection(wid, c.id, { name }), `Collection renamed to “${name}”`);
+  };
   const onRemoveCollection = (c) => {
     if (!window.confirm(`Delete the collection “${c.name}”? The books stay in your library.`)) return;
     if (collectionId === c.id) setCollectionId('');
@@ -237,6 +244,7 @@ export function LibraryPage() {
           collectionId={collectionId}
           setCollectionId={setCollectionId}
           onNewCollection={onNewCollection}
+          onRenameCollection={onRenameCollection}
           onRemoveCollection={onRemoveCollection}
         />
       }

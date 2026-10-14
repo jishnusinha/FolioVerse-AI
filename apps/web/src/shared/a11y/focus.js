@@ -57,7 +57,7 @@ export function useRovingTabIndex(count, { orientation = 'vertical', loop = true
       if (!count) return;
       const n = loop ? (i + count) % count : Math.max(0, Math.min(count - 1, i));
       setActive(n);
-      refs.current[n]?.focus();
+      refs.current[n]?.focus({ preventScroll: true });
     },
     [count, loop],
   );

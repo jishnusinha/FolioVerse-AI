@@ -306,7 +306,7 @@ export class DiscoveryService {
   // ── offline evaluation ────────────────────────────────────────────────
   async queueEvaluation(workspaceId: string, userId: string, k: number) {
     const report = await this.prisma.evaluationReport.create({ data: { id: newId(), workspaceId, requestedById: userId, k } });
-    await this.queues.queue(QUEUES.maintenance).add('rec-eval', { reportId: report.id }, { attempts: 1, jobId: `rec-eval-${report.id}` });
+    await this.queues.queue(QUEUES.evaluations).add('rec-eval', { reportId: report.id }, { attempts: 1, jobId: `rec-eval-${report.id}` });
     return report;
   }
 

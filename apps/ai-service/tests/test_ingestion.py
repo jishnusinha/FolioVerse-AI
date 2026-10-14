@@ -158,3 +158,22 @@ async def test_empty_text_fails_without_raising():
     )
     assert res["state"] == "FAILED"
     assert em.history[-1]["type"] == "ingestion.finished"
+
+
+async def test_malformed_file_quarantines_without_raising():
+    em = Emitter(None, WS)
+    res = await run_ingestion(
+        {
+            "jobId": "j2",
+            "workspaceId": WS,
+            "sourceId": "s2",
+            "sourceVersionId": "v2",
+            "mimeType": "application/pdf",
+            "objectUrl": "x",
+        },
+        em,
+        data=b"%PDF-1.7 corrupt binary garbage \x00\xff\xfe",
+    )
+    assert res["state"] == "QUARANTINED"
+    assert em.history[-1]["type"] == "ingestion.finished"
+    assert em.history[-1]["data"]["state"] == "QUARANTINED"

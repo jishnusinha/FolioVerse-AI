@@ -93,6 +93,33 @@ export class SourcesService {
     return { received: len };
   }
 
+  async receivePart(workspaceId: string, uploadId: string, partNumber: number, req: Request) {
+    const s = await this.session(workspaceId, uploadId);
+    if (!partNumber || partNumber < 1 || partNumber > 1000) {
+      throw new BadRequestException({ message: 'Invalid part number', code: 'INVALID_PART' });
+    }
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      chunks.push(Buffer.from(chunk));
+    }
+    const buf = Buffer.concat(chunks);
+    if (buf.length === 0) throw new BadRequestException({ message: 'Part content is empty', code: 'EMPTY_PART' });
+    await this.storage.putPart(s.objectKey, partNumber, buf, s.mimeType);
+    return { partNumber, bytesReceived: buf.length };
+  }
+
+  async assemble(workspaceId: string, uploadId: string, totalParts: number) {
+    const s = await this.session(workspaceId, uploadId);
+    if (!totalParts || totalParts < 1 || totalParts > 1000) {
+      throw new BadRequestException({ message: 'Invalid totalParts', code: 'INVALID_PARTS_COUNT' });
+    }
+    const totalBytes = await this.storage.assembleParts(s.objectKey, totalParts, s.mimeType);
+    if (totalBytes !== s.sizeBytes) {
+      throw new BadRequestException({ message: `Assembled size (${totalBytes}) does not match declared size (${s.sizeBytes})`, code: 'SIZE_MISMATCH' });
+    }
+    return { assembled: true, sizeBytes: totalBytes };
+  }
+
   private async session(workspaceId: string, uploadId: string) {
     if (!isUuid(uploadId)) throw new NotFoundException();
     const s = await this.prisma.uploadSession.findFirst({ where: { id: uploadId, workspaceId } });

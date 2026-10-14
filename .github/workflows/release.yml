@@ -86,7 +86,7 @@ jobs:
           user=$(docker image inspect -f '{{.Config.User}}' "$IMAGE")
           case "$user" in ""|root|0|0:*|root:*) echo "::error::${{ matrix.image }} image runs as root"; exit 1;; esac
       - name: Vulnerability gate (CRITICAL with a fix)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
         with:
           image-ref: ${{ env.IMAGE }}
           severity: CRITICAL

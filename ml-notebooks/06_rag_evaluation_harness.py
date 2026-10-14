@@ -173,9 +173,16 @@ def scorecard(rows: list[dict]) -> dict:
     ans = [r for r in rows if r["answerable"]]
     una = [r for r in rows if not r["answerable"]]
     cites = [c for r in rows for c in r["citations"]]
+    resolved_cites = [c for c in cites if c != "UNRESOLVED"]
     paid = [r for r in rows if r["input"]]
+    correct_abstention_decisions = sum(1 for r in ans if r["outcome"] != "ABSTAINED") + sum(1 for r in una if r["outcome"] == "ABSTAINED")
     return {
         "config": rows[0]["config"],
+        "citation_resolution": len(resolved_cites) / len(cites) if cites else 1.0,
+        "claim_support": cites.count("VALID") / len(cites) if cites else 0.0,
+        "answer_relevance": fvnb.mean(r["judge"] for r in ans),
+        "retrieval_quality": fvnb.mean(r["supported"] for r in ans),
+        "abstention_accuracy": correct_abstention_decisions / len(rows) if rows else 1.0,
         "answer_support": fvnb.mean(r["supported"] for r in ans),
         "false_abstain": fvnb.mean(r["outcome"] == "ABSTAINED" for r in ans),
         "abstain_unanswerable": fvnb.mean(r["outcome"] == "ABSTAINED" for r in una),

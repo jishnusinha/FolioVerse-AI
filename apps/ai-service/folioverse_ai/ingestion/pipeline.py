@@ -62,15 +62,15 @@ async def run_ingestion(req: dict, emitter: Emitter, data: bytes | None = None) 
     try:
         doc = await asyncio.to_thread(parse, data, req["mimeType"])
     except ParseError as e:
-        return await finish("FAILED", {}, str(e))
+        return await finish("QUARANTINED", {}, str(e))
     except UnicodeDecodeError:
-        return await finish("FAILED", {}, "Text is not valid UTF-8")
+        return await finish("QUARANTINED", {}, "Text is not valid UTF-8")
 
     if not any(e.text.strip() for e in doc.elements):
         return await finish(
             "FAILED",
             {"pages": len(doc.pages)},
-            "No extractable text (scanned documents need OCR, which is not enabled)",
+            "No extractable text (scanned documents require OCR; OCR fallback found no text)",
         )
 
     await stage("INDEXING", 0.5, f"{len(doc.pages)} pages parsed")

@@ -9,6 +9,7 @@ export const QUEUES = {
   runs: 'ai-runs',
   ledger: 'ledger',
   maintenance: 'maintenance',
+  evaluations: 'evaluations',
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

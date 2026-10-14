@@ -60,6 +60,43 @@ def validate(answer: str, context: dict[str, dict]) -> dict[str, CitationResult]
     return results
 
 
+@dataclass
+class CitationOccurrence:
+    index: int
+    marker: str
+    state: str
+    score: float
+    quote: str = ""
+    claim: str = ""
+    item: dict | None = field(default=None, repr=False)
+
+
+def validate_occurrences(answer: str, context: dict[str, dict]) -> list[CitationOccurrence]:
+    """Validates each cited claim occurrence individually.
+    Never allows a valid first occurrence to mask invalid subsequent occurrences of the same marker."""
+    results: list[CitationOccurrence] = []
+    for idx, (marker, claim) in enumerate(claim_segments(answer)):
+        item = context.get(marker)
+        if item is None:
+            results.append(CitationOccurrence(idx, marker, "UNRESOLVED", 0.0, claim=claim))
+            continue
+        score = containment(claim, item["text"])
+        state = "VALID" if score >= VALID_THRESHOLD else "WEAK"
+        quote, _ = best_sentence(claim, item["text"])
+        results.append(
+            CitationOccurrence(
+                idx,
+                marker,
+                state,
+                round(score, 4),
+                quote=quote or item["text"][:200],
+                claim=claim,
+                item=item,
+            )
+        )
+    return results
+
+
 def strip_markers(text: str) -> str:
     return MARKER.sub("", text)
 

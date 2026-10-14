@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
 import { Decimal } from 'decimal.js';
 import { newId } from '../../common/ids';
 import { fvMetrics } from '../../infra/observability';
@@ -26,50 +25,76 @@ export class LedgerService {
   }
 
   /**
-   * Converts one usage event into a FINAL cost entry. Idempotent: the unique
-   * (usage_event_id, entry_type) constraint makes reprocessing a no-op.
+   * Converts one usage event into a FINAL cost entry transactionally and idempotently.
+   * Repairs missing budget spend if a crash occurred previously between cost entry creation and spend update.
    */
   async processUsageEvent(usageEventId: string): Promise<'created' | 'duplicate' | 'missing'> {
-    const ev = await this.prisma.usageEvent.findUnique({ where: { id: usageEventId } });
-    if (!ev) return 'missing';
-    const run = ev.runId ? await this.prisma.aiRun.findUnique({ where: { id: ev.runId } }) : null;
+    const pendingAlerts: any[] = [];
 
-    let amount: Decimal;
-    let tier: 'FINALIZED' | 'FINAL_ESTIMATED';
-    let reason: string | null;
-    let priceId: string | null = null;
+    const result = await this.prisma.$transaction(async (tx) => {
+      const ev = await tx.usageEvent.findUnique({ where: { id: usageEventId } });
+      if (!ev) return { outcome: 'missing' as const, metrics: null };
 
-    if (ev.costClass === 'LOCAL_COMPUTE') {
-      const price = await this.priceFor(ev.modelConfigId ?? 'local-compute', ev.createdAt);
-      const rate = price?.unit === 'CPU_HOUR' ? price : null;
-      const seconds = new Decimal(ev.computeSeconds?.toString() ?? '0');
-      amount = rate ? seconds.mul(rate.inputPerMTok.toString()).div(3600).toDecimalPlaces(8, Decimal.ROUND_HALF_UP) : new Decimal(0);
-      tier = rate ? 'FINALIZED' : 'FINAL_ESTIMATED';
-      reason = rate ? null : 'PRICE_MISSING';
-      priceId = rate?.id ?? null;
-    } else {
-      const price = await this.priceFor(ev.modelConfigId, ev.createdAt);
-      const priced = priceUsage(
-        price
-          ? {
-              inputPerMTok: price.inputPerMTok.toString(),
-              outputPerMTok: price.outputPerMTok.toString(),
-              cachedInputPerMTok: price.cachedInputPerMTok?.toString() ?? null,
-              reasoningPerMTok: price.reasoningPerMTok?.toString() ?? null,
-              batchDiscount: price.batchDiscount?.toString() ?? null,
-            }
-          : null,
-        { input: ev.inputTokens, output: ev.outputTokens, cachedInput: ev.cachedInputTokens, reasoning: ev.reasoningTokens },
-        ev.reported,
-      );
-      amount = priced.amount;
-      tier = priced.status;
-      reason = priced.reason;
-      priceId = price?.id ?? null;
-    }
+      const existingCost = await tx.costEntry.findFirst({
+        where: { usageEventId: ev.id, entryType: 'FINAL' },
+      });
 
-    try {
-      await this.prisma.costEntry.create({
+      if (existingCost) {
+        if (ev.processedAt) return { outcome: 'duplicate' as const, metrics: null };
+        // Crash recovery repair path: cost entry exists, but process crashed before budget spend increment and processedAt
+        if (ev.costClass === 'AI_API') {
+          const run = ev.runId ? await tx.aiRun.findUnique({ where: { id: ev.runId } }) : null;
+          const alerts = await this.budgets.addSpend(
+            ev.workspaceId,
+            new Decimal(existingCost.amount.toString()),
+            { runId: ev.runId, userId: ev.userId ?? run?.userId },
+            tx,
+          );
+          pendingAlerts.push(...alerts);
+        }
+        await tx.usageEvent.update({ where: { id: ev.id }, data: { processedAt: new Date() } });
+        return { outcome: 'created' as const, metrics: null };
+      }
+
+      if (ev.processedAt) return { outcome: 'duplicate' as const, metrics: null };
+
+      const run = ev.runId ? await tx.aiRun.findUnique({ where: { id: ev.runId } }) : null;
+
+      let amount: Decimal;
+      let tier: 'FINALIZED' | 'FINAL_ESTIMATED';
+      let reason: string | null;
+      let priceId: string | null = null;
+
+      if (ev.costClass === 'LOCAL_COMPUTE') {
+        const price = await this.priceFor(ev.modelConfigId ?? 'local-compute', ev.createdAt);
+        const rate = price?.unit === 'CPU_HOUR' ? price : null;
+        const seconds = new Decimal(ev.computeSeconds?.toString() ?? '0');
+        amount = rate ? seconds.mul(rate.inputPerMTok.toString()).div(3600).toDecimalPlaces(8, Decimal.ROUND_HALF_UP) : new Decimal(0);
+        tier = rate ? 'FINALIZED' : 'FINAL_ESTIMATED';
+        reason = rate ? null : 'PRICE_MISSING';
+        priceId = rate?.id ?? null;
+      } else {
+        const price = await this.priceFor(ev.modelConfigId, ev.createdAt);
+        const priced = priceUsage(
+          price
+            ? {
+                inputPerMTok: price.inputPerMTok.toString(),
+                outputPerMTok: price.outputPerMTok.toString(),
+                cachedInputPerMTok: price.cachedInputPerMTok?.toString() ?? null,
+                reasoningPerMTok: price.reasoningPerMTok?.toString() ?? null,
+                batchDiscount: price.batchDiscount?.toString() ?? null,
+              }
+            : null,
+          { input: ev.inputTokens, output: ev.outputTokens, cachedInput: ev.cachedInputTokens, reasoning: ev.reasoningTokens },
+          ev.reported,
+        );
+        amount = priced.amount;
+        tier = priced.status;
+        reason = priced.reason;
+        priceId = price?.id ?? null;
+      }
+
+      await tx.costEntry.create({
         data: {
           id: newId(),
           workspaceId: ev.workspaceId,
@@ -88,20 +113,38 @@ export class LedgerService {
           isDemo: ev.isDemo,
         },
       });
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
-        await this.prisma.usageEvent.update({ where: { id: ev.id }, data: { processedAt: ev.processedAt ?? new Date() } });
-        return 'duplicate';
+
+      if (ev.costClass === 'AI_API') {
+        const alerts = await this.budgets.addSpend(
+          ev.workspaceId,
+          amount,
+          { runId: ev.runId, userId: ev.userId ?? run?.userId },
+          tx,
+        );
+        pendingAlerts.push(...alerts);
       }
-      throw e;
+
+      await tx.usageEvent.update({ where: { id: ev.id }, data: { processedAt: new Date() } });
+
+      const metrics = {
+        labels: { tier, cost_class: ev.costClass, is_demo: String(ev.isDemo) },
+        amount: amount.toNumber(),
+      };
+
+      return { outcome: 'created' as const, metrics };
+    });
+
+    if (result.metrics) {
+      fvMetrics().ledgerEntries.add(1, result.metrics.labels);
+      fvMetrics().ledgerChargedUsd.add(result.metrics.amount, result.metrics.labels);
     }
-    const labels = { tier, cost_class: ev.costClass, is_demo: String(ev.isDemo) };
-    fvMetrics().ledgerEntries.add(1, labels);
-    fvMetrics().ledgerChargedUsd.add(amount.toNumber(), labels);
-    // Budgets cap AI API spend; local compute is an estimate reported separately.
-    if (ev.costClass === 'AI_API') await this.budgets.addSpend(ev.workspaceId, amount, { runId: ev.runId, userId: ev.userId ?? run?.userId });
-    await this.prisma.usageEvent.update({ where: { id: ev.id }, data: { processedAt: new Date() } });
-    return 'created';
+    if (pendingAlerts.length > 0) {
+      await this.budgets.deliverAlerts(pendingAlerts).catch((err) => {
+        this.log.error(`Failed to deliver budget alerts: ${err.message}`);
+      });
+    }
+
+    return result.outcome;
   }
 
   /** Processes any usage events left behind (e.g. worker crash between write and enqueue). */
@@ -120,19 +163,30 @@ export class LedgerService {
 
   /** Run total = AI API FINAL entries plus reconciliation adjustments; local compute is reported beside it. */
   async runTotals(runId: string) {
-    const entries = await this.prisma.costEntry.findMany({ where: { runId }, orderBy: { createdAt: 'asc' } });
+    const [entries, run, calls] = await Promise.all([
+      this.prisma.costEntry.findMany({ where: { runId }, orderBy: { createdAt: 'asc' } }),
+      this.prisma.aiRun.findUnique({ where: { id: runId }, select: { status: true } }),
+      this.prisma.modelCall.findMany({ where: { runId }, select: { status: true } }),
+    ]);
     const settled = entries.filter((e) => SETTLED.has(e.entryType));
     const api = settled.filter((e) => e.costClass === 'AI_API');
     const local = settled.filter((e) => e.costClass === 'LOCAL_COMPUTE');
     const sum = (xs: typeof entries) => xs.reduce((acc, e) => acc.plus(e.amount.toString()), new Decimal(0));
     const estimate = entries.find((e) => e.entryType === 'ESTIMATE');
+
+    const hasFailedCall = calls.some((c) => c.status !== 'OK');
+    const interruptedWithoutUsage =
+      !!run && ['INTERRUPTED', 'FAILED'].includes(run.status) && api.length === 0 && calls.length > 0;
+    const unknownConsumption = hasFailedCall || interruptedWithoutUsage;
+
     return {
       total: sum(api).toFixed(8),
       estimate: estimate?.amount.toString() ?? null,
-      tier: settledTier(api, !!estimate),
+      tier: settledTier(api, !!estimate, unknownConsumption),
       localCompute: local.length ? { amount: sum(local).toFixed(8), tier: settledTier(local, false) } : null,
       isDemo: entries.some((e) => e.isDemo),
       entries,
+      unknownConsumption,
     };
   }
 }
@@ -141,7 +195,8 @@ export class LedgerService {
 export const SETTLED = new Set(['FINAL', 'RECONCILIATION', 'VARIANCE']);
 
 /** Cost state of a set of settled entries: reconciliation outranks finalization, a variance outranks both. */
-export function settledTier(entries: { entryType: string; tier: string }[], hasEstimate: boolean): string {
+export function settledTier(entries: { entryType: string; tier: string }[], hasEstimate: boolean, unknownConsumption = false): string {
+  if (unknownConsumption) return 'FINAL_ESTIMATED';
   const finals = entries.filter((e) => e.entryType === 'FINAL');
   if (!finals.length) return hasEstimate ? 'PREFLIGHT_ESTIMATE' : 'FINALIZED';
   if (entries.some((e) => e.tier === 'VARIANCE')) return 'VARIANCE';

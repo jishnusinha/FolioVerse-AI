@@ -55,6 +55,27 @@ export class SourcesController {
   }
 
   @RequireRole('EDITOR')
+  @Put('uploads/:uploadId/parts/:partNumber')
+  uploadPart(
+    @Param('workspaceId') workspaceId: string,
+    @Param('uploadId') uploadId: string,
+    @Param('partNumber') partNumber: string,
+    @Req() req: Request,
+  ) {
+    return this.sources.receivePart(workspaceId, uploadId, parseInt(partNumber, 10), req);
+  }
+
+  @RequireRole('EDITOR')
+  @Post('uploads/:uploadId/assemble')
+  assemble(
+    @Param('workspaceId') workspaceId: string,
+    @Param('uploadId') uploadId: string,
+    @Body() dto: { totalParts: number },
+  ) {
+    return this.sources.assemble(workspaceId, uploadId, dto.totalParts);
+  }
+
+  @RequireRole('EDITOR')
   @Post('uploads/:uploadId/complete')
   complete(@Param('workspaceId') workspaceId: string, @Param('uploadId') uploadId: string, @CurrentUser() u: AuthUser, @Body() dto: CompleteUploadDto) {
     return this.sources.completeUpload(workspaceId, u.id, uploadId, dto.title);

@@ -288,13 +288,13 @@ async def test_zip_bomb_epub_fails_without_inflating(repo):
     bomb = _zip([("OEBPS/ch1.xhtml", b"\0" * (ZIP_RATIO_MIN_BYTES + 1024))])
     assert len(bomb) < 64 * 1024
     res, _, err = await _ingest(bomb, EPUB)
-    assert err is None and res["state"] == "FAILED"
+    assert err is None and res["state"] in ("FAILED", "QUARANTINED")
 
 
 async def test_archive_with_too_many_entries_fails(repo):
     many = _zip([(f"e{i}", b"") for i in range(MAX_ZIP_ENTRIES + 1)], method=zipfile.ZIP_STORED)
     res, _, err = await _ingest(many, DOCX)
-    assert err is None and res["state"] == "FAILED"
+    assert err is None and res["state"] in ("FAILED", "QUARANTINED")
 
 
 @pytest.mark.parametrize(
@@ -309,8 +309,8 @@ async def test_archive_with_too_many_entries_fails(repo):
 async def test_malformed_files_fail_permanently_without_raising(repo, data, mime):
     res, history, err = await _ingest(data, mime)
     assert err is None, repr(err)
-    assert res["state"] == "FAILED"
-    assert of_type(history, "ingestion.finished")[-1]["data"]["state"] == "FAILED"
+    assert res["state"] in ("FAILED", "QUARANTINED")
+    assert of_type(history, "ingestion.finished")[-1]["data"]["state"] in ("FAILED", "QUARANTINED")
 
 
 async def test_vector_store_outage_raises_for_a_retry(repo, monkeypatch):

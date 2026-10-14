@@ -205,7 +205,7 @@ jobs:
           path: sbom-${{ matrix.image }}.spdx.json
           retention-days: 30
       - name: Vulnerabilities (HIGH and CRITICAL, report)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
         with:
           image-ref: folioverse/${{ matrix.image }}:ci
           severity: HIGH,CRITICAL
@@ -213,7 +213,7 @@ jobs:
           format: table
           exit-code: "0"
       - name: Vulnerabilities (CRITICAL with a fix, gate)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
         env:
           TRIVY_SKIP_DB_UPDATE: "true"
         with:
@@ -261,7 +261,7 @@ jobs:
           tflint --init --config "$PWD/.tflint.hcl"
           tflint --recursive --config "$PWD/.tflint.hcl"
       - name: Misconfiguration scan (Terraform, Dockerfiles)
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
         with:
           scan-type: config
           scan-ref: infrastructure

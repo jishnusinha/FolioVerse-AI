@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Decimal } from 'decimal.js';
 import { env } from '../../config/env';
 import { AuthUser } from '../../common/auth.decorators';
@@ -13,6 +13,59 @@ import { LedgerService } from '../ledger/ledger.service';
 import { estimateTokens, priceUsage } from '../ledger/pricing';
 import { actionFor, ARTIFACT_GRAPHS } from '../insights/insight-actions';
 import { ModelsService } from '../models/models.service';
+
+/** Validates graph option overrides against explicit bounds and admitted model plan limits. */
+export function validateGraphOptions(options?: Record<string, unknown>, planMaxOutputTokens?: number) {
+  if (!options) return;
+
+  if (options.outputTokens !== undefined || options.maxOutputTokens !== undefined) {
+    const val = Number(options.outputTokens ?? options.maxOutputTokens);
+    if (!Number.isInteger(val) || val < 1) {
+      throw new BadRequestException({ message: 'outputTokens must be a positive integer', code: 'INVALID_OUTPUT_TOKENS' });
+    }
+    if (planMaxOutputTokens && val > planMaxOutputTokens) {
+      throw new BadRequestException({
+        message: `outputTokens (${val}) cannot exceed the admitted model plan limit (${planMaxOutputTokens})`,
+        code: 'OUTPUT_TOKENS_EXCEEDED',
+      });
+    }
+  }
+
+  if (options.topK !== undefined) {
+    const val = Number(options.topK);
+    if (!Number.isInteger(val) || val < 1 || val > 50) {
+      throw new BadRequestException({ message: 'topK must be an integer between 1 and 50', code: 'INVALID_TOP_K' });
+    }
+  }
+
+  if (options.maxToolCalls !== undefined) {
+    const val = Number(options.maxToolCalls);
+    if (!Number.isInteger(val) || val < 0 || val > 20) {
+      throw new BadRequestException({ message: 'maxToolCalls must be an integer between 0 and 20', code: 'INVALID_MAX_TOOL_CALLS' });
+    }
+  }
+
+  if (options.contextBudget !== undefined || options.maxContextTokens !== undefined) {
+    const val = Number(options.contextBudget ?? options.maxContextTokens);
+    if (!Number.isInteger(val) || val < 100 || val > 128000) {
+      throw new BadRequestException({ message: 'contextBudget must be an integer between 100 and 128000', code: 'INVALID_CONTEXT_BUDGET' });
+    }
+  }
+
+  if (options.temperature !== undefined) {
+    const val = Number(options.temperature);
+    if (isNaN(val) || val < 0.0 || val > 2.0) {
+      throw new BadRequestException({ message: 'temperature must be a number between 0.0 and 2.0', code: 'INVALID_TEMPERATURE' });
+    }
+  }
+
+  if (options.maxSteps !== undefined) {
+    const val = Number(options.maxSteps);
+    if (!Number.isInteger(val) || val < 1 || val > 50) {
+      throw new BadRequestException({ message: 'maxSteps must be an integer between 1 and 50', code: 'INVALID_MAX_STEPS' });
+    }
+  }
+}
 
 export const GRAPH_TIERS: Record<string, 'T0' | 'T1' | 'T2'> = {
   grounded_qa: 'T1',
@@ -170,6 +223,7 @@ export class RunsService {
       RETRIEVAL_GRAPHS.has(spec.graph) ? this.resolveScope(workspaceId, spec.scope) : Promise.resolve([]),
       this.models.resolvePlan(spec.modelPreference, spec.fallbackModels?.length ? { fallbackIds: spec.fallbackModels } : {}),
     ]);
+    validateGraphOptions(spec.options, plan.maxOutputTokens);
     if (RETRIEVAL_GRAPHS.has(spec.graph)) {
       if (!svids.length) throw new BadRequestException({ message: 'No ready sources in scope. Wait for ingestion to finish or pick other sources.', code: 'EMPTY_SCOPE' });
       if (action && action.minSources > 1) {
@@ -310,8 +364,11 @@ export class RunsService {
     const run = await this.getRun(workspaceId, runId);
     if (TERMINAL.has(run.status)) return { status: run.status };
     await this.redis.client.set(CANCEL_KEY(runId), '1', 'EX', 3600);
-    if (run.status === 'QUEUED') {
-      const updated = await this.prisma.aiRun.updateMany({ where: { id: runId, status: 'QUEUED' }, data: { status: 'CANCELLED', finishedAt: new Date() } });
+    if (run.status === 'QUEUED' || run.status === 'AWAITING_INPUT') {
+      const updated = await this.prisma.aiRun.updateMany({
+        where: { id: runId, status: { in: ['QUEUED', 'AWAITING_INPUT'] } },
+        data: { status: 'CANCELLED', finishedAt: new Date() },
+      });
       if (updated.count) {
         await this.budgets.releaseRun(runId);
         if (run.messageId) await this.prisma.message.update({ where: { id: run.messageId }, data: { status: 'FAILED', content: '' } });
@@ -320,6 +377,79 @@ export class RunsService {
       }
     }
     return { status: 'CANCELLING' };
+  }
+
+  /**
+   * Approves or resumes a paused run awaiting human input under an explicit policy:
+   * - Authorized: run initiator or workspace owner/admin
+   * - Idempotent: returns current state if already resumed
+   * - Fresh budget check: verifies headroom before resuming
+   */
+  async approveOrResume(
+    workspaceId: string,
+    runId: string,
+    user: Pick<AuthUser, 'id'>,
+    dto?: { inputOverride?: Record<string, unknown>; options?: Record<string, unknown> },
+  ) {
+    const run = await this.getRun(workspaceId, runId);
+    if (run.status !== 'AWAITING_INPUT') {
+      return { status: run.status, runId: run.id, idempotent: true };
+    }
+
+    if (run.userId && run.userId !== user.id) {
+      const member = await this.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId, userId: user.id } },
+      });
+      if (!member || !['OWNER', 'ADMIN'].includes(member.role)) {
+        throw new ForbiddenException('Only the run initiator or a workspace admin can approve this run');
+      }
+    }
+
+    // Fresh budget check before resuming
+    const currentBudget = await this.budgets.currentPeriod(workspaceId);
+    if (currentBudget?.policy.hard) {
+      const remaining = new Decimal(currentBudget.period.limitAmount.toString())
+        .minus(currentBudget.period.spentFinal.toString())
+        .minus(currentBudget.period.reservedOpen.toString());
+      if (remaining.lt(0)) {
+        await this.budgets.releaseRun(runId);
+        await this.prisma.aiRun.update({
+          where: { id: runId },
+          data: {
+            status: 'BUDGET_REJECTED',
+            finishedAt: new Date(),
+            error: { code: 'BUDGET', message: 'Budget limit reached while awaiting input' },
+          },
+        });
+        await this.events.publishRun(
+          runId,
+          this.events.envelope('run.state', { status: 'BUDGET_REJECTED' }, { runId, seq: run.lastSeq + 1 }),
+        );
+        return { status: 'BUDGET_REJECTED', runId: run.id, reason: 'Budget limit reached while awaiting input' };
+      }
+    }
+
+    const updatedInput = dto?.inputOverride ? { ...(run.input as any), ...dto.inputOverride } : run.input;
+    const updatedOptions = dto?.options ? { ...(run.options as any), ...dto.options } : run.options;
+
+    if (dto?.options) {
+      validateGraphOptions(dto.options, (run.modelPlan as any)?.maxOutputTokens);
+    }
+
+    await this.prisma.aiRun.update({
+      where: { id: runId },
+      data: {
+        status: 'QUEUED',
+        input: updatedInput as any,
+        options: updatedOptions as any,
+        heartbeatAt: new Date(),
+      },
+    });
+
+    await this.events.publishRun(runId, this.events.envelope('run.state', { status: 'QUEUED' }, { runId, seq: run.lastSeq + 1 }));
+    await this.queues.queue(QUEUES.runs).add('run', { runId }, { jobId: `${runId}-resume-${Date.now()}`, attempts: 1 });
+
+    return { status: 'QUEUED', runId: run.id, resumed: true };
   }
 
   async receipt(workspaceId: string, runId: string) {

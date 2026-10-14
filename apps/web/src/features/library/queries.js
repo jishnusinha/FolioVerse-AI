@@ -114,6 +114,7 @@ export const libraryApi = {
   explain: (wid, id, body) => api(`${lib(wid)}/items/${id}/explain`, { method: 'POST', body }),
   excerpt: (wid, id, body) => api(`${lib(wid)}/items/${id}/excerpts`, { method: 'POST', body }),
   createCollection: (wid, body) => api(`${lib(wid)}/collections`, { method: 'POST', body }),
+  updateCollection: (wid, cid, body) => api(`${lib(wid)}/collections/${cid}`, { method: 'PATCH', body }),
   removeCollection: (wid, cid) => api(`${lib(wid)}/collections/${cid}`, { method: 'DELETE' }),
   addToCollection: (wid, cid, itemId) => api(`${lib(wid)}/collections/${cid}/items`, { method: 'POST', body: { itemId } }),
   removeFromCollection: (wid, cid, itemId) => api(`${lib(wid)}/collections/${cid}/items/${itemId}`, { method: 'DELETE' }),

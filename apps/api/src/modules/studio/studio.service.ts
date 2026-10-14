@@ -275,7 +275,7 @@ export class StudioService {
         isDemo: plan.isDemo,
       },
     });
-    await this.queues.queue(QUEUES.maintenance).add('rag-eval', { evaluationId: row.id }, { attempts: 1, jobId: `rag-eval-${row.id}` });
+    await this.queues.queue(QUEUES.evaluations).add('rag-eval', { evaluationId: row.id }, { attempts: 1, jobId: `rag-eval-${row.id}` });
     return this.view(row);
   }
 

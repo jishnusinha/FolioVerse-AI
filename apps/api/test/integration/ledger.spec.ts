@@ -54,4 +54,131 @@ describe('ledger', () => {
     const period = await prisma.budgetPeriod.findUniqueOrThrow({ where: { id: cur!.period.id } });
     expect(period.reservedOpen.toString()).toBe('5');
   });
+
+  it('enforces append-only cost entries at the database boundary', async () => {
+    const { workspaceId, userId } = await registered(app);
+    const costId = newId();
+    await prisma.costEntry.create({
+      data: {
+        id: costId,
+        workspaceId,
+        userId,
+        entryType: 'FINAL',
+        tier: 'FINALIZED',
+        costClass: 'AI_API',
+        amount: '1.25000000',
+        feature: 'grounded_qa',
+        isDemo: true,
+      },
+    });
+
+    // Attempting to UPDATE a cost entry must be rejected by PostgreSQL trigger
+    await expect(
+      prisma.costEntry.update({
+        where: { id: costId },
+        data: { amount: '0.00000000' },
+      }),
+    ).rejects.toThrow(/append-only/i);
+
+    // Attempting to DELETE a cost entry must be rejected by PostgreSQL trigger
+    await expect(
+      prisma.costEntry.delete({
+        where: { id: costId },
+      }),
+    ).rejects.toThrow(/append-only/i);
+
+    // Cost entry remains unaltered
+    const entry = await prisma.costEntry.findUniqueOrThrow({ where: { id: costId } });
+    expect(entry.amount.toString()).toBe('1.25');
+  });
+
+  it('repairs missing budget spend on retry if a crash occurred before spend update', async () => {
+    const { workspaceId, userId } = await registered(app);
+    const budgets = app.get(BudgetService);
+    const cur = await budgets.currentPeriod(workspaceId);
+    const beforePeriod = await prisma.budgetPeriod.findUniqueOrThrow({ where: { id: cur!.period.id } });
+    const beforeSpend = new Decimal(beforePeriod.spentFinal.toString());
+
+    const usageEventId = newId();
+    await prisma.usageEvent.create({
+      data: {
+        id: usageEventId,
+        workspaceId,
+        userId,
+        modelCallId: newId(),
+        modelConfigId: 'mock-grounded',
+        provider: 'mock',
+        model: 'folioverse-mock-1',
+        inputTokens: 1000,
+        outputTokens: 500,
+        costClass: 'AI_API',
+        isDemo: true,
+        processedAt: null, // Simulate crash: cost entry was created, but usageEvent was not marked processedAt and spend wasn't incremented
+      },
+    });
+
+    // Simulate partial write from previous crash
+    await prisma.costEntry.create({
+      data: {
+        id: newId(),
+        workspaceId,
+        userId,
+        usageEventId,
+        entryType: 'FINAL',
+        tier: 'FINALIZED',
+        costClass: 'AI_API',
+        amount: '0.00125000',
+        isDemo: true,
+      },
+    });
+
+    // Process retry
+    const ledger = app.get(LedgerService);
+    const res = await ledger.processUsageEvent(usageEventId);
+    expect(res).toBe('created');
+
+    // Verify budget spend was properly repaired
+    const afterPeriod = await prisma.budgetPeriod.findUniqueOrThrow({ where: { id: cur!.period.id } });
+    const afterSpend = new Decimal(afterPeriod.spentFinal.toString());
+    expect(afterSpend.minus(beforeSpend).toString()).toBe('0.00125');
+
+    // And now retry is a duplicate
+    expect(await ledger.processUsageEvent(usageEventId)).toBe('duplicate');
+  });
+
+  it('honestly represents unavailable provider usage when calls fail or interrupt', async () => {
+    const { workspaceId, userId } = await registered(app);
+    const runId = newId();
+    await prisma.aiRun.create({
+      data: {
+        id: runId,
+        workspaceId,
+        userId,
+        graph: 'grounded_qa',
+        tier: 'T1',
+        status: 'INTERRUPTED',
+        input: { question: 'test' },
+        modelPlan: {},
+      },
+    });
+
+    // Model call was attempted but timed out / failed with unknown consumption
+    await prisma.modelCall.create({
+      data: {
+        id: newId(),
+        workspaceId,
+        runId,
+        modelConfigId: 'mock-grounded',
+        provider: 'mock',
+        model: 'folioverse-mock-1',
+        status: 'ERROR',
+        errorClass: 'TIMEOUT',
+      },
+    });
+
+    const ledger = app.get(LedgerService);
+    const totals = await ledger.runTotals(runId);
+    expect(totals.unknownConsumption).toBe(true);
+    expect(totals.tier).toBe('FINAL_ESTIMATED');
+  });
 });

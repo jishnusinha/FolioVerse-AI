@@ -33,6 +33,8 @@ const MATRIX: Record<string, Role> = {
 
   'POST /workspaces/:workspaceId/uploads': 'EDITOR',
   'PUT /workspaces/:workspaceId/uploads/:uploadId/content': 'EDITOR',
+  'PUT /workspaces/:workspaceId/uploads/:uploadId/parts/:partNumber': 'EDITOR',
+  'POST /workspaces/:workspaceId/uploads/:uploadId/assemble': 'EDITOR',
   'POST /workspaces/:workspaceId/uploads/:uploadId/complete': 'EDITOR',
   'GET /workspaces/:workspaceId/projects/:projectId/sources': 'VIEWER',
   'GET /workspaces/:workspaceId/sources/:sourceId': 'VIEWER',
@@ -50,6 +52,8 @@ const MATRIX: Record<string, Role> = {
   'GET /workspaces/:workspaceId/runs': 'VIEWER',
   'GET /workspaces/:workspaceId/runs/:runId': 'VIEWER',
   'POST /workspaces/:workspaceId/runs/:runId/cancel': 'EDITOR',
+  'POST /workspaces/:workspaceId/runs/:runId/approve': 'EDITOR',
+  'POST /workspaces/:workspaceId/runs/:runId/resume': 'EDITOR',
   'GET /workspaces/:workspaceId/runs/:runId/receipt': 'VIEWER',
   'GET /workspaces/:workspaceId/runs/:runId/trace': 'VIEWER',
   'GET /workspaces/:workspaceId/runs/:runId/checkpoints': 'VIEWER',

@@ -29,3 +29,19 @@ async def test_answers_when_the_guard_leaves_room(repo):
     assert term["data"]["status"] == "SUCCEEDED"
     assert term["data"]["outcome"] == "ANSWERED"
     assert len(of_type(events, "usage.recorded")) == 1
+
+
+async def test_central_budget_guard_stops_passage_explain_before_model_call(repo):
+    svid = await ingest(MARKET, WS, "Market Outlook")
+    plan = {**MOCK_PLAN, "budgetGuard": {"maxCost": "0.00000100", "prices": PRICES}}
+    term, events, _ = await run(
+        "passage_explain",
+        WS,
+        [svid],
+        {"params": {"page": 1, "mode": "explain", "passage": "Market Outlook"}},
+        plan=plan,
+    )
+    assert term["data"]["status"] == "BUDGET_REJECTED", term
+    assert term["data"]["outcome"] == "ABSTAINED"
+    assert "Nothing was charged" in term["data"]["answer"]
+    assert not of_type(events, "usage.recorded")

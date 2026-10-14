@@ -96,6 +96,7 @@ export function DesignGalleryPage() {
   const lensBtn = useRef(null);
 
   const openLens = (kind) => {
+    if (!lensBtn.current) return;
     const r = lensBtn.current.getBoundingClientRect();
     setLensResult(null);
     setLens({ kind, anchor: { left: r.left, top: r.top, bottom: r.bottom, width: r.width } });

@@ -30,6 +30,8 @@ async function open(page, hash) {
   return errors;
 }
 
+const UPDATE_REFERENCES = Boolean(process.env.UPDATE_REFERENCES || process.env.RECORD_REFERENCES);
+
 test.describe('design prototype', () => {
   for (const [view, hash] of PROTOTYPE_VIEWS) {
     test(`renders ${view} without script errors`, async ({ page }) => {
@@ -37,8 +39,10 @@ test.describe('design prototype', () => {
       const errors = await open(page, hash);
       await expect(page.locator('#main h1, #main h2').first()).toBeVisible();
       expect(errors).toEqual([]);
-      await page.waitForTimeout(150);
-      await page.screenshot({ path: `${REFERENCE_DIR}view-${view}-1440.png` });
+      if (UPDATE_REFERENCES) {
+        await page.waitForTimeout(150);
+        await page.screenshot({ path: `${REFERENCE_DIR}view-${view}-1440.png` });
+      }
     });
   }
 
@@ -46,8 +50,10 @@ test.describe('design prototype', () => {
     test(`records home reference at ${vp.name}`, async ({ page }) => {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       expect(await open(page, '/app')).toEqual([]);
-      await page.waitForTimeout(150);
-      await page.screenshot({ path: `${REFERENCE_DIR}home-${vp.name}.png` });
+      if (UPDATE_REFERENCES) {
+        await page.waitForTimeout(150);
+        await page.screenshot({ path: `${REFERENCE_DIR}home-${vp.name}.png` });
+      }
     });
   }
 

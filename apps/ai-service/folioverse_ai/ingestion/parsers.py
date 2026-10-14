@@ -7,9 +7,12 @@ marked PARTIAL. EPUB chapters are pages, and chunks never span two chapters (spo
 """
 
 import io
+import logging
 import re
 import zipfile
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 SYNTHETIC_PAGE_CHARS = 3000
 
@@ -204,6 +207,24 @@ def parse_pdf(data: bytes) -> ParsedDocument:
                     )
                 )
             pages.append(Page(i, page_text, float(page.width), float(page.height)))
+    # Bounded OCR fallback: if no text elements were extracted across pages,
+    # attempt OCR on up to 10 pages for scanned documents to avoid silent failure.
+    if not elements and pdf.pages:
+        for i, page in enumerate(pdf.pages[:10], start=1):
+            try:
+                import pytesseract  # type: ignore
+
+                img = page.to_image(resolution=150).original
+                txt = pytesseract.image_to_string(img).strip()
+                if txt:
+                    w, h = float(page.width), float(page.height)
+                    el = Element(i, txt, 0, len(txt), "paragraph", [0.0, 0.0, round(w, 2), round(h, 2)])
+                    elements.append(el)
+                    if i - 1 < len(pages):
+                        pages[i - 1].text = txt
+            except Exception as e:
+                logger.debug("OCR fallback failed on page %d: %s", i, e)
+
     # Heading paths from large-font blocks.
     path: list[str] = []
     for el in elements:

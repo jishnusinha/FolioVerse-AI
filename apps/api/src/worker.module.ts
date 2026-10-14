@@ -60,9 +60,13 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     make(QUEUES.maintenance, 1, async (job) => {
       if (job.name === 'reap') return this.runs.reap();
       if (job.name === 'purge') return this.purge.purgeExpired();
+      if (job.name === 'cost-rollup') return this.rollups.rollup(2);
+      const handler = WORKER_FEATURE_HANDLERS[job.name];
+      if (handler) return handler(job);
+    });
+    make(QUEUES.evaluations, 2, async (job) => {
       if (job.name === 'rec-eval') return this.discovery.runEvaluation(job.data.reportId);
       if (job.name === 'rag-eval') return this.studio.runEvaluation(job.data.evaluationId);
-      if (job.name === 'cost-rollup') return this.rollups.rollup(2);
       const handler = WORKER_FEATURE_HANDLERS[job.name];
       if (handler) return handler(job);
     });
@@ -72,7 +76,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     await this.queues.queue(QUEUES.maintenance).add('purge', {}, { repeat: { pattern: '17 3 * * *' }, jobId: 'purge' });
     await this.queues.queue(QUEUES.ledger).add('sweep', {}, { repeat: { every: 30_000 }, jobId: 'sweep' });
     observeGauge('fv.queue.depth', 'Waiting, active and delayed jobs per queue', () => this.queues.depth(), 'queue');
-    this.log.log('workers started: ingestion, ai-runs, ledger, maintenance');
+    this.log.log('workers started: ingestion, ai-runs, ledger, maintenance, evaluations');
   }
 
   async onModuleDestroy() {

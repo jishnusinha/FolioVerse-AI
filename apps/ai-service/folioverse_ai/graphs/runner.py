@@ -8,7 +8,7 @@ from ..auth import verify_scope
 from ..providers import ProviderError
 from .checkpoints import copy_checkpoint, get_checkpointer
 from .registry import GRAPHS
-from .runtime import RUN_CONTEXTS, RetrievalUnavailable, RunContext
+from .runtime import RUN_CONTEXTS, BudgetStopError, RetrievalUnavailable, RunContext
 
 RETRYABLE_PROVIDER = {"TIMEOUT", "RATE_LIMIT", "UNAVAILABLE", "PROVIDER"}
 log = structlog.get_logger("runner")
@@ -92,6 +92,16 @@ async def run_unit(req: dict, emitter) -> None:
         else:
             final = await graph.ainvoke(start_input, config)
         await emitter.emit("run.finished", spec.result(final or {}))
+    except BudgetStopError as e:
+        text = (
+            f"Stopped before calling the model: this call could cost up to "
+            f"${e.estimate}, more than the ${e.max_cost} the workspace's hard budget allows. "
+            "Nothing was charged."
+        )
+        await emitter.emit(
+            "run.finished",
+            {"answer": text, "citations": [], "outcome": "ABSTAINED", "status": "BUDGET_REJECTED"},
+        )
     except RetrievalUnavailable as e:
         await emitter.emit(
             "run.failed", {"errorClass": "RETRIEVAL_UNAVAILABLE", "message": str(e), "retryable": True}

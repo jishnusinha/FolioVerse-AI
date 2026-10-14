@@ -344,4 +344,74 @@ describe('multi-scope budgets', () => {
     const again = await ask(u, 'What is the base-case growth?');
     expect(again.body).toMatchObject({ status: 'BUDGET_REJECTED', budget: { scope: 'USER' } });
   });
+
+  it('rejects graph options exceeding explicit bounds or admitted model plan', async () => {
+    const u = await readyWorkspace('optionsbounds');
+
+    // topK out of bounds
+    const resTopK = await u.c.post(`/api/workspaces/${u.workspaceId}/runs`, {
+      graph: 'grounded_qa',
+      input: { question: 'test' },
+      scope: { sourceIds: [u.sourceId] },
+      options: { topK: 100 },
+    });
+    expect(resTopK.status).toBe(400);
+    expect(resTopK.body.code).toBe('INVALID_TOP_K');
+
+    // maxToolCalls out of bounds
+    const resTools = await u.c.post(`/api/workspaces/${u.workspaceId}/runs`, {
+      graph: 'grounded_qa',
+      input: { question: 'test' },
+      scope: { sourceIds: [u.sourceId] },
+      options: { maxToolCalls: 50 },
+    });
+    expect(resTools.status).toBe(400);
+    expect(resTools.body.code).toBe('INVALID_MAX_TOOL_CALLS');
+
+    // outputTokens exceeding model plan limit (plan limit is 4096 or 800)
+    const resOutput = await u.c.post(`/api/workspaces/${u.workspaceId}/runs`, {
+      graph: 'grounded_qa',
+      input: { question: 'test' },
+      scope: { sourceIds: [u.sourceId] },
+      options: { outputTokens: 999999 },
+    });
+    expect(resOutput.status).toBe(400);
+    expect(resOutput.body.code).toBe('OUTPUT_TOKENS_EXCEEDED');
+  });
+
+  it('approves and resumes an AWAITING_INPUT run idempotently with fresh budget verification', async () => {
+    const u = await readyWorkspace('awaitinginput');
+    const created = await ask(u, 'Test approval flow');
+    expect(created.body.status).toBe('QUEUED');
+    const runId = created.body.runId;
+
+    // Simulate run entering AWAITING_INPUT
+    await prisma.aiRun.update({
+      where: { id: runId },
+      data: { status: 'AWAITING_INPUT' },
+    });
+
+    // Resume / approve
+    const resumeRes = await u.c.post(`/api/workspaces/${u.workspaceId}/runs/${runId}/resume`, {});
+    expect(resumeRes.status).toBe(201);
+    expect(resumeRes.body.status).toBe('QUEUED');
+    expect(resumeRes.body.resumed).toBe(true);
+
+    // Idempotent resume when already QUEUED
+    const idempotentRes = await u.c.post(`/api/workspaces/${u.workspaceId}/runs/${runId}/resume`, {});
+    expect(idempotentRes.body.idempotent).toBe(true);
+    expect(idempotentRes.body.status).toBe('QUEUED');
+
+    // If budget becomes exhausted while waiting, resume rejects with BUDGET_REJECTED
+    await prisma.aiRun.update({
+      where: { id: runId },
+      data: { status: 'AWAITING_INPUT' },
+    });
+    const cur = await app.get(BudgetService).currentPeriod(u.workspaceId);
+    await prisma.budgetPolicy.update({ where: { id: cur!.policy.id }, data: { hard: true } });
+    await prisma.budgetPeriod.update({ where: { id: cur!.period.id }, data: { limitAmount: '0.00000001' } });
+
+    const rejectedRes = await u.c.post(`/api/workspaces/${u.workspaceId}/runs/${runId}/resume`, {});
+    expect(rejectedRes.body.status).toBe('BUDGET_REJECTED');
+  });
 });

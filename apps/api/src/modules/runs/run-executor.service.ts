@@ -290,11 +290,24 @@ export class RunExecutorService {
       recordOutcome(status);
       await emit('run.failed', failed);
     }
-    await this.queues.queue(QUEUES.ledger).add('settle', { runId: run.id }, { jobId: `settle-${run.id}`, delay: 1500 });
+    try {
+      await this.queues.queue(QUEUES.ledger).add('settle', { runId: run.id }, { jobId: `settle-${run.id}`, delay: 1500 });
+    } catch (e) {
+      this.log.error(`Failed to enqueue settle for ${run.id}: ${(e as Error).message}`);
+      await this.budgets.releaseRun(run.id).catch(() => undefined);
+    }
   }
 
-  /** Marks runs whose worker stopped heartbeating as INTERRUPTED and frees their reservations. */
+  /**
+   * Recovers runs across all non-terminal intermediate states:
+   * 1. RUNNING / STREAMING runs with stale heartbeat -> INTERRUPTED + release reservation
+   * 2. Stale QUEUED runs (gap recovery between admission and BullMQ) -> re-enqueue if recent (< 5m), or cancel/release if stranded (> 5m)
+   * 3. Stale AWAITING_INPUT runs exceeding expiry TTL (24h) -> CANCELLED + release reservation
+   */
   async reap(staleMs = 45_000) {
+    let reapedCount = 0;
+
+    // 1. Stale RUNNING / STREAMING runs
     const stale = await this.prisma.aiRun.findMany({
       where: { status: { in: ['RUNNING', 'STREAMING'] }, heartbeatAt: { lt: new Date(Date.now() - staleMs) } },
       take: 100,
@@ -310,7 +323,57 @@ export class RunExecutorService {
       await this.events.publishRun(r.id, this.events.envelope('run.state', { status: 'INTERRUPTED', reason: 'heartbeat timeout' }, { runId: r.id, seq: r.lastSeq + 1 }));
       await this.budgets.releaseRun(r.id);
       this.log.warn(`run ${r.id} interrupted (stale heartbeat)`);
+      reapedCount++;
     }
-    return stale.length;
+
+    // 2. Stale QUEUED runs (gap recovery between database persistence and queue job)
+    const staleQueued = await this.prisma.aiRun.findMany({
+      where: { status: 'QUEUED', createdAt: { lt: new Date(Date.now() - 15_000) } },
+      take: 50,
+    });
+    for (const r of staleQueued) {
+      const ageMs = Date.now() - r.createdAt.getTime();
+      if (ageMs > 300_000) {
+        const n = await this.prisma.aiRun.updateMany({
+          where: { id: r.id, status: 'QUEUED' },
+          data: { status: 'INTERRUPTED', finishedAt: new Date(), error: { errorClass: 'INTERNAL', message: 'Run admission timed out in queue', retryable: true } },
+        });
+        if (n.count) {
+          await this.budgets.releaseRun(r.id);
+          this.log.warn(`run ${r.id} interrupted (stale queued for ${Math.round(ageMs / 1000)}s)`);
+          reapedCount++;
+        }
+      } else {
+        try {
+          const job = await this.queues.queue(QUEUES.runs).getJob(r.id);
+          if (!job) {
+            await this.queues.queue(QUEUES.runs).add('run', { runId: r.id }, { jobId: r.id, attempts: 1 });
+            this.log.log(`re-enqueued missing job for queued run ${r.id}`);
+          }
+        } catch (e) {
+          this.log.warn(`failed to check/re-enqueue run ${r.id}: ${(e as Error).message}`);
+        }
+      }
+    }
+
+    // 3. Expired AWAITING_INPUT runs (held longer than 24h)
+    const expiredApproval = await this.prisma.aiRun.findMany({
+      where: { status: 'AWAITING_INPUT', createdAt: { lt: new Date(Date.now() - 86_400_000) } },
+      take: 50,
+    });
+    for (const r of expiredApproval) {
+      const n = await this.prisma.aiRun.updateMany({
+        where: { id: r.id, status: 'AWAITING_INPUT' },
+        data: { status: 'CANCELLED', finishedAt: new Date(), error: { errorClass: 'EXPIRED', message: 'Awaiting input expired after 24 hours', retryable: false } },
+      });
+      if (n.count) {
+        await this.budgets.releaseRun(r.id);
+        await this.events.publishRun(r.id, this.events.envelope('run.finished', { status: 'CANCELLED', outcome: 'PARTIAL' }, { runId: r.id, seq: r.lastSeq + 1 }));
+        this.log.warn(`run ${r.id} cancelled (awaiting input expired)`);
+        reapedCount++;
+      }
+    }
+
+    return reapedCount;
   }
 }

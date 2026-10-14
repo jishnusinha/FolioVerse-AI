@@ -23,7 +23,7 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    chunkSizeWarningLimit: 1000,
+    chunkSizeWarningLimit: 500,
     rollupOptions: {
       output: {
         manualChunks(id) {
@@ -32,6 +32,8 @@ export default defineConfig({
           if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) return 'vendor-tiptap';
           if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'vendor-motion';
           if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
+          if (id.includes('node_modules/@radix-ui')) return 'vendor-radix';
+          if (id.includes('node_modules/@tanstack')) return 'vendor-query';
         },
       },
     },

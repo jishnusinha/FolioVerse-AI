@@ -148,6 +148,8 @@ export function ReaderPage() {
   const [run, setRun] = useState(null);
   const [noteDraft, setNoteDraft] = useState(null);
   const [focusId, setFocusId] = useState(null);
+  const [editingAnnotationId, setEditingAnnotationId] = useState(null);
+  const [editNoteText, setEditNoteText] = useState('');
   const save = useRef({ timer: null, last: Date.now(), pending: null });
 
   useEffect(() => localStorage.setItem(PREFS_KEY, JSON.stringify(prefs)), [prefs]);
@@ -434,7 +436,64 @@ export function ReaderPage() {
                       <button type="button" className="linkish" style={{ textAlign: 'left' }} onClick={() => goTo(a.locator)}>
                         “{a.quote.length > 140 ? `${a.quote.slice(0, 139)}…` : a.quote}”
                       </button>
-                      {a.note && <p style={{ fontSize: 13, marginTop: 4 }}>✎ {a.note}</p>}
+                      {editingAnnotationId === a.id ? (
+                        <form
+                          className="stack"
+                          style={{ gap: 6, marginTop: 6 }}
+                          onSubmit={async (e) => {
+                            e.preventDefault();
+                            const text = editNoteText.trim();
+                            annotations.setLocal((prev) => prev.map((x) => (x.id === a.id ? { ...x, note: text } : x)));
+                            setEditingAnnotationId(null);
+                            try {
+                              await libraryApi.updateAnnotation(wid, itemId, a.id, { note: text });
+                              annotations.sync();
+                              toast('Note updated', 'ok');
+                            } catch (err) {
+                              toast(err.message || 'Could not update note', 'bad');
+                            }
+                          }}
+                        >
+                          <Textarea
+                            aria-label="Edit note text"
+                            rows={2}
+                            value={editNoteText}
+                            onChange={(e) => setEditNoteText(e.target.value)}
+                            autoFocus
+                          />
+                          <div className="row" style={{ gap: 6 }}>
+                            <Button size="sm" variant="primary" type="submit">
+                              Save
+                            </Button>
+                            <Button size="sm" onClick={() => setEditingAnnotationId(null)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        </form>
+                      ) : a.note ? (
+                        <p
+                          style={{ fontSize: 13, marginTop: 4, cursor: 'pointer' }}
+                          title="Click to edit note"
+                          onClick={() => {
+                            setEditingAnnotationId(a.id);
+                            setEditNoteText(a.note || '');
+                          }}
+                        >
+                          ✎ {a.note}
+                        </p>
+                      ) : (
+                        <button
+                          type="button"
+                          className="linkish subtle"
+                          style={{ fontSize: 12, marginTop: 4, display: 'block', textAlign: 'left' }}
+                          onClick={() => {
+                            setEditingAnnotationId(a.id);
+                            setEditNoteText('');
+                          }}
+                        >
+                          + Add note
+                        </button>
+                      )}
                       <p className="subtle" style={{ fontSize: 12 }}>
                         {locatorLabel(chapters, a.locator)}
                       </p>
@@ -451,9 +510,22 @@ export function ReaderPage() {
                         ))}
                       </div>
                     </div>
-                    <button type="button" className="icon-btn" aria-label={`Delete ${a.kind === 'NOTE' ? 'note' : 'highlight'}`} onClick={() => removeAnnotation(a)}>
-                      <Icon name="trash" size={14} />
-                    </button>
+                    <div className="row" style={{ gap: 2 }}>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Edit ${a.kind === 'NOTE' ? 'note' : 'highlight'}`}
+                        onClick={() => {
+                          setEditingAnnotationId(a.id);
+                          setEditNoteText(a.note || '');
+                        }}
+                      >
+                        <Icon name="edit" size={14} />
+                      </button>
+                      <button type="button" className="icon-btn" aria-label={`Delete ${a.kind === 'NOTE' ? 'note' : 'highlight'}`} onClick={() => removeAnnotation(a)}>
+                        <Icon name="trash" size={14} />
+                      </button>
+                    </div>
                   </li>
                 ))}
               </ul>

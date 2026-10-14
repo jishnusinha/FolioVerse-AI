@@ -739,6 +739,42 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Context: The production web build emitted a 1,346 kB monolithic `index.js` chunk, exceeding Vite's 500 kB chunk warning threshold.
 - Decision: Configured `manualChunks` in `apps/web/vite.config.js` to split heavy client dependencies into dedicated vendor chunks (`vendor-xyflow`, `vendor-recharts`, `vendor-tiptap`, `motion`, `lucide-react`). The monolithic entry chunk was reduced from 1,346 kB to 938 kB, eliminating bundle warnings and improving browser caching.
 
+## D-130 Crash-safe ledger accounting, spend repair, and append-only trigger
+- Context: Race conditions or process crashes between cost entry creation and budget spend incrementing could cause dropped spend accumulation or orphan reservations.
+- Decision: Deployed migration adding PostgreSQL database trigger `trg_cost_entries_append_only` preventing `UPDATE` or `DELETE` on `app.cost_entries`. Made reservation and release atomic transactions (`reserve`, `releaseOne`, `releaseRun`). In `processUsageEvent`, atomically create cost entry, call `addSpend`, and mark `usageEvent.processedAt` in a single transaction; if a retry encounters a cost entry from a crashed run where `processedAt` was missing, it repairs the budget spend. Interrupted or unverified runs are honestly represented with `FINAL_ESTIMATED` and `unknownConsumption: true` rather than confident finalized zero cost.
+
+## D-131 Central cumulative execution allowance across all graphs and options bounds validation
+- Context: Models could exceed headroom in multi-step or multi-call workflows, and graph input options lacked validated bounds.
+- Decision: Implemented central cumulative allowance tracking in `RunContext` (`cumulative_cost`) and `call_model` in Python graph runtime (`BudgetStopError`). Validated all graph options in `validateGraphOptions` with explicit bounds (`topK`: 1..50, `maxToolCalls`: 0..20, `contextBudget`: 100..128000, `outputTokens`: 1..maxOutputTokens, `temperature`: 0.0..2.0, `maxSteps`: 1..50), rejecting invalid options with clear errors.
+
+## D-132 AWAITING_INPUT approval and resume policy
+- Context: Deferred tool or human approval paused runs without a structured resume/cancellation lifecycle.
+- Decision: Implemented `approveOrResume(workspaceId, runId, user, dto)` in `RunsService` with authorization enforcement (initiator or ADMIN/OWNER), idempotent status checks, fresh budget verification before resuming, and BullMQ job re-enqueuing. In `run-executor.service.ts` reaper, stale `AWAITING_INPUT` runs (>24h TTL) are automatically expired and reservations released.
+
+## D-133 Dedicated evaluation worker queue isolating long-running jobs
+- Context: Heavy RAG evaluation and RecSys holdout evaluation jobs in BullMQ shared the maintenance queue, stalling routine periodic reap and purge maintenance tasks.
+- Decision: Introduced dedicated `evaluations` queue (`QUEUES.evaluations`) with concurrency 2 in `worker.module.ts`. Routed `rec-eval` and `rag-eval` to this queue, leaving `maintenance` dedicated to sub-second reap, cost rollup, and purge tasks.
+
+## D-134 Citation validation per claim occurrence and 5-way evaluation metric distinction
+- Context: Valid citations at the start of a response could mask unsupported subsequent claim occurrences, and evaluation metrics conflated retrieval quality, citation resolution, and abstention.
+- Decision: Updated `folioverse_ai.citations` to emit `CitationOccurrence` and validate every occurrence individually; if any occurrence is WEAK or UNRESOLVED, the outcome is PARTIAL. In `06_rag_evaluation_harness.py`, report 5 separate, explicit metrics: `citation_resolution` (resolved markers/total), `claim_support` (valid occurrences/total), `answer_relevance` (heuristic judge mean), `retrieval_quality` (gold evidence retrieval rate), and `abstention_accuracy` (correct answers and abstentions/total).
+
+## D-135 Bounded OCR fallback and distinct QUARANTINED vs FAILED ingestion transitions
+- Context: Scanned PDFs with no embedded text streams failed ingestion silently, and malformed files were conflated with empty documents.
+- Decision: Added bounded OCR fallback in `parse_pdf` (up to 10 pages) using pytesseract when available to extract text from scanned documents. In `pipeline.py`, malformed archives and unparseable PDFs (throwing `ParseError` or `UnicodeDecodeError`) transition to `QUARANTINED`, whereas well-formed documents lacking extractable text transition to `FAILED`.
+
+## D-136 Frontend route-level code-splitting with React.lazy and manual vendor chunks
+- Context: Production web bundle had an oversized 949 kB monolithic `index.js` chunk.
+- Decision: Converted heavy feature pages in `router.jsx` to `React.lazy()` with `<Suspense>` skeleton fallbacks, and configured manual chunks for `@radix-ui` and `@tanstack/react-query`. Reduced main chunk size to 394 kB (58% reduction), fully complying with Vite's 500 kB chunk threshold without warnings.
+
+## D-137 Functional Settings views, reader note editing, and collection renaming
+- Context: Settings tabs (Profile, Workspace, Models, Privacy, Notifications) were placeholder stubs, reader notes lacked inline editing, and collections lacked renaming.
+- Decision: Completed functional implementations in `SettingsPage.jsx` for all 5 tabs; implemented inline note editing and addition in `ReaderPage.jsx`; added `onRenameCollection` in `LibraryPage.jsx` and `updateCollection` in `queries.js`.
+
+## D-138 Chunked multipart upload for large source files
+- Context: Uploading large source files as single HTTP payloads caused timeouts or network drops.
+- Decision: Implemented chunked multipart upload endpoints in `sources.controller.ts` (`PUT /uploads/:id/parts/:partNumber` and `POST /uploads/:id/assemble`) backed by `StorageService.putPart` and `assembleParts`. In `apps/web/src/api/client.js`, `uploadWithProgress` automatically slices files > 5 MB into 5 MB chunks, reports progress per chunk, and calls assemble on completion.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

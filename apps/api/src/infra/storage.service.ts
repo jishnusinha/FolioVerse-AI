@@ -102,6 +102,27 @@ export class StorageService {
   async delete(key: string) {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
+
+  async putPart(key: string, partNumber: number, body: Buffer, contentType: string) {
+    const partKey = `${key}.parts/${partNumber}`;
+    await this.put(partKey, body, contentType, body.length);
+  }
+
+  async assembleParts(key: string, totalParts: number, contentType: string): Promise<number> {
+    const buffers: Buffer[] = [];
+    const partKeys: string[] = [];
+    for (let i = 1; i <= totalParts; i++) {
+      const partKey = `${key}.parts/${i}`;
+      partKeys.push(partKey);
+      buffers.push(await this.getBuffer(partKey));
+    }
+    const full = Buffer.concat(buffers);
+    await this.put(key, full, contentType, full.length);
+    for (const pk of partKeys) {
+      await this.delete(pk).catch(() => {});
+    }
+    return full.length;
+  }
 }
 
 @Global()

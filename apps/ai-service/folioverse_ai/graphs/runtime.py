@@ -5,14 +5,17 @@ import json
 import re
 import time
 from dataclasses import dataclass, field
+from decimal import Decimal
 from typing import Any
 
 from ..auth import Scope
 from ..events import Emitter
 from ..ids import uuid7
+from ..pricing import price_usage
 from ..providers import PROVIDERS, ChatResult, ProviderError
 from ..repo import get_repo
 from ..telemetry import ATTR_GRAPH, ATTR_NODE, ATTR_RUN, ATTR_WORKSPACE, span
+from ..text import count_tokens
 
 # Run contexts hold non-serializable collaborators; LangGraph state stays JSON-serializable.
 RUN_CONTEXTS: dict[str, "RunContext"] = {}
@@ -20,6 +23,14 @@ RUN_CONTEXTS: dict[str, "RunContext"] = {}
 
 class RetrievalUnavailable(Exception):
     pass
+
+
+class BudgetStopError(Exception):
+    def __init__(self, estimate: str, max_cost: str, prompt_tokens: int = 0):
+        self.estimate = estimate
+        self.max_cost = max_cost
+        self.prompt_tokens = prompt_tokens
+        super().__init__(f"Budget limit reached: estimated ${estimate} exceeds maximum allowed ${max_cost}")
 
 
 @dataclass
@@ -34,6 +45,7 @@ class RunContext:
     history: list[dict] = field(default_factory=list)
     user_id: str | None = None
     step: int = 0
+    cumulative_cost: Decimal = field(default_factory=lambda: Decimal("0"))
 
     async def emit(self, type_: str, data: dict) -> None:
         await self.emitter.emit(type_, data)
@@ -144,6 +156,11 @@ async def record_usage(
             "feature": ctx.graph,
         }
     )
+    guard = ctx.plan.get("budgetGuard")
+    if guard and guard.get("prices"):
+        cost = price_usage(guard["prices"], usage, reported=reported).amount
+        ctx.cumulative_cost += cost
+
     await ctx.emit(
         "usage.recorded",
         {
@@ -173,7 +190,21 @@ async def call_model(
     max_tokens: int | None = None,
 ) -> ChatResult:
     """Calls the plan's primary model, falling back only to the plan's fallbacks and only before
-    any token has been streamed. Every attempt (including failures) is metered."""
+    any token has been streamed. Every attempt (including failures) is metered.
+    Enforces a central, cumulative execution allowance stopping before provider calls if exceeded."""
+    guard = ctx.plan.get("budgetGuard")
+    if guard and guard.get("prices") and guard.get("maxCost") is not None:
+        prompt_tokens = sum(count_tokens(m.get("content", "")) for m in messages)
+        out_tokens = max_tokens or int(ctx.plan.get("maxOutputTokens", 800))
+        est = price_usage(guard["prices"], {"input": prompt_tokens, "output": out_tokens}).amount
+        max_cost = Decimal(str(guard["maxCost"]))
+        if ctx.cumulative_cost + est > max_cost:
+            raise BudgetStopError(
+                estimate=str(ctx.cumulative_cost + est),
+                max_cost=str(max_cost),
+                prompt_tokens=prompt_tokens,
+            )
+
     refs = [ctx.plan["primary"], *ctx.plan.get("fallbacks", [])]
     last_error: ProviderError | None = None
     for attempt, ref in enumerate(refs, start=1):

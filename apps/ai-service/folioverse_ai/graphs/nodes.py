@@ -1,7 +1,7 @@
 """Reusable graph nodes: retrieval, coverage gathering, citation validation."""
 
 from ..anchors import build_anchor
-from ..citations import MARKER, validate
+from ..citations import MARKER, validate_occurrences
 from ..metering import meter_local
 from ..repo import get_repo
 from ..retrieval.retrieve import candidates_json, packed_json, retrieve
@@ -142,22 +142,28 @@ async def _quote_page(
 
 
 async def validate_and_emit(ctx: RunContext, answer: str, packed: list[dict]) -> dict:
-    """Validates [S#] markers deterministically and emits citation.validated with anchors."""
+    """Validates each cited claim occurrence individually and emits citation.validated with anchors."""
     context = {p["marker"]: p for p in packed}
-    results = validate(answer, context)
+    occurrences = validate_occurrences(answer, context)
     repo = get_repo()
     out = []
-    for marker, res in results.items():
+    for occ in occurrences:
         anchor = None
-        if res.item:
-            item = res.item
+        if occ.item:
+            item = occ.item
             loc = item.get("locator") or {}
             page, page_text = await _quote_page(
-                repo, item["sourceVersionId"], item.get("page"), loc, res.quote
+                repo, item["sourceVersionId"], item.get("page"), loc, occ.quote
             )
             chunk = {"id": item["chunkId"], "page_start": page, "locator": loc}
-            anchor = build_anchor(item["sourceVersionId"], chunk, res.quote, page_text)
-        data = {"marker": marker, "state": res.state, "score": res.score, "quote": res.quote[:600]}
+            anchor = build_anchor(item["sourceVersionId"], chunk, occ.quote, page_text)
+        data = {
+            "marker": occ.marker,
+            "state": occ.state,
+            "score": occ.score,
+            "quote": occ.quote[:600],
+            "claim": occ.claim[:600],
+        }
         if anchor:
             data["anchor"] = anchor
         await ctx.emit("citation.validated", data)
@@ -166,7 +172,7 @@ async def validate_and_emit(ctx: RunContext, answer: str, packed: list[dict]) ->
     states = [c["state"] for c in out]
     if not has_markers:
         outcome = "PARTIAL"
-    elif "UNRESOLVED" in states or (states and all(s == "WEAK" for s in states)):
+    elif "UNRESOLVED" in states or (states and any(s == "WEAK" for s in states)):
         outcome = "PARTIAL"
     else:
         outcome = "ANSWERED"

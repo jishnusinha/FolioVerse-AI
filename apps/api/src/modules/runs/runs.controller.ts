@@ -44,6 +44,11 @@ class ForkDto {
   @ApiPropertyOptional() @IsOptional() @IsObject() options?: Record<string, unknown>;
 }
 
+class ResumeRunDto {
+  @ApiPropertyOptional() @IsOptional() @IsObject() inputOverride?: Record<string, unknown>;
+  @ApiPropertyOptional() @IsOptional() @IsObject() options?: Record<string, unknown>;
+}
+
 @ApiTags('runs')
 @Controller('workspaces/:workspaceId')
 export class RunsController {
@@ -79,6 +84,28 @@ export class RunsController {
   @Post('runs/:runId/cancel')
   cancel(@Param('workspaceId') workspaceId: string, @Param('runId') runId: string) {
     return this.runs.cancel(workspaceId, runId);
+  }
+
+  @RequireRole('EDITOR')
+  @Post('runs/:runId/resume')
+  resume(
+    @Param('workspaceId') workspaceId: string,
+    @Param('runId') runId: string,
+    @CurrentUser() u: AuthUser,
+    @Body() dto?: ResumeRunDto,
+  ) {
+    return this.runs.approveOrResume(workspaceId, runId, u, dto);
+  }
+
+  @RequireRole('EDITOR')
+  @Post('runs/:runId/approve')
+  approve(
+    @Param('workspaceId') workspaceId: string,
+    @Param('runId') runId: string,
+    @CurrentUser() u: AuthUser,
+    @Body() dto?: ResumeRunDto,
+  ) {
+    return this.runs.approveOrResume(workspaceId, runId, u, dto);
   }
 
   @Get('runs/:runId/receipt')
