@@ -11,7 +11,13 @@ export async function createApp(): Promise<INestApplication> {
   const app = mod.createNestApplication({ logger: false });
   configureApp(app);
   await app.init();
-  await app.get(StorageService).ensureBucket();
+  try {
+    await app.get(StorageService).ensureBucket();
+  } catch (err) {
+    // The caller never receives the app, so its afterAll cannot close the Redis/BullMQ handles.
+    await app.close();
+    throw err;
+  }
   return app;
 }
 

@@ -4,7 +4,7 @@ States: PLANNED, IN_PROGRESS, DONE, BLOCKED. Execution is sequential by a single
 (no concurrent workstreams actually ran). Evidence lists the validation command and outcome.
 Build host: Windows 11, Node 22 (24 from Gate 5), pnpm 9.15, Python 3.12, Docker Desktop.
 
-## Gate 0 — Foundation — DONE (CI push BLOCKED: no remote)
+## Gate 0 — Foundation — DONE (CI on GitHub: see FV-G00-CI-012)
 
 - `FV-G00-REPO-001` Monorepo scaffold — DONE. `pnpm install` and `python -m uv sync --all-packages --extra dev`
   succeed. Deviations: Node 22 (D-001), pnpm 9 (D-002), no Turborepo (D-004).
@@ -38,9 +38,12 @@ Build host: Windows 11, Node 22 (24 from Gate 5), pnpm 9.15, Python 3.12, Docker
   (web, api, worker, ai-api, ai-ingest). Evidence: `node infrastructure/scripts/smoke.mjs` → SMOKE OK
   (upload → PREVIEW_READY → ingestion READY with real fastembed; grounded_qa streamed 37 events and finished
   ANSWERED with a VALID citation; receipt FINALIZED, DEMO; abstention with 0 model calls; cross-workspace 404).
-- `FV-G00-CI-012` CI baseline — BLOCKED (no Git remote). `.github/workflows/ci.yml` written (path filters, node,
-  api-integration, ai, docker jobs; `FV_LIVE_PROVIDER_TESTS=0`). Every job's commands were run locally and pass.
-  Unblock: add a GitHub remote and push.
+- `FV-G00-CI-012` CI baseline — IN_PROGRESS. `.github/workflows/ci.yml` (path filters, node, docs, web-e2e,
+  api-integration, security, ai, docker, infra jobs; `FV_LIVE_PROVIDER_TESTS=0`) now runs on GitHub
+  (`jishnusinha/FolioVerse-AI`). First real runs (`b30af40`, `d7346cc`, `c1c80f5`): `changes`, `security`, `node`,
+  `docs`, `ai` and `web-e2e` pass; `docker (web|api|ai)` and `infra` failed at "Install Trivy" (pinned v0.58.1 was
+  withdrawn upstream); `api-integration` never finished (storage not ready, then Jest held open handles). Fixed in
+  D-140; DONE once a run on the fix commit is green.
 - `FV-G00-STAT-013` Planning files — DONE. `MASTER_IMPLEMENTATION_PLAN.md`, this file, `DECISION_LOG.md`.
 
 Gate summary: the backend vertical slice works end to end locally with the mock provider. Open items carried
@@ -577,7 +580,7 @@ Validation:
 Tasks:
 - `FV-G13-SEC-001` Security suite — DONE (D-114..D-117, D-121, D-122, D-127). Repo hygiene: 625 tracked files checked with zero private keys or env files. Gitleaks scanned 14 commits with 0 leaks using `.gitleaksignore` (3 reviewed false positives). Rate limits and throttler guards applied to `AuthController` (10 req/min) and `CostsController` (60 req/min) via `RedisThrottlerStorage`. IDOR remediated across sources and runs (404 on outsiders). Pre-extraction zip-bomb guards (10,000 files, 100:1 ratio, 100 MB max, path sanitization). Pino and structlog recursive log redaction of tokens, cookies, source text, and prompt deltas. Dependency audits clean on production packages (`pnpm audit --prod --audit-level high` and `pip-audit`).
 - `FV-G13-A11Y-002` Accessibility (WCAG 2.2 AA) — DONE (D-123). `apps/web/playwright/a11y.spec.js` executes axe on every route across light/dark themes, mobile viewports, signed-out states, and keyboard-only navigation. 59/59 axe checks pass. Refined subtle text tokens in `tokens.json` to meet 4.5:1 contrast, added visible underlines to inline links in `components.css`, resized reader highlight swatches to 24px minimum touch targets, and added `tabIndex={0}` and keyboard focus listeners to the Studio events timeline.
-- `FV-G13-VR-003` Visual regression & prototype fidelity — DONE (D-020, D-124, D-130). `apps/web/playwright/fidelity.spec.js` compares the running application against prototype references with pixelmatch at <= 2% drift threshold (17/17 pass); visual baselines in `__screenshots__/visual/win32` pass (6/6 pass). Committed Linux visual baselines generated and recorded in `__screenshots__/visual/linux/` under reproducible browser settings; reference generation protected behind `UPDATE_REFERENCES=1`.
+- `FV-G13-VR-003` Visual regression & prototype fidelity — DONE (D-020, D-124, D-130). `apps/web/playwright/fidelity.spec.js` compares the running application against prototype references with pixelmatch at <= 2% drift threshold (17/17 pass); visual baselines in `__screenshots__/visual/win32` pass (6/6 pass); reference generation protected behind `UPDATE_REFERENCES=1`. Linux baselines are not committed: the files added in `d7346cc` were byte-identical copies of the win32 PNGs, not Linux renders, and were removed (D-140). `test:vr` therefore runs on Windows only and is not part of CI.
 - `FV-G13-PERF-004` Load & concurrency benchmark — DONE with honest reporting (D-126). Diagnosed worker concurrency bottleneck (`FV_RUN_CONCURRENCY` was defaulting to 4; tuned default to 20 in `worker.module.ts` and `dev.mjs`), pipelined Redis event publishes in `RedisService.append()`, parallelized scope resolution and model preflight checks using `Promise.all` in `RunsService.create()`, cached model registry queries in `ModelsService.resolvePlan()`, and expanded Postgres connection pools in AI service checkpointer and repo (to `max_size=20`).
   - 16 SSE runs + 1 Ingestion (`infrastructure/perf/results/2026-10-14T10-09-26-713Z.json`):
     - `sse_stream`: p50 8.15 s, p95 8.27 s (target < 10.0 s -> **PASSED**)
@@ -600,7 +603,7 @@ Tasks:
 - `FV-G13-PROD-012` Product features & ingestion states — DONE (D-130, D-136, D-137). Implemented functional settings tabs (Profile, Workspace, Models, Privacy, Notifications), collection renaming in Library, inline note editing in Reader, chunked multipart upload with automatic 5MB slicing in web client and API endpoints, `--dry-run` and `--on-conflict` in catalog importer with unit tests, bounded OCR fallback (10 pages) in `parsers.py`, and clean separation of `QUARANTINED` (corrupted files / decode errors) vs `FAILED` (clean empty text) ingestion status in `pipeline.py`.
 
 ## Known remaining acceptance gaps (Gate 13)
-- CI Trivy action SHA `18f2510` referenced a scrubbed `setup-trivy@v0.2.2` transitive dependency; replaced with direct CLI install (D-139).
+- CI Trivy action SHA `18f2510` referenced a scrubbed `setup-trivy@v0.2.2` transitive dependency; replaced with direct CLI install (D-139), then with a checksum-pinned v0.75.0 tarball because v0.58.1 was withdrawn too (D-140).
 - Invitation endpoint corrected from `/invites` to `/invitations` (D-139).
 - Budget pre-check uses primary-model prices for all attempts including fallbacks; per-attempt price lookup not yet implemented (tracked).
 - `run_create` p95 target (<1 s) and `sse_stream` p95 target (<10 s) at 50 concurrent clients remain MISSED on single-machine dev hardware — no fix found without horizontal scaling (D-126).
@@ -614,6 +617,7 @@ Tasks:
 - GCP project / WIF / Artifact Registry — BLOCKED. Terraform (`infrastructure/terraform`) and `release.yml` are ready;
   follow `infrastructure/runbooks/deploy.md`. GCP Billing export to BigQuery (`FV_GCP_BILLING_TABLE`) — BLOCKED;
   manual cloud cost entry is the fallback.
-- GitHub remote + Actions — BLOCKED.
+- GitHub remote + Actions — DONE (`jishnusinha/FolioVerse-AI`); CI status under `FV-G00-CI-012`.
+  `kaggle-smoke.yml` and `release.yml` have not run there yet (release still needs GCP/WIF).
 - Kaggle account — BLOCKED (notebooks run locally and in `kaggle-smoke.yml`; manual Kaggle steps in
   `ml-notebooks/README.md`).

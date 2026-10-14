@@ -24,8 +24,8 @@ and tested without spending tokens.
 | Model answers | DEMO mock model unless `OPENAI_API_KEY` (or Ollama) is configured; no key is configured here |
 | Prices | DEMO prices on the mock models; real prices only via the admin UI with a source URL |
 | Discover catalog | Synthetic DEMO catalog and interactions |
-| GCP deployment, release workflow, cloud backups | Written and validated as code; never applied (no project or remote) |
-| CI | Written and validated with actionlint; never run on GitHub (no remote) |
+| GCP deployment, release workflow, cloud backups | Written and validated as code; never applied (no GCP project) |
+| CI | Runs on GitHub (`jishnusinha/FolioVerse-AI`); see the status page for the latest result |
 | Kaggle | Notebooks run locally and in a CI smoke workflow; publishing blocked (no account) |
 
 The [implementation status](/docs/project/status/) page has the evidence for each gate.

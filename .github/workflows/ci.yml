@@ -16,6 +16,9 @@ env:
   # CI never consumes paid inference: no provider keys are configured and live tests stay off.
   FV_LIVE_PROVIDER_TESTS: "0"
   OPENAI_API_KEY: ""
+  # Release tarball pinned by checksum (GitHub's published asset digest); old releases have been withdrawn.
+  TRIVY_VERSION: "0.75.0"
+  TRIVY_SHA256: "c6e65abddb348e25f10549df887045629cf28cc72453cd1c63acb717316b3f3f"
 
 jobs:
   changes:
@@ -93,7 +96,7 @@ jobs:
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @folioverse/web exec playwright install --with-deps chromium
-      # Visual baselines are committed for win32 only; the linux baseline is generated in Gate 13.
+      # Visual baselines are committed for win32 only, so test:vr (visual, fidelity) is not run here.
       - name: Prototype checks and shell e2e
         run: pnpm --filter @folioverse/web run test:e2e
       - uses: actions/upload-artifact@v4
@@ -104,6 +107,7 @@ jobs:
     needs: changes
     if: needs.changes.outputs.api == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     services:
       postgres:
         image: postgres:16-alpine
@@ -120,8 +124,12 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version-file: .nvmrc, cache: pnpm }
       - run: pnpm install --frozen-lockfile --filter @folioverse/api...
+      # SeaweedFS takes ~25 s to open the S3 port; suites that start earlier fail in ensureBucket.
       - name: Start S3-compatible storage
-        run: docker run -d -p 9000:9000 --name storage chrislusf/seaweedfs:3.80 server -dir=/data -s3 -s3.port=9000
+        run: |
+          docker run -d -p 9000:9000 --name storage chrislusf/seaweedfs:3.80 server -dir=/data -s3 -s3.port=9000
+          for _ in $(seq 1 120); do curl -s -o /dev/null http://localhost:9000 && exit 0; sleep 1; done
+          docker logs storage; exit 1
       - name: Integration tests
         run: pnpm --filter @folioverse/api run test:integration
 
@@ -205,7 +213,10 @@ jobs:
           path: sbom-${{ matrix.image }}.spdx.json
           retention-days: 30
       - name: Install Trivy
-        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
+        run: |
+          curl -sfLo /tmp/trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  /tmp/trivy.tgz" | sha256sum -c -
+          sudo tar -xzf /tmp/trivy.tgz -C /usr/local/bin trivy
       - name: Vulnerabilities (HIGH and CRITICAL, report)
         run: trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 --format table folioverse/${{ matrix.image }}:ci
       - name: Vulnerabilities (CRITICAL with a fix, gate)
@@ -250,7 +261,10 @@ jobs:
           tflint --init --config "$PWD/.tflint.hcl"
           tflint --recursive --config "$PWD/.tflint.hcl"
       - name: Install Trivy
-        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
+        run: |
+          curl -sfLo /tmp/trivy.tgz "https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}/trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          echo "${TRIVY_SHA256}  /tmp/trivy.tgz" | sha256sum -c -
+          sudo tar -xzf /tmp/trivy.tgz -C /usr/local/bin trivy
       - name: Misconfiguration scan (Terraform, Dockerfiles)
         run: trivy config --severity HIGH,CRITICAL --exit-code 1 infrastructure
       - name: actionlint

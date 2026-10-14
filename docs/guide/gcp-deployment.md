@@ -9,7 +9,7 @@ blocked: [GCP project / WIF / Artifact Registry, GitHub remote + Actions]
 
 FolioVerse is designed to run on Google Cloud with Cloud Run for the stateless services. The Terraform code is
 complete and validated (`terraform validate`, `tflint`, Trivy config scan), but **it has never been applied**: no
-GCP project, credentials or GitHub remote are configured. Nothing on this page has been deployed.
+GCP project or credentials are configured. Nothing on this page has been deployed.
 
 ## Profiles
 

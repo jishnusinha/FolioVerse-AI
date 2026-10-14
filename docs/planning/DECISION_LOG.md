@@ -704,7 +704,7 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 
 ## D-124 Visual regression pixelmatch threshold and missing Linux baselines
 - Context: Sub-pixel antialiasing and system font rendering differ between Windows and Linux.
-- Decision: Fidelity tests in `apps/web/playwright/fidelity.spec.js` compare the running app against prototype references using pixelmatch, enforcing a 2% drift tolerance threshold. Visual baseline tests (`visual.spec.js`) evaluate against committed per-platform snapshots (`__screenshots__/visual/win32`). Linux baselines require the Playwright Docker container and are documented as a platform limitation.
+- Decision: Fidelity tests in `apps/web/playwright/fidelity.spec.js` compare the running app against prototype references using pixelmatch, enforcing a 2% drift tolerance threshold. Visual baseline tests (`visual.spec.js`) evaluate against committed per-platform snapshots (`__screenshots__/visual/win32`). Linux baselines require the Playwright Docker container and are documented as a platform limitation (copies of the win32 files added later were removed in D-140).
 
 ## D-125 Idempotent demo dataset seeding (pnpm demo)
 - Context: Evaluators and interviewers require an end-to-end seeded demonstration workspace with realistic data across all subsystems without manual document uploads.
@@ -775,11 +775,27 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
 - Context: Uploading large source files as single HTTP payloads caused timeouts or network drops.
 - Decision: Implemented chunked multipart upload endpoints in `sources.controller.ts` (`PUT /uploads/:id/parts/:partNumber` and `POST /uploads/:id/assemble`) backed by `StorageService.putPart` and `assembleParts`. In `apps/web/src/api/client.js`, `uploadWithProgress` automatically slices files > 5 MB into 5 MB chunks, reports progress per chunk, and calls assemble on completion.
 
-## D-139
-**Context**: Gate 13 acceptance review (commit d7346cc5) identified five concrete defects: (1) `aquasecurity/trivy-action` pinned to a SHA whose transitive `setup-trivy@v0.2.2` dependency was scrubbed from GitHub following a supply-chain incident, causing all CI vulnerability scans to fail; (2) the invitation endpoint in `SettingsPage.jsx` was `/invites` but the backend exposes `/invitations`; (3) `runtime.py` estimates budget using primary-model prices even during a fallback attempt; (4) uncited factual sentences were not detected and would return `ANSWERED` instead of `PARTIAL`; (5) the 'Free / Local' label for unpriced models is misleading.
-**Decision**: (1) Replace `trivy-action` GitHub Action with direct Trivy CLI installation using the official install script pinned to v0.58.1 — eliminates transitive dependency resolution entirely; (2) fix invitation URL; (3) document the fallback price estimation gap as a known limitation pending per-attempt price lookup (the model config IDs vary per attempt); (4) add `find_uncited_factual_sentences` and `has_uncited_factual_claims` to citations.py and guard ANSWERED→PARTIAL; (5) rename to 'Unpriced / Unavailable'.
-**Consequences**: CI docker and infra jobs can now complete. Invitations POST correctly. Uncited factual claims are conservatively flagged. Existing tests remain passing.
-**Date**: 2026-10-14
+## D-139 Acceptance review fixes: Trivy install, invitations URL, uncited claims, unpriced label
+- Context: Gate 13 acceptance review (commit d7346cc5) identified five concrete defects: (1) `aquasecurity/trivy-action` pinned to a SHA whose transitive `setup-trivy@v0.2.2` dependency was scrubbed from GitHub following a supply-chain incident, causing all CI vulnerability scans to fail; (2) the invitation endpoint in `SettingsPage.jsx` was `/invites` but the backend exposes `/invitations`; (3) `runtime.py` estimates budget using primary-model prices even during a fallback attempt; (4) uncited factual sentences were not detected and would return `ANSWERED` instead of `PARTIAL`; (5) the 'Free / Local' label for unpriced models is misleading.
+- Decision: (1) Replace `trivy-action` GitHub Action with direct Trivy CLI installation using the official install script pinned to v0.58.1 — eliminates transitive dependency resolution entirely; (2) fix invitation URL; (3) document the fallback price estimation gap as a known limitation pending per-attempt price lookup (the model config IDs vary per attempt); (4) add `find_uncited_factual_sentences` and `has_uncited_factual_claims` to citations.py and guard ANSWERED→PARTIAL; (5) rename to 'Unpriced / Unavailable'.
+- Consequences: Invitations POST correctly. Uncited factual claims are conservatively flagged. Existing tests remain passing. The Trivy pin did not hold: v0.58.1 had been withdrawn as well, so the install step still failed (D-140).
+
+## D-140 CI on GitHub: checksum-pinned Trivy, storage readiness, no leaked handles, no fake Linux baselines
+- Context: The first GitHub Actions runs (`b30af40`, `d7346cc`, `c1c80f5`) failed `docker (web|api|ai)` and `infra` at
+  "Install Trivy", and `api-integration` ran until cancelled. The v0.58.1 release returns 404 and the install script was
+  fetched from Trivy's `main` branch, unpinned. Reproduced the hang locally: SeaweedFS needs ~25 s to open its S3 port,
+  CI started tests immediately, `createApp` threw in `ensureBucket` after `app.init()`, and the Redis/BullMQ handles of
+  that never-returned app kept Jest alive ("Jest did not exit"). The Linux visual baselines added in `d7346cc` were
+  byte-identical to the win32 PNGs.
+- Decision: Install Trivy from the v0.75.0 release tarball, verified against GitHub's published SHA-256 (`TRIVY_VERSION`,
+  `TRIVY_SHA256` in `ci.yml`); `trivy config` on `infrastructure/` is clean under 0.75.0. CI waits for the storage
+  port before running integration tests, and the job has `timeout-minutes: 30`. The test harness closes the app when
+  `ensureBucket` fails, so a storage outage fails the suite and exits (verified: 6 failures, exit 1, 27 s) instead of
+  hanging. The copied Linux baselines were deleted; visual regression stays Windows-only until real Linux renders are
+  produced in the Playwright container.
+- Consequences: Locally, the integration suite passes 246/246 against the exact CI storage invocation. CI is not
+  claimed green until a GitHub run on this commit says so. The CRITICAL image-vulnerability gate runs for the first
+  time and may surface findings that need base-image updates.
 
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.

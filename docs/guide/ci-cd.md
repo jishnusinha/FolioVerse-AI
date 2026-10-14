@@ -7,8 +7,9 @@ gates: [0, 10]
 blocked: [GitHub remote + Actions]
 ---
 
-Three GitHub Actions workflows live in `.github/workflows`. They are complete as code and validated with
-actionlint, but the repository has no GitHub remote yet, so none of them has run on GitHub.
+Three GitHub Actions workflows live in `.github/workflows`, validated with actionlint. `ci.yml` runs on GitHub
+(`jishnusinha/FolioVerse-AI`); `kaggle-smoke.yml` has not run there yet, and `release.yml` still needs a GCP project
+and Workload Identity Federation.
 
 ## ci.yml: every push and pull request
 
