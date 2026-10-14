@@ -64,6 +64,7 @@ export class IngestionExecutorService {
           final = { state: ev.data.state, stats: ev.data.stats, error: ev.data.error };
         }
       }
+      if (!final) throw new AiServiceError('AI service stream ended without a result', 0, true);
     } catch (e) {
       const retryable = e instanceof AiServiceError ? e.retryable : true;
       const msg = (e as Error).message.slice(0, 500);
@@ -74,7 +75,6 @@ export class IngestionExecutorService {
       }
       final = { state: 'FAILED', error: msg };
     }
-    final ??= { state: 'FAILED', error: 'Ingestion ended without a result' };
     const outcome = { state: final.state, mime: version.mimeType };
     fvMetrics().ingestionJobs.add(1, outcome);
     fvMetrics().ingestionDuration.record(secondsSince(startedAt), outcome);

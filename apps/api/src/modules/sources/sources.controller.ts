@@ -69,7 +69,9 @@ export class SourcesController {
     @Query('state') state?: string,
     @Query('type') type?: string,
   ) {
-    if (!isUuid(projectId)) throw new NotFoundException();
+    if (!isUuid(projectId) || !(await this.prisma.project.findFirst({ where: { id: projectId, workspaceId }, select: { id: true } }))) {
+      throw new NotFoundException();
+    }
     const where: Prisma.SourceWhereInput = { workspaceId, projectId, deletedAt: null };
     if (folderId && isUuid(folderId)) {
       const f = await this.prisma.folder.findFirst({ where: { id: folderId, workspaceId } });

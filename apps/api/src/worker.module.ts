@@ -45,7 +45,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     make(QUEUES.ingestion, Number(process.env.FV_INGEST_CONCURRENCY ?? 2), (job) =>
       this.ingestion.execute(job.data.jobId, job.attemptsMade + 1, job.opts.attempts ?? 1),
     );
-    make(QUEUES.runs, Number(process.env.FV_RUN_CONCURRENCY ?? 4), (job) => this.runs.execute(job.data.runId));
+    make(QUEUES.runs, Number(process.env.FV_RUN_CONCURRENCY ?? 20), (job) => this.runs.execute(job.data.runId));
     make(QUEUES.ledger, 4, async (job) => {
       if (job.name === 'usage') return this.ledger.processUsageEvent(job.data.usageEventId);
       if (job.name === 'settle') {

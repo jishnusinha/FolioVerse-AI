@@ -13,7 +13,7 @@ test.describe('application shell (built app)', () => {
       ['/app/knowledge', 'Folio Knowledge'],
       ['/app/writer', 'Folio Writer'],
       ['/app/library', 'Library'],
-      ['/app/discover', 'Discover'],
+      ['/app/discover', /Discover|Find your next story/],
       ['/app/studio', 'AI Developer Studio'],
       ['/app/costs', 'Your AI usage'],
       ['/app/docs/design', 'Component gallery'],

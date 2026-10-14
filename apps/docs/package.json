@@ -11,10 +11,10 @@
     "test": "node --test \"test/*.test.mjs\""
   },
   "dependencies": {
-    "@astrojs/starlight": "^0.28.3",
+    "@astrojs/starlight": "^0.42.6",
     "@dagrejs/dagre": "^1.1.4",
     "@folioverse/design-tokens": "workspace:*",
-    "astro": "^4.16.7",
-    "sharp": "^0.33.5"
+    "astro": "^7.3.8",
+    "sharp": "^0.35.5"
   }
 }

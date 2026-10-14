@@ -2,7 +2,7 @@ import { context, propagation, SpanKind, SpanStatusCode, trace } from '@opentele
 import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { FetchInstrumentation } from '@opentelemetry/instrumentation-fetch';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { WebTracerProvider } from '@opentelemetry/sdk-trace-web';
 import { describeApiPath } from './telemetry.js';
@@ -16,7 +16,7 @@ const SSE_URL = /\/api\/workspaces\/[^/]+\/(runs\/[^/]+\/)?events/;
  */
 export function startWebTracing() {
   const provider = new WebTracerProvider({
-    resource: new Resource({ 'service.name': 'folioverse-web', 'service.namespace': 'folioverse' }),
+    resource: resourceFromAttributes({ 'service.name': 'folioverse-web', 'service.namespace': 'folioverse' }),
     spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: `${window.location.origin}/otlp/v1/traces` }))],
   });
   provider.register();
@@ -26,11 +26,13 @@ export function startWebTracing() {
         ignoreUrls: [/\/otlp\//, SSE_URL],
         clearTimingResources: true,
         applyCustomAttributesOnSpan: (span) => {
-          const url = /** @type {any} */ (span).attributes?.['http.url'];
+          const spanAttrs = /** @type {any} */ (span).attributes ?? {};
+          const url = spanAttrs['url.full'] ?? spanAttrs['http.url'];
           if (typeof url !== 'string') return;
           const { pathname } = new URL(url, window.location.origin);
           const { route, attrs } = describeApiPath(pathname);
-          span.setAttributes({ ...attrs, 'http.url': `${window.location.origin}${route}`, 'http.route': route });
+          const templated = `${window.location.origin}${route}`;
+          span.setAttributes({ ...attrs, 'http.url': templated, 'url.full': templated, 'http.route': route });
         },
       }),
     ],

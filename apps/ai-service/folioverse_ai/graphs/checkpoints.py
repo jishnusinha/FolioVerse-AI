@@ -26,7 +26,7 @@ async def get_checkpointer():
         pool = AsyncConnectionPool(
             dsn,
             min_size=1,
-            max_size=6,
+            max_size=20,
             open=False,
             kwargs={
                 "autocommit": True,

@@ -9,6 +9,12 @@ export const REDACT_PATHS = [
   '*.passwordHash',
   'token',
   '*.token',
+  'refreshToken',
+  '*.refreshToken',
+  'accessToken',
+  '*.accessToken',
+  'secret',
+  '*.secret',
   'req.headers.cookie',
   'req.headers.authorization',
   'headers.cookie',
@@ -21,12 +27,14 @@ export const REDACT_PATHS = [
   '*.text',
 ];
 
-export const rootLogger = pino({
+export const loggerOptions: pino.LoggerOptions = {
   level: process.env.LOG_LEVEL || 'info',
   base: { service: process.env.FV_SERVICE_NAME || 'api' },
   redact: { paths: REDACT_PATHS, censor: '[REDACTED]' },
   timestamp: pino.stdTimeFunctions.isoTime,
-});
+};
+
+export const rootLogger = pino(loggerOptions);
 
 export class PinoNestLogger implements LoggerService {
   log(message: any, context?: string) {

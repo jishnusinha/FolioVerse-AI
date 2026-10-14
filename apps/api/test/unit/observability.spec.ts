@@ -14,8 +14,7 @@ describe('observability helpers without a registered SDK', () => {
 
 describe('observability helpers with tracing on', () => {
   const exporter = new InMemorySpanExporter();
-  const provider = new NodeTracerProvider();
-  provider.addSpanProcessor(new SimpleSpanProcessor(exporter));
+  const provider = new NodeTracerProvider({ spanProcessors: [new SimpleSpanProcessor(exporter)] });
 
   beforeAll(() => provider.register());
   afterAll(async () => {

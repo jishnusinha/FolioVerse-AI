@@ -69,6 +69,9 @@ pnpm test                               # JS/TS unit tests and pytest, mock mode
 pnpm typecheck && pnpm lint
 pnpm test:integration                   # API against the Docker data services
 node infrastructure/scripts/smoke.mjs   # end-to-end backend slice against a running stack
+pnpm demo                               # seed the interview demo workspace
+pnpm perf                               # run k6 load & concurrency benchmarks
+pnpm --filter @folioverse/web run test:vr # visual regression tests against prototype references
 pnpm kaggle:smoke                       # research notebooks in smoke mode
 pnpm docs:build                         # this documentation site
 ```

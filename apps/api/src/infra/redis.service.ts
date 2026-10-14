@@ -32,9 +32,13 @@ export class RedisService implements OnModuleDestroy {
 
   /** Appends an event envelope to a stream and returns its stream id. */
   async append(stream: string, envelope: Record<string, unknown>): Promise<string> {
-    const id = (await this.client.xadd(stream, 'MAXLEN', '~', String(STREAM_MAXLEN), '*', 'e', JSON.stringify(envelope))) as string;
-    await this.client.expire(stream, STREAM_TTL_SECONDS);
-    return id;
+    const res = (await this.client
+      .pipeline()
+      .xadd(stream, 'MAXLEN', '~', String(STREAM_MAXLEN), '*', 'e', JSON.stringify(envelope))
+      .expire(stream, STREAM_TTL_SECONDS)
+      .exec()) as [[Error | null, string], [Error | null, number]];
+    if (res[0][0]) throw res[0][0];
+    return res[0][1];
   }
 
   async onModuleDestroy() {

@@ -78,7 +78,7 @@ class PostgresRepo:
 
         # Prisma URLs may carry ?schema=...; psycopg rejects unknown params.
         self.dsn = dsn.split("?")[0]
-        self.pool = AsyncConnectionPool(self.dsn, min_size=1, max_size=8, open=False, timeout=15)
+        self.pool = AsyncConnectionPool(self.dsn, min_size=1, max_size=20, open=False, timeout=15)
         self._opened = False
 
     async def _conn(self):

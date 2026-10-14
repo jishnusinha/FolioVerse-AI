@@ -446,7 +446,7 @@ export function ReaderPage() {
                             aria-label={c}
                             aria-pressed={a.color === c}
                             onClick={() => recolor(a, c)}
-                            style={{ width: 14, height: 14, borderRadius: 99, border: a.color === c ? '2px solid var(--fv-text)' : '1px solid var(--fv-border-strong)', background: `var(--fv-hl-${c})`, cursor: 'pointer' }}
+                            style={{ width: 24, height: 24, borderRadius: 99, border: a.color === c ? '2px solid var(--fv-text)' : '1px solid var(--fv-border-strong)', background: `var(--fv-hl-${c})`, cursor: 'pointer' }}
                           />
                         ))}
                       </div>

@@ -1,0 +1,92 @@
+{
+  "finishedAt": "2026-10-14T09:29:32.112Z",
+  "base": "http://host.docker.internal:3000",
+  "vus": {
+    "sse": 16,
+    "ingest": 1
+  },
+  "metrics": {
+    "run_create": {
+      "med": 1453.959196,
+      "avg": 1473.3084480625,
+      "p(90)": 1550.527896,
+      "p(95)": 1551.918566,
+      "max": 1552.511789,
+      "count": 16,
+      "min": 1413.697257
+    },
+    "sse_first_byte": {
+      "p(95)": 543.042397,
+      "max": 566.240392,
+      "count": 16,
+      "min": 178.639891,
+      "med": 378.97860349999996,
+      "avg": 359.35957349999995,
+      "p(90)": 494.40140700000006
+    },
+    "sse_stream": {
+      "avg": 13474.401243625,
+      "p(90)": 13964.668730500001,
+      "p(95)": 13985.59621325,
+      "max": 13993.392635,
+      "count": 16,
+      "min": 12357.418413,
+      "med": 13703.1235105
+    },
+    "ingest_ready": {
+      "max": 6940,
+      "count": 1,
+      "min": 6940,
+      "med": 6940,
+      "avg": 6940,
+      "p(90)": 6940,
+      "p(95)": 6940
+    },
+    "http_req_failed": {
+      "rate": 0,
+      "passes": 0,
+      "fails": 48
+    },
+    "checks": {
+      "rate": 1,
+      "passes": 55,
+      "fails": 0
+    },
+    "fv_failures": {
+      "count": 0,
+      "rate": 0
+    }
+  },
+  "thresholds": {
+    "sse_stream": {
+      "p(95)<10000": {
+        "ok": false
+      }
+    },
+    "checks": {
+      "rate>0.99": {
+        "ok": true
+      }
+    },
+    "fv_failures": {
+      "count<1": {
+        "ok": true
+      }
+    },
+    "ingest_ready": {
+      "p(95)<60000": {
+        "ok": true
+      }
+    },
+    "run_create": {
+      "p(95)<1000": {
+        "ok": false
+      }
+    },
+    "sse_first_byte": {
+      "p(95)<1000": {
+        "ok": true
+      }
+    }
+  }
+}

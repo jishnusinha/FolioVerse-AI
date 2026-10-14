@@ -6,7 +6,7 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { registerInstrumentations } from '@opentelemetry/instrumentation';
 import { ExpressInstrumentation } from '@opentelemetry/instrumentation-express';
 import { HttpInstrumentation } from '@opentelemetry/instrumentation-http';
-import { Resource } from '@opentelemetry/resources';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 import { MeterProvider, PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchSpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { NodeTracerProvider } from '@opentelemetry/sdk-trace-node';
@@ -18,13 +18,15 @@ const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 if (endpoint) {
   const base = endpoint.replace(/\/$/, '');
   const isWorker = process.argv.some((a) => a.includes('worker'));
-  const resource = new Resource({
+  const resource = resourceFromAttributes({
     'service.name': process.env.OTEL_SERVICE_NAME || (isWorker ? 'folioverse-api-worker' : 'folioverse-api'),
     'service.namespace': 'folioverse',
     'deployment.environment': process.env.NODE_ENV || 'development',
   });
-  const provider = new NodeTracerProvider({ resource });
-  provider.addSpanProcessor(new BatchSpanProcessor(new OTLPTraceExporter({ url: `${base}/v1/traces` })));
+  const provider = new NodeTracerProvider({
+    resource,
+    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter({ url: `${base}/v1/traces` }))],
+  });
   provider.register();
   const meterProvider = new MeterProvider({
     resource,

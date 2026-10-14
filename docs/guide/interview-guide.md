@@ -32,6 +32,8 @@ The [implementation status](/docs/project/status/) page has the evidence for eac
 
 ## A ten-minute demo
 
+You can seed the full interactive demo workspace in one command with `pnpm demo` (see `docs/planning/DEMO_SCRIPT.md` for the exact script).
+
 1. **Upload and ingest** a PDF in Folio Knowledge; point out the stage track (scan, parse, index) and that the
    document is readable before indexing finishes.
 2. **Ask a question**; show streaming, the citation chips and the evidence drawer jumping to the passage. Ask

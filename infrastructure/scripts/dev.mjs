@@ -12,7 +12,7 @@ const py = ['python', '-m', 'uv', 'run', '--directory', 'apps/ai-service', 'pyth
 const services = [
   { name: 'web', color: 35, cmd: 'pnpm', args: ['--filter', '@folioverse/web', 'run', 'dev'] },
   { name: 'api', color: 36, cmd: 'pnpm', args: ['--filter', '@folioverse/api', 'run', 'dev'] },
-  { name: 'worker', color: 34, cmd: 'pnpm', args: ['--filter', '@folioverse/api', 'run', 'dev:worker'], env: { FV_SERVICE_NAME: 'api-worker' } },
+  { name: 'worker', color: 34, cmd: 'pnpm', args: ['--filter', '@folioverse/api', 'run', 'dev:worker'], env: { FV_SERVICE_NAME: 'api-worker', FV_RUN_CONCURRENCY: process.env.FV_RUN_CONCURRENCY ?? '20' } },
   { name: 'ai-api', color: 33, cmd: py[0], args: [...py.slice(1), '--port', '8000', '--env-file', '../../.env'], env: { ROLE: 'api' } },
   { name: 'ai-ingest', color: 32, cmd: py[0], args: [...py.slice(1), '--port', '8001', '--env-file', '../../.env'], env: { ROLE: 'ingest' } },
 ];

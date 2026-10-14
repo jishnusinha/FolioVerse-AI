@@ -12,11 +12,43 @@ from .retrieval.store import get_store
 from .routes import ingest_router, run_router
 from .settings import get_settings
 
+REDACTED_KEYS = frozenset(
+    {
+        "password",
+        "token",
+        "authorization",
+        "cookie",
+        "api_key",
+        "apikey",
+        "secret",
+        "scopetoken",
+        "content",
+        "text",
+        "question",
+        "messages",
+        "prompt",
+    }
+)
+
+
+def _redact(value):
+    if isinstance(value, dict):
+        return {k: "[REDACTED]" if k.lower() in REDACTED_KEYS else _redact(v) for k, v in value.items()}
+    if isinstance(value, list | tuple):
+        return [_redact(v) for v in value]
+    return value
+
+
+def redact(_logger, _method, event_dict: dict) -> dict:
+    """Credentials and private source or prompt text never reach the logs, at any nesting depth."""
+    return {k: "[REDACTED]" if k.lower() in REDACTED_KEYS else _redact(v) for k, v in event_dict.items()}
+
 
 def configure_logging(level: str) -> None:
     logging.basicConfig(level=level.upper(), format="%(message)s")
     structlog.configure(
         processors=[
+            redact,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
             structlog.processors.JSONRenderer(),

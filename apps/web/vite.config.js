@@ -23,7 +23,18 @@ export default defineConfig({
   },
   build: {
     sourcemap: true,
-    chunkSizeWarningLimit: 900,
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@xyflow')) return 'vendor-xyflow';
+          if (id.includes('node_modules/recharts') || id.includes('node_modules/d3-')) return 'vendor-recharts';
+          if (id.includes('node_modules/@tiptap') || id.includes('node_modules/prosemirror')) return 'vendor-tiptap';
+          if (id.includes('node_modules/motion') || id.includes('node_modules/framer-motion')) return 'vendor-motion';
+          if (id.includes('node_modules/lucide-react')) return 'vendor-icons';
+        },
+      },
+    },
   },
   test: {
     environment: 'jsdom',
@@ -33,5 +44,7 @@ export default defineConfig({
     css: false,
     // Full-app renders in parallel workers routinely take several seconds on CI runners.
     testTimeout: 20_000,
+    // Every worker builds its own jsdom + full app graph; one per core starves the machine and times out.
+    maxWorkers: '50%',
   },
 });

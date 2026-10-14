@@ -1,3 +1,4 @@
+import type { ModelConfig } from '@prisma/client';
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { env } from '../../config/env';
 import { CryptoService } from '../../common/crypto.service';
@@ -28,6 +29,7 @@ export interface ModelPlan {
 export class ModelsService {
   private readonly log = new Logger('Models');
   private providerCache: { at: number; providers: string[] } | null = null;
+  private configsCache: { at: number; configs: ModelConfig[] } | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -70,7 +72,13 @@ export class ModelsService {
   /** `fallbackIds` (lab runs only) replaces the registry fallbacks; every id must be usable. */
   async resolvePlan(preference?: string, opts: { temperature?: number; maxOutputTokens?: number; fallbackIds?: string[] } = {}): Promise<ModelPlan> {
     const providers = await this.availableProviders();
-    const configs = await this.prisma.modelConfig.findMany({ where: { status: { not: 'DISABLED' } } });
+    let configs: ModelConfig[];
+    if (this.configsCache && Date.now() - this.configsCache.at < 10_000) {
+      configs = this.configsCache.configs;
+    } else {
+      configs = await this.prisma.modelConfig.findMany({ where: { status: { not: 'DISABLED' } } });
+      this.configsCache = { at: Date.now(), configs };
+    }
     const usable = configs.filter((c) => providers.includes(c.provider));
     let primary = preference ? usable.find((c) => c.id === preference) : undefined;
     if (preference && !primary) throw new BadRequestException({ message: 'Requested model is not available', code: 'MODEL_UNAVAILABLE' });

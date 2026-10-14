@@ -8,9 +8,16 @@ marked PARTIAL. EPUB chapters are pages, and chunks never span two chapters (spo
 
 import io
 import re
+import zipfile
 from dataclasses import dataclass, field
 
 SYNTHETIC_PAGE_CHARS = 3000
+
+# Mirrors ZIP_LIMITS in apps/api/src/modules/sources/file-scan.ts.
+MAX_ZIP_ENTRIES = 20_000
+MAX_ZIP_UNCOMPRESSED = 512 * 1024 * 1024
+MAX_ZIP_RATIO = 100
+ZIP_RATIO_MIN_BYTES = 10 * 1024 * 1024
 
 
 @dataclass
@@ -47,6 +54,26 @@ class ParsedDocument:
 
 class ParseError(Exception):
     pass
+
+
+def check_zip(data: bytes) -> None:
+    """Rejects archives that would expand beyond the limits before any parser opens them.
+
+    zipfile stops reading an entry at its declared size (and fails the CRC if more data follows),
+    so the declared sizes checked here bound the actual decompression.
+    """
+    try:
+        with zipfile.ZipFile(io.BytesIO(data)) as zf:
+            infos = zf.infolist()
+    except (zipfile.BadZipFile, ValueError) as e:
+        raise ParseError("Unreadable archive") from e
+    if len(infos) > MAX_ZIP_ENTRIES:
+        raise ParseError("Archive has too many entries")
+    if sum(i.file_size for i in infos) > MAX_ZIP_UNCOMPRESSED:
+        raise ParseError("Archive expands beyond the size limit")
+    for i in infos:
+        if i.file_size > ZIP_RATIO_MIN_BYTES and i.file_size > MAX_ZIP_RATIO * max(i.compress_size, 1):
+            raise ParseError("Archive entry has a suspicious compression ratio")
 
 
 def _pages_from_blocks(blocks: list[tuple[str, str, list[str], str | None]]) -> ParsedDocument:
@@ -92,7 +119,10 @@ def parse_text(data: bytes, markdown: bool) -> ParsedDocument:
 def parse_docx(data: bytes) -> ParsedDocument:
     import docx
 
-    d = docx.Document(io.BytesIO(data))
+    try:
+        d = docx.Document(io.BytesIO(data))
+    except Exception as e:
+        raise ParseError(f"Unreadable DOCX: {e.__class__.__name__}") from e
     blocks = []
     path: list[str] = []
     for p in d.paragraphs:
@@ -329,8 +359,10 @@ def parse(data: bytes, mime: str) -> ParsedDocument:
     if mime == "application/pdf":
         return parse_pdf(data)
     if mime.endswith("wordprocessingml.document"):
+        check_zip(data)
         return parse_docx(data)
     if mime == "application/epub+zip":
+        check_zip(data)
         return parse_epub(data)
     if mime == "text/markdown":
         return parse_text(data, markdown=True)

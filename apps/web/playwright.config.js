@@ -23,7 +23,9 @@ export default defineConfig({
   projects: [
     { name: 'prototype', testMatch: /prototype\.spec\.js/ },
     { name: 'visual', testMatch: /visual\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
+    { name: 'fidelity', testMatch: /fidelity\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'shell', testMatch: /shell\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
+    { name: 'a11y', testMatch: /a11y\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'auth-upload', testMatch: /auth-upload\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'slice', testMatch: /slice\.spec\.js/, use: { baseURL: `http://localhost:${PORT}` } },
     { name: 'slice-live', testMatch: /slice-live\.spec\.js/ },

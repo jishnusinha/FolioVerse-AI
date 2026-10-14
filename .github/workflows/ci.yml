@@ -125,6 +125,24 @@ jobs:
       - name: Integration tests
         run: pnpm --filter @folioverse/api run test:integration
 
+  # Section M fast path on every change: secret scan over full history, dependency audits, and the
+  # API/AI security specs. The authz/IDOR/CSRF/rate-limit integration specs run in api-integration.
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc, cache: pnpm }
+      - uses: astral-sh/setup-uv@v3
+        with: { enable-cache: true }
+      - run: uv python install 3.12
+      - run: pnpm install --frozen-lockfile --filter @folioverse/api...
+      - run: uv sync --all-packages --extra dev --frozen
+      - name: Security suite (gitleaks, pnpm audit, pip-audit, security specs)
+        run: node tests/security/run.mjs --no-integration --audit --strict
+
   ai:
     needs: changes
     if: needs.changes.outputs.ai == 'true'

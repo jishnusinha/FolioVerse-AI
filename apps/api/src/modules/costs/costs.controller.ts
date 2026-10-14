@@ -15,7 +15,7 @@ import { DAY_MS, isoDay, utcDay } from './cost-math';
 export function csvCell(v: unknown): string {
   let s = v === null || v === undefined ? '' : String(v);
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
-  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 class EstimateDto {

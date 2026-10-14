@@ -1,0 +1,6 @@
+# Reviewed false positives (exact gitleaks fingerprints; anything else still fails the scan).
+# Secret Manager secret *names* keyed by env var, not values.
+28579df4b4e42a74bcc0e30cb69d0b76f72812ea:infrastructure/terraform/modules/platform/main.tf:hashicorp-tf-password:28
+# Deliberately wrong passwords in the login-failure integration test.
+67f129fb0cf39a8e6546faecc2e44847705d757a:apps/api/test/integration/auth.spec.ts:generic-api-key:61
+67f129fb0cf39a8e6546faecc2e44847705d757a:apps/api/test/integration/auth.spec.ts:generic-api-key:62

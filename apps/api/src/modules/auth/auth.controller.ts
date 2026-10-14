@@ -46,6 +46,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @HttpCode(200)
   @Post('refresh')
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -95,12 +96,14 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(204)
   @Post('verify-email')
   async verify(@Body() dto: TokenDto) {
     await this.auth.verifyEmail(dto.token);
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
   @Post('resend-verification')
   @HttpCode(204)
   async resend(@CurrentUser() u: AuthUser) {
@@ -116,6 +119,7 @@ export class AuthController {
   }
 
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @HttpCode(204)
   @Post('reset-password')
   async reset(@Body() dto: ResetPasswordDto) {

@@ -166,9 +166,11 @@ export class RunsService {
       if (cs) spec = { ...spec, scope: { sourceVersionIds: cs.sourceVersionIds, ...(cs.projectId ? { projectId: cs.projectId } : {}) } };
     }
 
-    let svids: string[] = [];
+    const [svids, plan] = await Promise.all([
+      RETRIEVAL_GRAPHS.has(spec.graph) ? this.resolveScope(workspaceId, spec.scope) : Promise.resolve([]),
+      this.models.resolvePlan(spec.modelPreference, spec.fallbackModels?.length ? { fallbackIds: spec.fallbackModels } : {}),
+    ]);
     if (RETRIEVAL_GRAPHS.has(spec.graph)) {
-      svids = await this.resolveScope(workspaceId, spec.scope);
       if (!svids.length) throw new BadRequestException({ message: 'No ready sources in scope. Wait for ingestion to finish or pick other sources.', code: 'EMPTY_SCOPE' });
       if (action && action.minSources > 1) {
         const docs = await this.prisma.sourceVersion.findMany({ where: { id: { in: svids } }, select: { sourceId: true }, distinct: ['sourceId'] });
@@ -177,8 +179,6 @@ export class RunsService {
         }
       }
     }
-
-    const plan = await this.models.resolvePlan(spec.modelPreference, spec.fallbackModels?.length ? { fallbackIds: spec.fallbackModels } : {});
     const runId = newId();
 
     // Conversation bookkeeping for chat graphs.
@@ -227,8 +227,10 @@ export class RunsService {
     }
 
     const inputText = [spec.input.question, spec.input.text].filter(Boolean).join('\n');
-    const estimate = await this.preflightEstimate(plan.primary.modelConfigId, inputText, plan.maxOutputTokens);
-    const projectId = await this.projectOf(workspaceId, spec, svids, threadId);
+    const [estimate, projectId] = await Promise.all([
+      this.preflightEstimate(plan.primary.modelConfigId, inputText, plan.maxOutputTokens),
+      this.projectOf(workspaceId, spec, svids, threadId),
+    ]);
 
     await this.prisma.aiRun.create({
       data: {

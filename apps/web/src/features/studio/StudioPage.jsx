@@ -155,7 +155,7 @@ function RunsView({ runId }) {
         {run ? <Inspector wid={wid} run={run} node={node} execution={node ? executions[node] : null} status={status} /> : <div className="pad subtle">Select a run.</div>}
       </aside>
 
-      <section className="s-tl" aria-label="Execution events">
+      <section className="s-tl" aria-label="Execution events" tabIndex={0}>
         <div className="row between" style={{ padding: '8px 14px 0' }}>
           <b style={{ fontSize: 13 }}>Event timeline</b>
           <span className="subtle mono" style={{ fontSize: 11 }}>

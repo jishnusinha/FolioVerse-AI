@@ -34,9 +34,11 @@ pnpm smoke:deployed -- --base <url>     # read-only checks of any deployment
 pnpm up -- --infra --observability      # adds the OTel collector + Grafana LGTM (http://localhost:3001)
 pnpm backup:drill                       # back up, restore side by side, compare counts, clean up
 pnpm docs:build                         # Starlight site (apps/docs) from docs/, runbooks, OpenAPI, Prisma; served at /docs
-pnpm docs:shots                         # documentation screenshots of the real app (needs a running stack)
 pnpm test:infra                         # infra script tests + Grafana/runbook consistency
 pnpm kaggle:smoke                       # notebooks in smoke mode (needs `uv sync ... --extra notebooks`)
+pnpm demo                               # seed idempotent interview demo data (demo@folioverse.example)
+pnpm perf                               # k6 load & concurrency benchmark suite (local or Docker k6)
+pnpm --filter @folioverse/web run test:vr # visual regression & fidelity tests against committed baselines
 ```
 
 ## Rules
