@@ -1,7 +1,7 @@
 """Reusable graph nodes: retrieval, coverage gathering, citation validation."""
 
 from ..anchors import build_anchor
-from ..citations import MARKER, validate_occurrences
+from ..citations import MARKER, has_uncited_factual_claims, validate_occurrences
 from ..metering import meter_local
 from ..repo import get_repo
 from ..retrieval.retrieve import candidates_json, packed_json, retrieve
@@ -173,6 +173,8 @@ async def validate_and_emit(ctx: RunContext, answer: str, packed: list[dict]) ->
     if not has_markers:
         outcome = "PARTIAL"
     elif "UNRESOLVED" in states or (states and any(s == "WEAK" for s in states)):
+        outcome = "PARTIAL"
+    elif has_uncited_factual_claims(answer):
         outcome = "PARTIAL"
     else:
         outcome = "ANSWERED"

@@ -141,7 +141,7 @@ function WorkspaceSettings() {
     setInviting(true);
     try {
       await ensureCsrf();
-      await api(`/workspaces/${ws?.id}/invites`, {
+      await api(`/workspaces/${ws?.id}/invitations`, {
         method: 'POST',
         body: { email: inviteEmail.trim(), role: inviteRole },
       });
@@ -283,7 +283,7 @@ function ModelsSettings() {
                     ${m.price.inputPerMTok} / ${m.price.outputPerMTok}
                   </span>
                 ) : (
-                  <span className="subtle">Free / Local</span>
+                  <span className="subtle">Unpriced / Unavailable</span>
                 )}
               </td>
               <td>

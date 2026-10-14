@@ -204,23 +204,12 @@ jobs:
           name: sbom-${{ matrix.image }}
           path: sbom-${{ matrix.image }}.spdx.json
           retention-days: 30
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
       - name: Vulnerabilities (HIGH and CRITICAL, report)
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
-        with:
-          image-ref: folioverse/${{ matrix.image }}:ci
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "0"
+        run: trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 --format table folioverse/${{ matrix.image }}:ci
       - name: Vulnerabilities (CRITICAL with a fix, gate)
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
-        env:
-          TRIVY_SKIP_DB_UPDATE: "true"
-        with:
-          image-ref: folioverse/${{ matrix.image }}:ci
-          severity: CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+        run: TRIVY_SKIP_DB_UPDATE=true trivy image --severity CRITICAL --ignore-unfixed --exit-code 1 folioverse/${{ matrix.image }}:ci
 
   infra:
     needs: changes
@@ -260,12 +249,9 @@ jobs:
         run: |
           tflint --init --config "$PWD/.tflint.hcl"
           tflint --recursive --config "$PWD/.tflint.hcl"
+      - name: Install Trivy
+        run: curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.58.1
       - name: Misconfiguration scan (Terraform, Dockerfiles)
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # v0.29.0
-        with:
-          scan-type: config
-          scan-ref: infrastructure
-          severity: HIGH,CRITICAL
-          exit-code: "1"
+        run: trivy config --severity HIGH,CRITICAL --exit-code 1 infrastructure
       - name: actionlint
         run: docker run --rm -v "$PWD:/repo" --workdir /repo rhysd/actionlint:1.7.3 -color

@@ -4,7 +4,7 @@
   "isDemo": true,
   "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
   "python": "3.12.9",
-  "createdAt": "2026-10-13T10:51:16+00:00",
+  "createdAt": "2026-10-14T13:55:42+00:00",
   "findings": [
     "RRF nDCG@10 0.320 vs best single list 0.380 (fastembed embedder).",
     "RRF k=60 scores 0.320; the whole k range moves nDCG by 0.041, so the constant is not critical.",
@@ -20,21 +20,21 @@
       "ndcg@10": 0.37950246515687347,
       "recall@10": 0.30967867044376335,
       "mrr": 0.6150660352719176,
-      "latency_ms_p50": 177.95499999999998
+      "latency_ms_p50": 114.72
     },
     {
       "fusion": "sparse",
       "ndcg@10": 0.2306436780084184,
       "recall@10": 0.20013881143796006,
       "mrr": 0.39476972188504694,
-      "latency_ms_p50": 148.01999999999998
+      "latency_ms_p50": 111.15
     },
     {
       "fusion": "rrf",
       "ndcg@10": 0.3198579264892506,
       "recall@10": 0.261093368104204,
       "mrr": 0.5657681237352057,
-      "latency_ms_p50": 328.125
+      "latency_ms_p50": 197.85500000000002
     }
   ],
   "qaSmall": [

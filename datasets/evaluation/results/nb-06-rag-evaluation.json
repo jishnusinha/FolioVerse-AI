@@ -4,7 +4,7 @@
   "isDemo": true,
   "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
   "python": "3.12.9",
-  "createdAt": "2026-10-13T10:59:34+00:00",
+  "createdAt": "2026-10-14T14:02:41+00:00",
   "findings": [
     "grounded topK=6: answer support 54%, false abstentions 0%, unanswerable abstained 25%, VALID citations 100%.",
     "Abstained runs cost 0.00000000 DEMO USD in total: abstention happens before any model call.",
@@ -17,6 +17,11 @@
   "scorecards": [
     {
       "config": "grounded topK=6",
+      "citation_resolution": 1.0,
+      "claim_support": 1.0,
+      "answer_relevance": 4.2,
+      "retrieval_quality": 0.54,
+      "abstention_accuracy": 0.896551724137931,
       "answer_support": 0.54,
       "false_abstain": 0.0,
       "abstain_unanswerable": 0.25,
@@ -26,11 +31,16 @@
       "tokens_per_run": 516.2678571428571,
       "demo_cost_per_1k_runs": 0.3058362068965517,
       "abstained_cost": 0.0,
-      "latency_ms_p50": 93.21160001854878,
-      "latency_ms_p95": 194.5801850073621
+      "latency_ms_p50": 116.5091000002576,
+      "latency_ms_p95": 163.43629000475627
     },
     {
       "config": "grounded topK=3",
+      "citation_resolution": 1.0,
+      "claim_support": 1.0,
+      "answer_relevance": 4.14,
+      "retrieval_quality": 0.54,
+      "abstention_accuracy": 0.896551724137931,
       "answer_support": 0.54,
       "false_abstain": 0.0,
       "abstain_unanswerable": 0.25,
@@ -40,11 +50,16 @@
       "tokens_per_run": 345.42857142857144,
       "demo_cost_per_1k_runs": 0.22058620689655173,
       "abstained_cost": 0.0,
-      "latency_ms_p50": 98.63594999478664,
-      "latency_ms_p95": 140.1539699931163
+      "latency_ms_p50": 97.89269999600947,
+      "latency_ms_p95": 137.1058099946822
     },
     {
       "config": "concise topK=6",
+      "citation_resolution": 1.0,
+      "claim_support": 1.0,
+      "answer_relevance": 3.16,
+      "retrieval_quality": 0.34,
+      "abstention_accuracy": 0.896551724137931,
       "answer_support": 0.34,
       "false_abstain": 0.0,
       "abstain_unanswerable": 0.25,
@@ -54,8 +69,8 @@
       "tokens_per_run": 474.875,
       "demo_cost_per_1k_runs": 0.0983551724137931,
       "abstained_cost": 0.0,
-      "latency_ms_p50": 98.73145000892691,
-      "latency_ms_p95": 159.34529500664212
+      "latency_ms_p50": 99.50735000893474,
+      "latency_ms_p95": 133.2426750101149
     }
   ],
   "perSet": [

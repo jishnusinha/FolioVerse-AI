@@ -4,7 +4,7 @@
   "isDemo": true,
   "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
   "python": "3.12.9",
-  "createdAt": "2026-10-13T10:59:58+00:00",
+  "createdAt": "2026-10-14T14:03:12+00:00",
   "findings": [
     "Context budget 300 -> 3500 tokens: input/run 389 -> 599, answer support 90% -> 90%.",
     "Input tokens are 83% of mock-grounded spend at the default budget: context size is the main lever.",

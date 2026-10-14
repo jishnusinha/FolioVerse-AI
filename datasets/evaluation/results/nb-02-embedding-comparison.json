@@ -4,7 +4,7 @@
   "isDemo": true,
   "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
   "python": "3.12.9",
-  "createdAt": "2026-10-13T10:47:53+00:00",
+  "createdAt": "2026-10-14T13:53:57+00:00",
   "findings": [
     "Best: bge-small (nDCG@10 0.288).",
     "hash-dense vs tfidf: 0.113 vs 0.185; the hash embedder is a lexical stand-in for CI, not a semantic model.",
@@ -21,8 +21,8 @@
       "ndcg@10": 0.28795933525690826,
       "recall@10": 0.22180863761935407,
       "mrr": 0.48291876919895466,
-      "index_docs_per_s": 23.123251972138394,
-      "query_ms_p50": 12.791949993697926
+      "index_docs_per_s": 28.548488206705475,
+      "query_ms_p50": 10.130650000064634
     },
     {
       "system": "bm25",
@@ -30,8 +30,8 @@
       "ndcg@10": 0.22805077535753754,
       "recall@10": 0.19705308424450468,
       "mrr": 0.3856241271582538,
-      "index_docs_per_s": 2836.808066547809,
-      "query_ms_p50": 2.7479999989736825
+      "index_docs_per_s": 4689.825555958133,
+      "query_ms_p50": 1.9460000039543957
     },
     {
       "system": "hash-sparse",
@@ -39,8 +39,8 @@
       "ndcg@10": 0.20133288802222954,
       "recall@10": 0.15190039606412942,
       "mrr": 0.38143053853956643,
-      "index_docs_per_s": 4497.196463977949,
-      "query_ms_p50": 1.8280499934917316
+      "index_docs_per_s": 9132.892197279052,
+      "query_ms_p50": 1.4774000010220334
     },
     {
       "system": "tfidf",
@@ -48,8 +48,8 @@
       "ndcg@10": 0.18477432864629112,
       "recall@10": 0.1288195337990482,
       "mrr": 0.32799190175502196,
-      "index_docs_per_s": 1953.6779276386412,
-      "query_ms_p50": 2.3569499899167567
+      "index_docs_per_s": 3458.547996876838,
+      "query_ms_p50": 1.3431999977910891
     },
     {
       "system": "lsa-64",
@@ -57,8 +57,8 @@
       "ndcg@10": 0.1659745992772758,
       "recall@10": 0.11957106564241608,
       "mrr": 0.28558337124513533,
-      "index_docs_per_s": 1962.7579637940426,
-      "query_ms_p50": 4.397249998874031
+      "index_docs_per_s": 2975.082839327428,
+      "query_ms_p50": 2.3986499872989953
     },
     {
       "system": "hash-dense",
@@ -66,8 +66,8 @@
       "ndcg@10": 0.11265758485024407,
       "recall@10": 0.1004681361679107,
       "mrr": 0.22728369624610936,
-      "index_docs_per_s": 1190.262574133014,
-      "query_ms_p50": 0.5034000205341727
+      "index_docs_per_s": 2797.452312545324,
+      "query_ms_p50": 0.27319999935571104
     }
   ],
   "vocabularyGap": 0.6083333333333333

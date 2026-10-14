@@ -4,11 +4,11 @@
   "isDemo": true,
   "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
   "python": "3.12.9",
-  "createdAt": "2026-10-13T10:58:43+00:00",
+  "createdAt": "2026-10-14T14:01:33+00:00",
   "findings": [
-    "lexical: label nDCG@10 +0.029, qa hit@1 +0.000, qa MRR +0.000 vs RRF only, at 2.57 ms p50 per query.",
-    "rrf+lexical: label nDCG@10 +0.016, qa hit@1 +0.000, qa MRR +0.000 vs RRF only, at 4.36 ms p50 per query.",
-    "cross-encoder: label nDCG@10 +0.193, qa hit@1 +0.000, qa MRR +0.000 vs RRF only, at 1012.67 ms p50 per query.",
+    "lexical: label nDCG@10 +0.029, qa hit@1 +0.000, qa MRR +0.000 vs RRF only, at 1.63 ms p50 per query.",
+    "rrf+lexical: label nDCG@10 +0.016, qa hit@1 +0.000, qa MRR +0.000 vs RRF only, at 2.86 ms p50 per query.",
+    "cross-encoder: label nDCG@10 +0.193, qa hit@1 +0.000, qa MRR +0.000 vs RRF only, at 699.65 ms p50 per query.",
     "qa-small is saturated at hit@3 for RRF alone; its questions share vocabulary with the evidence."
   ],
   "documents": 400,
@@ -27,7 +27,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 0.0041000021155923605
+      "rerank_ms_p50": 0.0019999861251562834
     },
     {
       "reranker": "lexical",
@@ -39,7 +39,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 2.570900018326938
+      "rerank_ms_p50": 1.631100007216446
     },
     {
       "reranker": "rrf+lexical",
@@ -51,7 +51,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 4.3590999994194135
+      "rerank_ms_p50": 2.8630000015255064
     },
     {
       "reranker": "cross-encoder",
@@ -63,7 +63,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 1012.671299977228
+      "rerank_ms_p50": 699.6544000139693
     }
   ],
   "depthSweep": [
@@ -77,7 +77,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 0.3756499936571345
+      "rerank_ms_p50": 0.2840999950421974
     },
     {
       "reranker": "lexical",
@@ -89,7 +89,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 0.6376000092132017
+      "rerank_ms_p50": 0.554000012925826
     },
     {
       "reranker": "lexical",
@@ -101,7 +101,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 1.1824000102933496
+      "rerank_ms_p50": 0.9194000012939796
     },
     {
       "reranker": "lexical",
@@ -113,7 +113,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 2.480100010870956
+      "rerank_ms_p50": 1.7669999942881986
     },
     {
       "reranker": "rrf+lexical",
@@ -125,7 +125,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 0.36580000596586615
+      "rerank_ms_p50": 0.2626999921631068
     },
     {
       "reranker": "rrf+lexical",
@@ -137,7 +137,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 0.8062000124482438
+      "rerank_ms_p50": 0.5136999971000478
     },
     {
       "reranker": "rrf+lexical",
@@ -149,7 +149,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 1.9109999993816018
+      "rerank_ms_p50": 1.1453500046627596
     },
     {
       "reranker": "rrf+lexical",
@@ -161,7 +161,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 4.208099999232218
+      "rerank_ms_p50": 3.3245999948121607
     },
     {
       "reranker": "cross-encoder",
@@ -173,7 +173,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 73.20019998587668
+      "rerank_ms_p50": 76.74720000068191
     },
     {
       "reranker": "cross-encoder",
@@ -185,7 +185,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 131.265700008953
+      "rerank_ms_p50": 140.24834999872837
     },
     {
       "reranker": "cross-encoder",
@@ -197,7 +197,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 301.4225000079023
+      "rerank_ms_p50": 302.5461499928497
     },
     {
       "reranker": "cross-encoder",
@@ -209,7 +209,7 @@
       "qa_hit@3": 1.0,
       "qa_hit@5": 1.0,
       "qa_mrr": 1.0,
-      "rerank_ms_p50": 688.2944999961182
+      "rerank_ms_p50": 675.1357500033919
     }
   ]
 }

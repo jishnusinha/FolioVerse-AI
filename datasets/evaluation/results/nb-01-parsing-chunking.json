@@ -4,7 +4,7 @@
   "isDemo": true,
   "note": "Synthetic DEMO data and the deterministic mock model; numbers show relative behaviour only.",
   "python": "3.12.9",
-  "createdAt": "2026-10-13T10:46:52+00:00",
+  "createdAt": "2026-10-14T13:53:15+00:00",
   "findings": [
     "Lowest offset accuracy: atlas-brief.pdf at 100.0% of elements.",
     "Evidence intact at the served child size (300 tokens): 100%.",
@@ -22,7 +22,7 @@
       "with_bbox": 1.0,
       "with_cfi": 0.0,
       "failed_pages": 0,
-      "parse_ms": 274.0297999989707
+      "parse_ms": 200.12990001123399
     },
     {
       "file": "small-lanterns.epub",
@@ -34,7 +34,7 @@
       "with_bbox": 0.0,
       "with_cfi": 1.0,
       "failed_pages": 0,
-      "parse_ms": 46.32999998284504
+      "parse_ms": 30.667100014397874
     },
     {
       "file": "catalog-notes.docx",
@@ -46,7 +46,7 @@
       "with_bbox": 0.0,
       "with_cfi": 0.0,
       "failed_pages": 0,
-      "parse_ms": 1751.57809999655
+      "parse_ms": 1094.8754000128247
     },
     {
       "file": "catalog-notes.md",
@@ -58,7 +58,7 @@
       "with_bbox": 0.0,
       "with_cfi": 0.0,
       "failed_pages": 0,
-      "parse_ms": 9.91779999458231
+      "parse_ms": 5.762100015999749
     },
     {
       "file": "catalog-notes.txt",
@@ -70,7 +70,7 @@
       "with_bbox": 0.0,
       "with_cfi": 0.0,
       "failed_pages": 0,
-      "parse_ms": 4.584899987094104
+      "parse_ms": 2.6522000262048095
     }
   ],
   "chunking": [

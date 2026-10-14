@@ -103,3 +103,43 @@ def strip_markers(text: str) -> str:
 
 def answer_sentences_with_markers(answer: str) -> list[str]:
     return [s for s in split_sentences(answer) if MARKER.search(s)]
+
+
+# Conversational / non-factual sentence patterns that do not need citation
+_NON_FACTUAL = re.compile(
+    r"^(yes|no|i (cannot|can't|don't|do not|am unable|apologize)|sorry|thank|based on|according to|as mentioned|in summary|in conclusion|to summarize|the (sources|documents|provided|above|following)|note that|please|feel free|let me|here (is|are)|there (is|are) no|i (found|see|notice))",
+    re.IGNORECASE,
+)
+_HEADING_LIKE = re.compile(r"^(#+\s|[A-Z][A-Z\s]{2,}:)")
+
+
+def is_factual_claim(sentence: str) -> bool:
+    """Heuristic: a sentence is a factual claim if it is not conversational boilerplate or a heading."""
+    s = sentence.strip()
+    if len(s) < 12:
+        return False
+    if _HEADING_LIKE.match(s):
+        return False
+    if _NON_FACTUAL.match(s):
+        return False
+    # Must have at least one content-word (rough check: >= 3 alpha chars in a row)
+    if not re.search(r"[a-zA-Z]{3}", s):
+        return False
+    return True
+
+
+def find_uncited_factual_sentences(answer: str) -> list[str]:
+    """Returns sentences that look like factual claims but carry no citation marker."""
+    out = []
+    for sentence in split_sentences(answer) or [answer]:
+        if MARKER.search(sentence):
+            continue  # has at least one citation
+        clean = MARKER.sub("", sentence).strip()
+        if is_factual_claim(clean):
+            out.append(clean)
+    return out
+
+
+def has_uncited_factual_claims(answer: str) -> bool:
+    """True when the answer contains at least one factual claim sentence without a citation marker."""
+    return bool(find_uncited_factual_sentences(answer))
