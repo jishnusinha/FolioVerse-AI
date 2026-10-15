@@ -1,0 +1,28 @@
+# CodeDeploy (EC2/On-premises, in-place) application specification. CodeBuild copies this file to the ROOT of the
+# deployment bundle (scripts/package-bundle.sh). Hooks run as root; each delegates to scripts/ in the bundle.
+# There is deliberately no ApplicationStop hook: the running release keeps serving until the new one starts.
+version: 0.0
+os: linux
+files:
+  - source: /
+    destination: /opt/folioverse/staging
+file_exists_behavior: OVERWRITE
+hooks:
+  BeforeInstall:
+    - location: hooks/before-install.sh
+      timeout: 300
+      runas: root
+  AfterInstall:
+    # Stage /opt/folioverse/releases/<RELEASE_ID>, render secrets, pull images by digest.
+    - location: hooks/after-install.sh
+      timeout: 1200
+      runas: root
+  ApplicationStart:
+    # Data services, migrations, seed, application services, promote `current`.
+    - location: hooks/application-start.sh
+      timeout: 2400
+      runas: root
+  ValidateService:
+    - location: hooks/validate-service.sh
+      timeout: 900
+      runas: root

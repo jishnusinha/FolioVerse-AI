@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { AuthUser, CurrentUser, Public } from '../../common/auth.decorators';
 import { randomToken } from '../../common/ids';
+import { env } from '../../config/env';
 import { clearAuthCookies, clientIp, setAuthCookies } from '../../common/http';
 import { PrismaService } from '../../infra/prisma.service';
 import { ForgotPasswordDto, LoginDto, RegisterDto, ResetPasswordDto, TokenDto, UpdateMeDto } from './auth.dto';
@@ -22,7 +23,7 @@ export class AuthController {
   csrf(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const existing = req.cookies?.fv_csrf;
     const token = existing || randomToken(18);
-    if (!existing) res.cookie('fv_csrf', token, { httpOnly: false, sameSite: 'lax', path: '/' });
+    if (!existing) res.cookie('fv_csrf', token, { httpOnly: false, secure: env().COOKIE_SECURE, sameSite: 'lax', path: '/' });
     return { csrfToken: token };
   }
 

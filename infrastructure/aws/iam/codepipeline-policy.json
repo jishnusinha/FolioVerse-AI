@@ -1,0 +1,47 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "GitHubSourceThroughCodeConnections",
+      "Effect": "Allow",
+      "Action": ["codeconnections:UseConnection", "codestar-connections:UseConnection"],
+      "Resource": "<CONNECTION_ARN>"
+    },
+    {
+      "Sid": "PipelineArtifacts",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion", "s3:PutObject", "s3:PutObjectAcl"],
+      "Resource": "arn:aws:s3:::<ARTIFACT_BUCKET>/*"
+    },
+    {
+      "Sid": "PipelineArtifactBucket",
+      "Effect": "Allow",
+      "Action": ["s3:GetBucketVersioning", "s3:GetBucketAcl", "s3:GetBucketLocation", "s3:ListBucket"],
+      "Resource": "arn:aws:s3:::<ARTIFACT_BUCKET>"
+    },
+    {
+      "Sid": "StartTheBuild",
+      "Effect": "Allow",
+      "Action": ["codebuild:StartBuild", "codebuild:BatchGetBuilds"],
+      "Resource": "arn:aws:codebuild:<REGION>:<ACCOUNT_ID>:project/folioverse-staging-build"
+    },
+    {
+      "Sid": "CreateDeployments",
+      "Effect": "Allow",
+      "Action": ["codedeploy:CreateDeployment", "codedeploy:GetDeployment"],
+      "Resource": "arn:aws:codedeploy:<REGION>:<ACCOUNT_ID>:deploymentgroup:folioverse-staging/folioverse-staging-ec2"
+    },
+    {
+      "Sid": "RegisterRevisions",
+      "Effect": "Allow",
+      "Action": ["codedeploy:GetApplication", "codedeploy:GetApplicationRevision", "codedeploy:RegisterApplicationRevision"],
+      "Resource": "arn:aws:codedeploy:<REGION>:<ACCOUNT_ID>:application:folioverse-staging"
+    },
+    {
+      "Sid": "ReadDeploymentConfig",
+      "Effect": "Allow",
+      "Action": "codedeploy:GetDeploymentConfig",
+      "Resource": "arn:aws:codedeploy:<REGION>:<ACCOUNT_ID>:deploymentconfig:CodeDeployDefault.OneAtATime"
+    }
+  ]
+}

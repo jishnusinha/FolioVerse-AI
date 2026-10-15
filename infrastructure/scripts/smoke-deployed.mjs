@@ -5,15 +5,16 @@
  *   - web: /healthz, the SPA shell, security headers (CSP, frame, nosniff)
  *   - api: /api/live, /api/ready (database, redis, storage, AI service)
  *   - auth boundary: protected JSON and SSE routes answer 401, never 5xx
+ *   - with --require-https: HSTS, Secure cookies (GET /api/auth/csrf only sets a cookie), HTTP -> HTTPS redirect
  * For the full write-path vertical slice against a disposable environment use smoke.mjs.
  *
- *   node infrastructure/scripts/smoke-deployed.mjs --base https://folioverse.example.com [--api https://api...]
+ *   node infrastructure/scripts/smoke-deployed.mjs --base https://folioverse.example.com [--api https://api...] [--require-https]
  *   FV_SMOKE_BASE=https://... node infrastructure/scripts/smoke-deployed.mjs
  */
 
 const arg = (name) => (process.argv.includes(name) ? process.argv[process.argv.indexOf(name) + 1] : undefined);
 
-export async function smokeDeployed({ base, api = base, fetchImpl = fetch, log = console.log, timeoutMs = 15_000 }) {
+export async function smokeDeployed({ base, api = base, fetchImpl = fetch, log = console.log, timeoutMs = 15_000, requireHttps = false }) {
   const failures = [];
   const get = (url, init = {}) => fetchImpl(url, { redirect: 'manual', signal: AbortSignal.timeout(timeoutMs), ...init });
   const check = async (label, fn) => {
@@ -68,6 +69,32 @@ export async function smokeDeployed({ base, api = base, fetchImpl = fetch, log =
     await r.body?.cancel();
   });
 
+  if (requireHttps) {
+    await check('https: HSTS', async () => {
+      expect(base.startsWith('https://'), 'base URL is not https');
+      const r = await get(`${base}/`);
+      await r.body?.cancel();
+      const hsts = r.headers.get('strict-transport-security') ?? '';
+      expect(/max-age=\d+/.test(hsts), 'Strict-Transport-Security missing');
+      return hsts;
+    });
+    await check('https: Secure cookies', async () => {
+      const r = await get(`${api}/api/auth/csrf`);
+      await r.body?.cancel();
+      const cookies = typeof r.headers.getSetCookie === 'function' ? r.headers.getSetCookie() : [r.headers.get('set-cookie') ?? ''];
+      const csrf = cookies.find((c) => c.startsWith('fv_csrf='));
+      expect(csrf, 'no fv_csrf cookie set');
+      expect(/;\s*secure/i.test(csrf), 'fv_csrf cookie is not Secure (COOKIE_SECURE must be true)');
+      return 'fv_csrf Secure';
+    });
+    await check('https: HTTP redirects to HTTPS', async () => {
+      const r = await get(`${base.replace(/^https:/, 'http:')}/`);
+      await r.body?.cancel();
+      const location = r.headers.get('location') ?? '';
+      expect([301, 302, 307, 308].includes(r.status) && location.startsWith('https://'), `status ${r.status}, location ${location || 'none'}`);
+    });
+  }
+
   return { ok: failures.length === 0, failures };
 }
 
@@ -75,7 +102,7 @@ if (process.argv[1]?.endsWith('smoke-deployed.mjs')) {
   const base = (arg('--base') ?? process.env.FV_SMOKE_BASE ?? 'http://localhost:8080').replace(/\/$/, '');
   const api = (arg('--api') ?? process.env.FV_SMOKE_API ?? base).replace(/\/$/, '');
   console.log(`smoke-deployed: web ${base}, api ${api}`);
-  const { ok, failures } = await smokeDeployed({ base, api });
+  const { ok, failures } = await smokeDeployed({ base, api, requireHttps: process.argv.includes('--require-https') });
   console.log(ok ? 'SMOKE (deployed) OK' : `SMOKE (deployed) FAILED: ${failures.join(', ')}`);
   process.exit(ok ? 0 : 1);
 }

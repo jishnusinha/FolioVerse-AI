@@ -13,7 +13,12 @@ if (env.NODE_ENV === 'production') {
   if (env.COOKIE_SECURE !== 'true') problems.push('COOKIE_SECURE must be true in production');
   if (env.FV_LAB_FAULTS === 'true') problems.push('FV_LAB_FAULTS must be false in production');
   if (env.STORAGE_SECRET_KEY === 'folioverse-secret') problems.push('STORAGE_SECRET_KEY uses the development default');
+  if ((env.STORAGE_PROVIDER || 's3-compatible') === 's3-compatible' && !env.STORAGE_ENDPOINT) {
+    problems.push('STORAGE_ENDPOINT is required for STORAGE_PROVIDER=s3-compatible in production');
+  }
 }
+if (env.STORAGE_PROVIDER && !['s3-compatible', 'aws'].includes(env.STORAGE_PROVIDER)) problems.push('STORAGE_PROVIDER must be s3-compatible or aws');
+if (!env.STORAGE_ACCESS_KEY !== !env.STORAGE_SECRET_KEY) problems.push('STORAGE_ACCESS_KEY and STORAGE_SECRET_KEY must be set together or both left empty');
 if (env.OPENAI_API_KEY && !env.FV_OPENAI_MODEL) problems.push('OPENAI_API_KEY is set but FV_OPENAI_MODEL is empty (no model id is assumed)');
 
 const providers = ['mock (DEMO)'];

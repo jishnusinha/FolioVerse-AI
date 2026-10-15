@@ -20,6 +20,10 @@ export class MailService {
       this.outbox.push(m);
       return;
     }
+    if (!env().FV_MAIL_ENABLED) {
+      this.log.log(`Mail disabled (FV_MAIL_ENABLED=false); not sent: subject="${m.subject}"`);
+      return;
+    }
     try {
       this.transporter ??= nodemailer.createTransport(env().SMTP_URL);
       await this.transporter.sendMail({ from: env().MAIL_FROM, ...m });

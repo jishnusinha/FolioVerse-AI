@@ -1,0 +1,19 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "OnlyIfTheSecretUsesACustomerManagedKey",
+      "Effect": "Allow",
+      "Action": "kms:Decrypt",
+      "Resource": "<SECRET_KMS_KEY_ARN>",
+      "Condition": { "StringEquals": { "kms:ViaService": "secretsmanager.<REGION>.amazonaws.com" } }
+    },
+    {
+      "Sid": "OnlyIfABucketUsesSseKmsWithACustomerManagedKey",
+      "Effect": "Allow",
+      "Action": ["kms:Decrypt", "kms:GenerateDataKey"],
+      "Resource": "<BUCKET_KMS_KEY_ARN>",
+      "Condition": { "StringEquals": { "kms:ViaService": "s3.<REGION>.amazonaws.com" } }
+    }
+  ]
+}

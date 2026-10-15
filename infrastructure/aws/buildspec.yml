@@ -1,0 +1,106 @@
+# AWS CodeBuild: test, build linux/amd64 images, check them, push immutable tags to ECR and emit the CodeDeploy bundle.
+# Project settings (README, "CodeBuild"): image aws/codebuild/standard:7.0, privileged mode ON (Docker),
+# buildspec path infrastructure/aws/buildspec.yml, service role from iam/codebuild-*.json.
+# The pipeline passes FV_GIT_COMMIT=#{SourceVariables.CommitId}; otherwise CODEBUILD_RESOLVED_SOURCE_VERSION is used.
+# No paid provider is ever called: provider keys are empty and live tests are off.
+version: 0.2
+
+env:
+  shell: bash
+  variables:
+    FV_ECR_REPO_PREFIX: folioverse
+    FV_LIVE_PROVIDER_TESTS: "0"
+    OPENAI_API_KEY: ""
+    DOCKER_BUILDKIT: "1"
+    PNPM_VERSION: "9.15.0"
+    UV_VERSION: "0.4.30"
+  exported-variables:
+    - FV_RELEASE_ID
+    - FV_GIT_COMMIT
+
+phases:
+  install:
+    runtime-versions:
+      nodejs: 22
+      python: 3.12
+    commands:
+      - set -o pipefail
+      - corepack enable
+      - corepack prepare "pnpm@${PNPM_VERSION}" --activate
+      - python -m pip install --quiet "uv==${UV_VERSION}"
+
+  pre_build:
+    commands:
+      - ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - REGION=${AWS_REGION:-$AWS_DEFAULT_REGION}
+      - FV_ECR_REGISTRY="${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com"
+      - FV_GIT_COMMIT=${FV_GIT_COMMIT:-$CODEBUILD_RESOLVED_SOURCE_VERSION}
+      - |
+        if ! [[ "$FV_GIT_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+          echo "Cannot determine the Git commit (set FV_GIT_COMMIT=#{SourceVariables.CommitId} in the pipeline)"; exit 1
+        fi
+      # Unique per build, so tag immutability never blocks a retried pipeline execution.
+      - FV_RELEASE_ID="${FV_GIT_COMMIT:0:12}-b${CODEBUILD_BUILD_NUMBER}"
+      - echo "Release ${FV_RELEASE_ID} (commit ${FV_GIT_COMMIT}) -> ${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/{api,ai,web}"
+
+      # ---- tests that gate the deployed images ----
+      - pnpm install --frozen-lockfile --filter "@folioverse/api..."
+      - pnpm --filter @folioverse/api run typecheck
+      - pnpm --filter @folioverse/api run test
+      - node --test "infrastructure/tests/*.test.mjs"
+      - uv sync --all-packages --extra dev --frozen
+      - uv run --directory apps/ai-service pytest -q
+      # ---- AWS deployment files ----
+      - for f in infrastructure/aws/scripts/*.sh infrastructure/aws/hooks/*.sh; do bash -n "$f"; done
+      - python -m py_compile infrastructure/aws/scripts/render-secrets.py
+      - |
+        CHECK_DIR=$(mktemp -d)
+        mkdir -p "$CHECK_DIR/secrets"
+        touch "$CHECK_DIR/secrets/app.env" "$CHECK_DIR/secrets/postgres.env" "$CHECK_DIR/secrets/redis.env"
+        printf 'FV_RELEASE_ID=check\nFV_API_IMAGE=api@sha256:%064d\nFV_AI_IMAGE=ai@sha256:%064d\nFV_WEB_IMAGE=web@sha256:%064d\n' 0 0 0 > "$CHECK_DIR/release.env"
+        FV_ETC_DIR="$CHECK_DIR" docker compose -f infrastructure/aws/compose.yml \
+          --env-file infrastructure/aws/config/deploy.env.example --env-file "$CHECK_DIR/release.env" --profile ops config --quiet
+        rm -rf "$CHECK_DIR"
+
+      - aws ecr get-login-password --region "$REGION" | docker login --username AWS --password-stdin "$FV_ECR_REGISTRY"
+
+  build:
+    commands:
+      - |
+        for s in api ai web; do
+          docker build --platform linux/amd64 -f "infrastructure/docker/${s}.Dockerfile" \
+            --label "org.opencontainers.image.revision=${FV_GIT_COMMIT}" \
+            --label "org.opencontainers.image.version=${FV_RELEASE_ID}" \
+            -t "${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/${s}:${FV_RELEASE_ID}" . || exit 1
+        done
+      - bash infrastructure/aws/scripts/check-images.sh "${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/api:${FV_RELEASE_ID}" "${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/ai:${FV_RELEASE_ID}" "${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/web:${FV_RELEASE_ID}"
+      - |
+        {
+          echo "# Release manifest written by CodeBuild ${CODEBUILD_BUILD_ID}"
+          echo "FV_RELEASE_ID=${FV_RELEASE_ID}"
+          echo "FV_GIT_COMMIT=${FV_GIT_COMMIT}"
+        } > release.env
+        for s in api ai web; do
+          ref="${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/${s}:${FV_RELEASE_ID}"
+          docker push --quiet "$ref" || exit 1
+          digest=$(docker image inspect --format '{{range .RepoDigests}}{{println .}}{{end}}' "$ref" | grep "^${FV_ECR_REGISTRY}/${FV_ECR_REPO_PREFIX}/${s}@sha256:" | head -n 1)
+          [[ "$digest" =~ @sha256:[0-9a-f]{64}$ ]] || { echo "no digest for $ref"; exit 1; }
+          echo "FV_${s^^}_IMAGE=${digest}" >> release.env
+        done
+        cat release.env
+      - bash infrastructure/aws/scripts/package-bundle.sh --out deploy-bundle --release-env release.env
+
+  post_build:
+    commands:
+      - |
+        if [ "${CODEBUILD_BUILD_SUCCEEDING:-0}" = 1 ]; then
+          echo "Pushed release ${FV_RELEASE_ID}; bundle ready for CodeDeploy."
+        else
+          echo "Build failed: nothing was deployed. See the phase logs above."
+        fi
+
+artifacts:
+  base-directory: deploy-bundle
+  files:
+    - "**/*"
+  discard-paths: no

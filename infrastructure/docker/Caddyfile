@@ -2,10 +2,15 @@
 	admin off
 	auto_https off
 	persist_config off
+	servers {
+		trusted_proxies static {$FV_TRUSTED_PROXIES:127.0.0.1/32}
+	}
 }
 
 # FV_API_UPSTREAM: compose uses api-http:3000; Cloud Run (lean env) sets the api-http service URL.
 # FV_OTLP_UPSTREAM: optional collector for browser spans (builds with VITE_OTEL_ENABLED=true).
+# FV_TRUSTED_PROXIES: CIDRs of a TLS edge in front of this server (AWS: the edge network). X-Forwarded-For and
+# X-Forwarded-Proto from those addresses are kept instead of being replaced with the edge's own address.
 :8080 {
 	encode zstd gzip
 

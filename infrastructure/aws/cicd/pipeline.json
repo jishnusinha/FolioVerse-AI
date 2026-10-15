@@ -1,0 +1,67 @@
+{
+  "pipeline": {
+    "name": "folioverse-staging",
+    "roleArn": "arn:aws:iam::<ACCOUNT_ID>:role/folioverse-staging-codepipeline",
+    "artifactStore": { "type": "S3", "location": "<ARTIFACT_BUCKET>" },
+    "pipelineType": "V2",
+    "executionMode": "QUEUED",
+    "stages": [
+      {
+        "name": "Source",
+        "actions": [
+          {
+            "name": "GitHub",
+            "namespace": "SourceVariables",
+            "actionTypeId": { "category": "Source", "owner": "AWS", "provider": "CodeStarSourceConnection", "version": "1" },
+            "configuration": {
+              "ConnectionArn": "<CONNECTION_ARN>",
+              "FullRepositoryId": "<GITHUB_REPOSITORY>",
+              "BranchName": "<BRANCH>",
+              "OutputArtifactFormat": "CODE_ZIP"
+            },
+            "outputArtifacts": [{ "name": "SourceArtifact" }],
+            "runOrder": 1
+          }
+        ]
+      },
+      {
+        "name": "Build",
+        "actions": [
+          {
+            "name": "TestBuildPush",
+            "namespace": "BuildVariables",
+            "actionTypeId": { "category": "Build", "owner": "AWS", "provider": "CodeBuild", "version": "1" },
+            "configuration": {
+              "ProjectName": "folioverse-staging-build",
+              "EnvironmentVariables": "[{\"name\":\"FV_GIT_COMMIT\",\"value\":\"#{SourceVariables.CommitId}\",\"type\":\"PLAINTEXT\"}]"
+            },
+            "inputArtifacts": [{ "name": "SourceArtifact" }],
+            "outputArtifacts": [{ "name": "BuildArtifact" }],
+            "runOrder": 1
+          }
+        ]
+      },
+      {
+        "name": "Deploy",
+        "actions": [
+          {
+            "name": "EC2",
+            "actionTypeId": { "category": "Deploy", "owner": "AWS", "provider": "CodeDeploy", "version": "1" },
+            "configuration": { "ApplicationName": "folioverse-staging", "DeploymentGroupName": "folioverse-staging-ec2" },
+            "inputArtifacts": [{ "name": "BuildArtifact" }],
+            "runOrder": 1
+          }
+        ]
+      }
+    ],
+    "triggers": [
+      {
+        "providerType": "CodeStarSourceConnection",
+        "gitConfiguration": {
+          "sourceActionName": "GitHub",
+          "push": [{ "branches": { "includes": ["<BRANCH>"] } }]
+        }
+      }
+    ]
+  }
+}

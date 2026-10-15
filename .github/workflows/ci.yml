@@ -200,6 +200,11 @@ jobs:
             -e FV_API_UPSTREAM=127.0.0.1:9 -p 8080:8080 folioverse/web:ci
           for _ in $(seq 1 30); do curl -sf http://localhost:8080/healthz && exit 0; sleep 1; done
           docker logs web; exit 1
+      - name: Isolated runtime import, offline (no editable install, models baked in)
+        if: matrix.image == 'ai'
+        run: |
+          docker run --rm --network none --read-only --tmpfs /tmp -w / --entrypoint python folioverse/ai:ci \
+            -I -c "import folioverse_ai.serve, folioverse_ml; print('imports ok')"
       - name: SBOM (SPDX)
         uses: anchore/sbom-action@v0
         with:
@@ -242,6 +247,17 @@ jobs:
         run: docker run --rm -e FV_OTLP_UPSTREAM=http://localhost:4318 -v "$PWD/infrastructure/otel:/cfg:ro" otel/opentelemetry-collector-contrib:0.111.0 validate --config=/cfg/collector.yaml
       - name: Caddyfile
         run: docker run --rm -v "$PWD/infrastructure/docker/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: AWS staging Compose project (dummy secrets and manifest; nothing is printed)
+        run: |
+          d=$(mktemp -d); mkdir -p "$d/secrets"; touch "$d/secrets/app.env" "$d/secrets/postgres.env" "$d/secrets/redis.env"
+          z=$(printf '%064d' 0)
+          printf 'FV_RELEASE_ID=ci\nFV_API_IMAGE=r/api@sha256:%s\nFV_AI_IMAGE=r/ai@sha256:%s\nFV_WEB_IMAGE=r/web@sha256:%s\n' "$z" "$z" "$z" > "$d/release.env"
+          FV_ETC_DIR="$d" docker compose -f infrastructure/aws/compose.yml --env-file infrastructure/aws/config/deploy.env.example \
+            --env-file "$d/release.env" --profile ops config --quiet
+      - name: AWS edge Caddyfile
+        run: docker run --rm -e FV_DOMAIN=staging.example.com -e FV_ACME_EMAIL=ops@example.com -v "$PWD/infrastructure/aws/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+      - name: ShellCheck (AWS host scripts and hooks)
+        run: docker run --rm -v "$PWD:/mnt" -w /mnt koalaman/shellcheck:v0.10.0 -x -P infrastructure/aws/scripts infrastructure/aws/scripts/*.sh infrastructure/aws/hooks/*.sh
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8, terraform_wrapper: false }
       - name: Terraform fmt and validate (no backend, no credentials)

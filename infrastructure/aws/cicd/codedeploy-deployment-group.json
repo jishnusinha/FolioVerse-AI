@@ -1,0 +1,16 @@
+{
+  "applicationName": "folioverse-staging",
+  "deploymentGroupName": "folioverse-staging-ec2",
+  "serviceRoleArn": "arn:aws:iam::<ACCOUNT_ID>:role/folioverse-staging-codedeploy",
+  "deploymentConfigName": "CodeDeployDefault.OneAtATime",
+  "deploymentStyle": { "deploymentType": "IN_PLACE", "deploymentOption": "WITHOUT_TRAFFIC_CONTROL" },
+  "ec2TagFilters": [{ "Key": "FolioVerseDeploy", "Value": "staging", "Type": "KEY_AND_VALUE" }],
+  "autoRollbackConfiguration": { "enabled": true, "events": ["DEPLOYMENT_FAILURE"] },
+  "triggerConfigurations": [
+    {
+      "triggerName": "folioverse-staging-deployments",
+      "triggerTargetArn": "arn:aws:sns:<REGION>:<ACCOUNT_ID>:folioverse-staging-deployments",
+      "triggerEvents": ["DeploymentFailure", "DeploymentRollback", "DeploymentSuccess"]
+    }
+  ]
+}

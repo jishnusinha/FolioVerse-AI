@@ -1,0 +1,75 @@
+# Build context for infrastructure/docker/*.Dockerfile (context = repository root).
+# Keep every path those Dockerfiles COPY: lockfiles, package.json files, packages/*, apps/* sources, docs/,
+# infrastructure/runbooks, infrastructure/docker/Caddyfile, config/models, datasets/, pyproject.toml, uv.lock.
+
+# VCS, editor and agent state
+.git
+.gitignore
+.gitattributes
+.github
+.cursor
+.vscode
+.idea
+**/.DS_Store
+
+# Credentials and local configuration (never part of an image)
+.env
+.env.*
+!.env.example
+**/*.pem
+**/*.key
+**/*.p12
+**/*.pfx
+**/credentials
+**/credentials.json
+**/*service-account*.json
+.aws
+.npmrc.local
+
+# Dependencies and virtual environments (images install from the lockfiles)
+**/node_modules
+**/.venv
+**/venv
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+
+# Generated builds and caches (rebuilt inside the images)
+**/dist
+**/dist-worker
+**/coverage
+**/.turbo
+**/.vite
+**/.astro
+apps/docs/src/content/docs
+apps/docs/public/media
+apps/docs/csp
+*.log
+**/*.log
+
+# Infrastructure-as-code state and deployment configuration
+**/.terraform
+**/*.tfstate
+**/*.tfstate.*
+**/*.tfvars
+**/*.auto.tfvars
+**/crash*.log
+infrastructure/terraform
+infrastructure/perf/results
+infrastructure/aws/config/*.env
+!infrastructure/aws/config/*.example
+
+# Local data, test output and notebooks (not image inputs)
+.data
+backups
+apps/api/uploads
+playwright-report
+**/test-results
+apps/web/playwright/.auth
+notebook-runs
+ml-notebooks
+datasets/evaluation/results/smoke
+datasets/evaluation/results/*.tmp

@@ -1,0 +1,69 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrAuthTokenAccountWide",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "EcrPullFolioVerseImages",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchGetImage",
+        "ecr:GetDownloadUrlForLayer",
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:DescribeImages"
+      ],
+      "Resource": [
+        "arn:aws:ecr:<REGION>:<ACCOUNT_ID>:repository/folioverse/api",
+        "arn:aws:ecr:<REGION>:<ACCOUNT_ID>:repository/folioverse/ai",
+        "arn:aws:ecr:<REGION>:<ACCOUNT_ID>:repository/folioverse/web"
+      ]
+    },
+    {
+      "Sid": "ReadTheApplicationSecretOnly",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret"],
+      "Resource": "<SECRET_ARN>"
+    },
+    {
+      "Sid": "DocumentBucketList",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::<DOCUMENTS_BUCKET>"
+    },
+    {
+      "Sid": "DocumentObjects",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+      "Resource": "arn:aws:s3:::<DOCUMENTS_BUCKET>/*"
+    },
+    {
+      "Sid": "DeploymentArtifactsRead",
+      "Effect": "Allow",
+      "Action": ["s3:GetObject", "s3:GetObjectVersion"],
+      "Resource": "arn:aws:s3:::<ARTIFACT_BUCKET>/*"
+    },
+    {
+      "Sid": "DeploymentArtifactsList",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::<ARTIFACT_BUCKET>"
+    },
+    {
+      "Sid": "BackupsWriteAndRead",
+      "Effect": "Allow",
+      "Action": ["s3:PutObject", "s3:GetObject"],
+      "Resource": "arn:aws:s3:::<BACKUP_BUCKET>/folioverse/*"
+    },
+    {
+      "Sid": "BackupsList",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::<BACKUP_BUCKET>",
+      "Condition": { "StringLike": { "s3:prefix": ["folioverse/", "folioverse/*"] } }
+    }
+  ]
+}

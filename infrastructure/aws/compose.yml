@@ -1,0 +1,296 @@
+# FolioVerse AWS staging stack: one EC2 host, Docker Compose v2. Run only through scripts/deploy.sh, which passes
+#   --env-file /etc/folioverse/deploy.env      (non-secret host settings; see config/deploy.env.example)
+#   --env-file <release>/release.env           (image digests written by CodeBuild or scripts/stage-release.sh)
+# Secrets never pass through interpolation: containers read root-only env files rendered from Secrets Manager
+# by scripts/load-secrets.sh, so `docker compose config` cannot print them.
+#
+# Only `edge` publishes ports (80, 443). Data lives under FV_DATA_DIR on the separately mounted EBS volume; bind
+# mounts use create_host_path: false, so a missing mount fails instead of writing to the root disk.
+name: folioverse
+
+x-logging: &logging
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5", tag: "{{.Name}}" }
+
+x-app-env: &app-env
+  NODE_ENV: production
+  APP_ORIGIN: https://${FV_DOMAIN:?FV_DOMAIN is required}
+  COOKIE_SECURE: "true"
+  FV_LAB_FAULTS: "false"
+  # Client -> edge Caddy -> web Caddy -> API.
+  FV_TRUST_PROXY_HOPS: "2"
+  QDRANT_URL: http://qdrant:6333
+  FV_AI_API_URL: http://ai-api:8000
+  FV_AI_INGEST_URL: http://ai-ingest:8001
+  STORAGE_PROVIDER: aws
+  STORAGE_REGION: ${AWS_REGION:?AWS_REGION is required}
+  STORAGE_BUCKET: ${FV_DOCUMENTS_BUCKET:?FV_DOCUMENTS_BUCKET is required}
+  AWS_REGION: ${AWS_REGION}
+  FV_UPLOAD_MODE: proxy
+  FV_MAX_UPLOAD_MB: ${FV_MAX_UPLOAD_MB:-64}
+  FV_MAIL_ENABLED: ${FV_MAIL_ENABLED:-false}
+  MAIL_FROM: ${FV_MAIL_FROM:-FolioVerse <no-reply@folioverse.invalid>}
+  FV_ALLOW_REGISTRATION: ${FV_ALLOW_REGISTRATION:-true}
+  FV_SEED_ADMIN_EMAIL: ${FV_SEED_ADMIN_EMAIL:-}
+  FV_DEFAULT_MONTHLY_BUDGET: ${FV_DEFAULT_MONTHLY_BUDGET:-5.00}
+  FV_DEMO_CATALOG: ${FV_DEMO_CATALOG:-false}
+  FV_CHECKPOINTER: postgres
+  FV_EMBEDDER: fastembed
+  FV_RERANK: "false"
+  LOG_LEVEL: ${FV_LOG_LEVEL:-info}
+  FV_RELEASE_ID: ${FV_RELEASE_ID:?FV_RELEASE_ID is required (release manifest)}
+  OTEL_EXPORTER_OTLP_ENDPOINT: ""
+
+x-app-secrets: &app-secrets
+  env_file: ["${FV_ETC_DIR:-/etc/folioverse}/secrets/app.env"]
+
+# Application containers: non-root images, read-only root filesystem, no capabilities, tini as PID 1.
+x-hardened: &hardened
+  read_only: true
+  tmpfs: ["/tmp:size=512m"]
+  cap_drop: [ALL]
+  security_opt: ["no-new-privileges:true"]
+  init: true
+  restart: unless-stopped
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    <<: *logging
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: folioverse
+      POSTGRES_DB: folioverse
+    env_file: ["${FV_ETC_DIR:-/etc/folioverse}/secrets/postgres.env"]
+    shm_size: 256m
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - type: bind
+        source: ${FV_DATA_DIR:?FV_DATA_DIR is required}/postgres
+        target: /var/lib/postgresql/data
+        bind: { create_host_path: false }
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U folioverse -d folioverse"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 30s
+    stop_grace_period: 60s
+
+  redis:
+    image: redis:7-alpine
+    <<: *logging
+    restart: unless-stopped
+    env_file: ["${FV_ETC_DIR:-/etc/folioverse}/secrets/redis.env"]
+    # The password goes into a config file inside the container rather than onto the command line.
+    entrypoint: ["sh", "-c", "umask 077 && printf 'requirepass %s\\n' \"$$REDIS_PASSWORD\" > /tmp/redis.conf && chown redis /tmp/redis.conf && exec docker-entrypoint.sh /tmp/redis.conf --appendonly yes --appendfsync everysec --maxmemory-policy noeviction"]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      - type: bind
+        source: ${FV_DATA_DIR}/redis
+        target: /data
+        bind: { create_host_path: false }
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    stop_grace_period: 30s
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    <<: *logging
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - type: bind
+        source: ${FV_DATA_DIR}/qdrant
+        target: /qdrant/storage
+        bind: { create_host_path: false }
+      - type: bind
+        source: ${FV_DATA_DIR}/qdrant-snapshots
+        target: /qdrant/snapshots
+        bind: { create_host_path: false }
+    networks: [data]
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    stop_grace_period: 60s
+
+  # One-off jobs (profile ops): scripts/deploy.sh runs them in order, never concurrently (flock).
+  migrate:
+    profiles: [ops]
+    image: ${FV_API_IMAGE:?FV_API_IMAGE is required (release manifest)}
+    <<: [*hardened, *logging, *app-secrets]
+    restart: "no"
+    environment: *app-env
+    command: ["node_modules/.bin/prisma", "migrate", "deploy"]
+    healthcheck: { disable: true }
+    networks: [data]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  seed:
+    profiles: [ops]
+    image: ${FV_API_IMAGE}
+    <<: [*hardened, *logging, *app-secrets]
+    restart: "no"
+    environment: *app-env
+    command: ["node", "dist/prisma/seed.js"]
+    healthcheck: { disable: true }
+    networks: [data]
+    depends_on:
+      postgres: { condition: service_healthy }
+
+  api-http:
+    image: ${FV_API_IMAGE}
+    <<: [*hardened, *logging, *app-secrets]
+    environment:
+      <<: *app-env
+      FV_SERVICE_NAME: api-http
+      PORT: "3000"
+    command: ["node", "dist/src/main.js"]
+    networks: [app, data]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    stop_grace_period: 30s
+
+  api-worker:
+    image: ${FV_API_IMAGE}
+    <<: [*hardened, *logging, *app-secrets]
+    environment:
+      <<: *app-env
+      FV_SERVICE_NAME: api-worker
+      FV_WORKER_HEALTH_PORT: "3001"
+    command: ["node", "dist/src/worker.js"]
+    networks: [app, data]
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3001/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+    # In-flight BullMQ jobs get time to finish; unfinished ones are retried after restart.
+    stop_grace_period: 90s
+
+  ai-api:
+    image: ${FV_AI_IMAGE:?FV_AI_IMAGE is required (release manifest)}
+    <<: [*hardened, *logging, *app-secrets]
+    environment:
+      <<: *app-env
+      ROLE: api
+      PORT: "8000"
+    command: ["python", "-m", "folioverse_ai.serve"]
+    networks: [app, data]
+    depends_on:
+      postgres: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=4).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    stop_grace_period: 30s
+
+  ai-ingest:
+    image: ${FV_AI_IMAGE}
+    <<: [*hardened, *logging, *app-secrets]
+    environment:
+      <<: *app-env
+      ROLE: ingest
+      PORT: "8001"
+    command: ["python", "-m", "folioverse_ai.serve"]
+    networks: [app, data]
+    depends_on:
+      postgres: { condition: service_healthy }
+      qdrant: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8001/readyz', timeout=4).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 120s
+    stop_grace_period: 60s
+
+  # Static SPA, /docs and the /api reverse proxy (unchanged image and Caddyfile). Not published.
+  web:
+    image: ${FV_WEB_IMAGE:?FV_WEB_IMAGE is required (release manifest)}
+    <<: [*hardened, *logging]
+    environment:
+      FV_API_UPSTREAM: api-http:3000
+      FV_TRUSTED_PROXIES: ${FV_EDGE_SUBNET:-10.250.250.0/24}
+    networks: [edge, app]
+    depends_on:
+      api-http: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 12
+    stop_grace_period: 15s
+
+  # TLS edge: Let's Encrypt certificates for FV_DOMAIN, HTTP->HTTPS redirect, HSTS, streaming proxy to web.
+  edge:
+    image: caddy:2.11-alpine
+    <<: *logging
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    security_opt: ["no-new-privileges:true"]
+    environment:
+      FV_DOMAIN: ${FV_DOMAIN}
+      FV_ACME_EMAIL: ${FV_ACME_EMAIL:?FV_ACME_EMAIL is required}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - type: bind
+        source: ${FV_DATA_DIR}/caddy/data
+        target: /data
+        bind: { create_host_path: false }
+      - type: bind
+        source: ${FV_DATA_DIR}/caddy/config
+        target: /config
+        bind: { create_host_path: false }
+    networks: [edge]
+    depends_on:
+      web: { condition: service_started }
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8081/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+    stop_grace_period: 15s
+
+networks:
+  # Edge <-> web only. Fixed subnet so web Caddy can trust X-Forwarded-* from the edge (FV_TRUSTED_PROXIES).
+  edge:
+    ipam:
+      config:
+        - subnet: ${FV_EDGE_SUBNET:-10.250.250.0/24}
+  # Application traffic with outbound internet (S3, signed URL downloads, optional OpenAI).
+  app: {}
+  # Postgres, Redis, Qdrant: no outbound internet, no published ports.
+  data:
+    internal: true

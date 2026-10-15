@@ -1,0 +1,31 @@
+# TLS edge for the AWS staging host (infrastructure/aws/compose.yml, service `edge`).
+# Obtains and renews the certificate for FV_DOMAIN (DNS A record -> the Elastic IP; ports 80 and 443 open),
+# redirects HTTP to HTTPS and proxies everything to the web container, which keeps the application's routes,
+# /docs, security headers and the /api proxy. Certificates persist in /data on the EBS data volume.
+{
+	email {$FV_ACME_EMAIL}
+	admin off
+	persist_config off
+	servers {
+		# No HTTP/3: only TCP 80/443 are opened in the security group.
+		protocols h1 h2
+	}
+}
+
+{$FV_DOMAIN} {
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		-Server
+	}
+
+	# Request bodies are not limited here; the API enforces FV_MAX_UPLOAD_MB.
+	reverse_proxy web:8080 {
+		# Server-sent events (/api/.../events, run streams) must not be buffered.
+		flush_interval -1
+	}
+}
+
+# Container health check only; this port is not published.
+:8081 {
+	respond /healthz 200
+}

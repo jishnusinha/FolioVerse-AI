@@ -1,0 +1,20 @@
+{
+  "name": "folioverse-staging-build",
+  "description": "FolioVerse: tests, linux/amd64 images to ECR (immutable tags), CodeDeploy bundle",
+  "source": { "type": "CODEPIPELINE", "buildspec": "infrastructure/aws/buildspec.yml" },
+  "artifacts": { "type": "CODEPIPELINE" },
+  "environment": {
+    "type": "LINUX_CONTAINER",
+    "image": "aws/codebuild/standard:7.0",
+    "computeType": "BUILD_GENERAL1_MEDIUM",
+    "privilegedMode": true,
+    "imagePullCredentialsType": "CODEBUILD"
+  },
+  "serviceRole": "arn:aws:iam::<ACCOUNT_ID>:role/folioverse-staging-codebuild",
+  "timeoutInMinutes": 90,
+  "queuedTimeoutInMinutes": 120,
+  "cache": { "type": "LOCAL", "modes": ["LOCAL_DOCKER_LAYER_CACHE", "LOCAL_SOURCE_CACHE"] },
+  "logsConfig": {
+    "cloudWatchLogs": { "status": "ENABLED", "groupName": "/aws/codebuild/folioverse-staging-build" }
+  }
+}
