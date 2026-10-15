@@ -43,7 +43,9 @@ Build host: Windows 11, Node 22 (24 from Gate 5), pnpm 9.15, Python 3.12, Docker
   (`jishnusinha/FolioVerse-AI`). First real runs (`b30af40`, `d7346cc`, `c1c80f5`): `changes`, `security`, `node`,
   `docs`, `ai` and `web-e2e` pass; `docker (web|api|ai)` and `infra` failed at "Install Trivy" (pinned v0.58.1 was
   withdrawn upstream); `api-integration` never finished (storage not ready, then Jest held open handles). Fixed in
-  D-140; DONE once a run on the fix commit is green.
+  D-140. The run on `ac40d50` passed everything except `docker (web|api)` at the CRITICAL vulnerability gate
+  (stale `caddy:2.8-alpine`, bookworm `perl-base`); base images updated in D-141. DONE once a run on the fix
+  commit is green.
 - `FV-G00-STAT-013` Planning files — DONE. `MASTER_IMPLEMENTATION_PLAN.md`, this file, `DECISION_LOG.md`.
 
 Gate summary: the backend vertical slice works end to end locally with the mock provider. Open items carried
@@ -603,7 +605,9 @@ Tasks:
 - `FV-G13-PROD-012` Product features & ingestion states — DONE (D-130, D-136, D-137). Implemented functional settings tabs (Profile, Workspace, Models, Privacy, Notifications), collection renaming in Library, inline note editing in Reader, chunked multipart upload with automatic 5MB slicing in web client and API endpoints, `--dry-run` and `--on-conflict` in catalog importer with unit tests, bounded OCR fallback (10 pages) in `parsers.py`, and clean separation of `QUARANTINED` (corrupted files / decode errors) vs `FAILED` (clean empty text) ingestion status in `pipeline.py`.
 
 ## Known remaining acceptance gaps (Gate 13)
-- CI Trivy action SHA `18f2510` referenced a scrubbed `setup-trivy@v0.2.2` transitive dependency; replaced with direct CLI install (D-139), then with a checksum-pinned v0.75.0 tarball because v0.58.1 was withdrawn too (D-140).
+- CI Trivy action SHA `18f2510` referenced a scrubbed `setup-trivy@v0.2.2` transitive dependency; replaced with direct CLI install (D-139), then with a checksum-pinned v0.75.0 tarball because v0.58.1 was withdrawn too (D-140). The first real image scan
+  then failed `web` and `api` on fixable CRITICAL CVEs in their base images; bumped to `caddy:2.11-alpine` and
+  `node:22-trixie-slim` (D-141).
 - Invitation endpoint corrected from `/invites` to `/invitations` (D-139).
 - Budget pre-check uses primary-model prices for all attempts including fallbacks; per-attempt price lookup not yet implemented (tracked).
 - `run_create` p95 target (<1 s) and `sse_stream` p95 target (<10 s) at 50 concurrent clients remain MISSED on single-machine dev hardware — no fix found without horizontal scaling (D-126).

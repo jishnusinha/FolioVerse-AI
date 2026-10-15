@@ -1,7 +1,8 @@
 # syntax=docker/dockerfile:1.7
 # NestJS API (http + worker + migrate share this image). Non-root, production dependencies only,
 # runs on a read-only root filesystem (writable /tmp only).
-FROM node:22-slim AS base
+# Debian 13 (trixie): the bookworm variant carries fixable CRITICAL perl-base CVEs.
+FROM node:22-trixie-slim AS base
 ENV PNPM_HOME=/pnpm PATH=/pnpm:$PATH CI=1
 RUN corepack enable && apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /repo
@@ -21,9 +22,9 @@ RUN cd apps/api && npx prisma generate && npx nest build
 # The Prisma CLI is a production dependency so the migrate job runs the locked version offline.
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --filter @folioverse/api deploy --prod /out && cp -r apps/api/dist /out/dist && cd /out && node_modules/.bin/prisma generate
 
-FROM node:22-slim AS runtime
+FROM node:22-trixie-slim AS runtime
 # npm, npx and corepack are not needed at runtime; removing them shrinks the scanned surface.
-RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/* \
+RUN apt-get update && apt-get upgrade -y && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/* \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/lib/node_modules/corepack /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 ENV NODE_ENV=production FV_SKIP_DOTENV=1 HOME=/tmp CHECKPOINT_DISABLE=1 PRISMA_HIDE_UPDATE_MESSAGE=1 \
     FV_MODEL_REGISTRY_SEED=/app/config/models/registry.seed.yaml \

@@ -797,6 +797,21 @@ ADR-lite entries. Each records a deviation from, or refinement of, the frozen de
   claimed green until a GitHub run on this commit says so. The CRITICAL image-vulnerability gate runs for the first
   time and may surface findings that need base-image updates.
 
+## D-141 Base images that pass the CRITICAL vulnerability gate
+- Context: The run on `ac40d50` passed every job except `docker (web)` and `docker (api)`, both at "Vulnerabilities
+  (CRITICAL with a fix, gate)". Reproduced with Trivy 0.75.0 against the registry images: `caddy:2.8-alpine` is
+  Alpine 3.20.4 (end of life) with CRITICAL fixed CVEs in `libcrypto3`/`libssl3` (CVE-2026-31789) and in the Caddy
+  binary (`smallstep/certificates`, `grpc`, Go stdlib 1.22.3); `node:22-slim` is Debian 12 with three CRITICAL
+  `perl-base` CVEs fixed in `5.36.0-7+deb12u4`. No application npm or Python package was flagged.
+- Decision: The web runtime uses `caddy:2.11-alpine` (Alpine 3.23, clean) and runs `apk upgrade` before stripping
+  Caddy's file capability (`libcap` still provides `setcap` via `libcap-utils`). The API build and runtime stages use
+  `node:22-trixie-slim` (Debian 13, clean); the runtime stage runs `apt-get upgrade` so Debian security fixes land
+  between upstream image rebuilds. Prisma's `debian-openssl-3.0.x` target covers trixie's OpenSSL 3.5. The `infra`
+  job validates the Caddyfile with the same Caddy version. Refines D-001 (Node 22 stays; only the Debian release
+  changes).
+- Consequences: `trivy config` on `infrastructure/` stays clean. A pinned minor tag (`2.8`) stops receiving rebuilds
+  once upstream moves on, so the Caddy minor needs bumping when the gate reports it again.
+
 ## D-016 Web route paths follow the prototype
 - Context: Section O of the plan abbreviates routes (`/app/knowledge/:projectId/doc/:sourceId`, `/app/library/read/:itemId`, `/app/discover/lab`), while `design-prototype/index.html` (Prompt 3) uses `/app/knowledge/projects/:projectId/documents/:sourceId`, `/app/library/books/:itemId/read`, `/app/discover/recommendation-lab`.
 - Decision: `src/app/routes.js` follows the prototype paths (the plan says routes mirror Prompt 3 Part D) and adds the plan-only routes: `/auth/*`, `/reset-password`, `/verify-email` (links sent by the API mailer), `/app/writer/manuscripts/:id/continuity`, `/app/admin/pricing`, `/app/admin/models`. Gate 2 adds `/accept-invite` (invitation emails) and `/app/knowledge/trash`.

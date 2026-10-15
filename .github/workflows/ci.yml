@@ -241,7 +241,7 @@ jobs:
       - name: OpenTelemetry collector config
         run: docker run --rm -e FV_OTLP_UPSTREAM=http://localhost:4318 -v "$PWD/infrastructure/otel:/cfg:ro" otel/opentelemetry-collector-contrib:0.111.0 validate --config=/cfg/collector.yaml
       - name: Caddyfile
-        run: docker run --rm -v "$PWD/infrastructure/docker/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.8-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+        run: docker run --rm -v "$PWD/infrastructure/docker/Caddyfile:/etc/caddy/Caddyfile:ro" caddy:2.11-alpine caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
       - uses: hashicorp/setup-terraform@v3
         with: { terraform_version: 1.9.8, terraform_wrapper: false }
       - name: Terraform fmt and validate (no backend, no credentials)

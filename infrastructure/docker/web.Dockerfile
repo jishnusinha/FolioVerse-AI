@@ -27,10 +27,10 @@ COPY apps/web apps/web
 COPY apps/docs apps/docs
 RUN pnpm --filter @folioverse/web run build && pnpm --filter @folioverse/docs run build
 
-FROM caddy:2.8-alpine
+FROM caddy:2.11-alpine
 # The stock binary carries cap_net_bind_service, which cannot be granted under no-new-privileges
 # with all capabilities dropped; :8080 does not need it.
-RUN apk add --no-cache libcap && setcap -r /usr/bin/caddy && apk del libcap
+RUN apk upgrade --no-cache && apk add --no-cache libcap && setcap -r /usr/bin/caddy && apk del libcap
 ENV XDG_CONFIG_HOME=/tmp/caddy/config XDG_DATA_HOME=/tmp/caddy/data
 COPY infrastructure/docker/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /repo/apps/docs/csp/docs-csp.caddy /etc/caddy/docs-csp.caddy
